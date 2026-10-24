@@ -1,3 +1,4 @@
+/** Block types of the Nimbus-style flat format, used for sample pages, Markdown paste and the Nimbus import. */
 export type BlockType =
   | 'text'
   | 'h1'
@@ -21,17 +22,6 @@ export interface BlockProps {
   src?: string
   caption?: string
   pageId?: string
-}
-
-export interface Block {
-  id: string
-  pageId: string
-  type: BlockType
-  /** Inline HTML (sanitized) for rich blocks; raw source for code blocks. */
-  text: string
-  props: BlockProps
-  /** Fractional index sort key. */
-  key: string
 }
 
 export interface Page {

@@ -7,7 +7,7 @@
 //!  2. encode exactly what changed           (one yrs update, v1 encoding)
 //!  3. in ONE SQLite transaction:
 //!       append the update to `updates`      (truth)
-//!       re-project the page into the index  (blocks / props / refs / db_rows)
+//!       re-project the page into the index  (pages / blocks / props / refs / tags)
 //!  4. emit an event on the bus              (subscribers re-query)
 //! ```
 //!
@@ -15,7 +15,7 @@
 //! the log after a successful write.
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 use std::time::{Duration, Instant};
 
@@ -26,12 +26,13 @@ use yrs::{Doc, ReadTxn, StateVector, Transact, Update};
 use crate::doc::{self, BlockTxn};
 use crate::error::{Error, Result};
 use crate::events::{Event, EventBus, Origin};
-use crate::index::{self, IndexDump};
-use crate::schema::{keys, new_id, BlockId, PageId, PageSnapshot};
+use crate::index::{self, IndexDump, PageTimes};
+use crate::schema::{new_id, PageId, PageMeta, PageMetaPatch, PageSnapshot};
 use crate::store;
 
 pub struct Core {
     conn: Connection,
+    path: Option<PathBuf>,
     /// Loaded pages. A cache only: any entry can be evicted and replayed from the log.
     docs: HashMap<PageId, Doc>,
     bus: EventBus,
@@ -48,7 +49,9 @@ pub struct RebuildReport {
 impl Core {
     /// Open (or create) a workspace database file.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
-        Self::init(Connection::open(path)?)
+        let mut core = Self::init(Connection::open(path.as_ref())?)?;
+        core.path = Some(path.as_ref().to_path_buf());
+        Ok(core)
     }
 
     pub fn open_in_memory() -> Result<Self> {
@@ -60,6 +63,7 @@ impl Core {
         index::create_tables(&conn)?;
         let mut core = Self {
             conn,
+            path: None,
             docs: HashMap::new(),
             bus: EventBus::default(),
         };
@@ -67,30 +71,79 @@ impl Core {
         Ok(core)
     }
 
+    /// The database file, if this core is backed by one.
+    pub fn path(&self) -> Option<&Path> {
+        self.path.as_deref()
+    }
+
     // ------------------------------------------------------------------ writes
 
-    /// Create a new page: a Y.Doc whose root block is the page itself.
-    pub fn create_page(&mut self, title: &str) -> Result<PageId> {
-        let page_id = new_id();
+    /// Create a page with a fresh id. It starts with one note holding one empty paragraph.
+    pub fn create_page(&mut self, meta: PageMeta) -> Result<PageId> {
+        self.create_page_with_id(&new_id(), meta)
+    }
+
+    /// Create a page with an id chosen by the caller (the UI picks ids so it can show the
+    /// page before the write returns).
+    pub fn create_page_with_id(&mut self, page_id: &str, meta: PageMeta) -> Result<PageId> {
+        if store::page_exists(&self.conn, page_id)? {
+            return Err(Error::Invalid(format!("page {page_id} already exists")));
+        }
         let doc = Doc::new();
-        doc::init_page(&doc, &page_id, title);
+        doc::init_page(&doc, page_id, &meta);
         let update = doc
             .transact()
             .encode_state_as_update_v1(&StateVector::default());
-        let snap = doc::snapshot(&doc, &page_id)?;
+        let snap = doc::snapshot(&doc, page_id)?;
 
         let tx = self.conn.transaction()?;
-        store::insert_page(&tx, &page_id)?;
-        let seq = store::append_update(&tx, &page_id, &update)?;
-        index::project_page(&tx, &snap, seq)?;
+        store::insert_page(&tx, page_id)?;
+        let seq = store::append_update(&tx, page_id, &update)?;
+        let (created_at, updated_at) = store::page_times(&tx, page_id)?;
+        index::project_page(
+            &tx,
+            &snap,
+            seq,
+            &PageTimes {
+                created_at,
+                updated_at,
+            },
+        )?;
         tx.commit()?;
 
-        self.docs.insert(page_id.clone(), doc);
+        self.docs.insert(page_id.to_string(), doc);
         self.bus.emit(Event::PageCreated {
-            page_id: page_id.clone(),
+            page_id: page_id.to_string(),
             seq,
         });
-        Ok(page_id)
+        Ok(page_id.to_string())
+    }
+
+    /// Change page metadata (title, icon, parent, sort key, favorite, archived, trashed).
+    pub fn update_page(&mut self, page_id: &str, patch: &PageMetaPatch) -> Result<()> {
+        self.transact(page_id, |tx| {
+            tx.set_meta(patch);
+            Ok(())
+        })
+    }
+
+    /// Permanently delete pages: their logs and their index rows. Trash is just
+    /// `trashed_at` in the metadata; this is "delete forever".
+    pub fn delete_pages(&mut self, ids: &[String]) -> Result<()> {
+        let tx = self.conn.transaction()?;
+        for id in ids {
+            store::delete_page(&tx, id)?;
+            index::clear_page(&tx, id)?;
+            tx.execute("DELETE FROM index_state WHERE page_id = ?1", [id])?;
+        }
+        tx.commit()?;
+        for id in ids {
+            self.docs.remove(id);
+            self.bus.emit(Event::PageDeleted {
+                page_id: id.clone(),
+            });
+        }
+        Ok(())
     }
 
     /// Run block operations on a page as one transaction.
@@ -105,11 +158,11 @@ impl Core {
         self.ensure_loaded(page_id)?;
         let doc = &self.docs[page_id];
         let before = doc.transact().state_vector();
-        let blocks = doc.get_or_insert_map(keys::BLOCKS);
+        let maps = doc::doc_maps(doc);
 
         let result = {
             let mut txn = doc.transact_mut();
-            let mut btx = BlockTxn::new(&mut txn, blocks, page_id.to_string());
+            let mut btx = BlockTxn::new(&mut txn, maps, page_id.to_string());
             f(&mut btx)
         };
         let value = match result {
@@ -152,7 +205,16 @@ impl Core {
             let snap = doc::snapshot(&self.docs[page_id], page_id)?;
             let tx = self.conn.transaction()?;
             let seq = store::append_update(&tx, page_id, update)?;
-            index::project_page(&tx, &snap, seq)?;
+            let (created_at, updated_at) = store::page_times(&tx, page_id)?;
+            index::project_page(
+                &tx,
+                &snap,
+                seq,
+                &PageTimes {
+                    created_at,
+                    updated_at,
+                },
+            )?;
             tx.commit()?;
             Ok(seq)
         })();
@@ -203,11 +265,7 @@ impl Core {
         let pages = store::page_ids(&tx)?;
         for page_id in &pages {
             updates_replayed += store::load_updates(&tx, page_id)?.len();
-            let doc = store::load_doc(&tx, page_id)?;
-            let snap = doc::snapshot(&doc, page_id)?;
-            blocks += snap.blocks.len();
-            let seq = store::last_seq(&tx, page_id)?;
-            index::project_page(&tx, &snap, seq)?;
+            blocks += Self::reproject(&tx, page_id)?;
         }
         tx.commit()?;
 
@@ -220,9 +278,37 @@ impl Core {
         })
     }
 
+    /// Replay one page from the log and project it. Returns its block count.
+    fn reproject(tx: &rusqlite::Transaction, page_id: &str) -> Result<usize> {
+        let doc = store::load_doc(tx, page_id)?;
+        let snap = doc::snapshot(&doc, page_id)?;
+        let seq = store::last_seq(tx, page_id)?;
+        let (created_at, updated_at) = store::page_times(tx, page_id)?;
+        index::project_page(
+            tx,
+            &snap,
+            seq,
+            &PageTimes {
+                created_at,
+                updated_at,
+            },
+        )?;
+        Ok(snap.blocks.len())
+    }
+
     /// On open, re-project any page whose index is missing or older than its log
     /// (e.g. the index tables were deleted, or written by an older projector).
     fn catch_up_index(&mut self) -> Result<usize> {
+        // A schema-1 index has a `db_rows` table and no `pages` projection: start over.
+        let old: bool = self.conn.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name = 'db_rows'",
+            [],
+            |r| r.get::<_, i64>(0),
+        )? > 0;
+        if old {
+            index::drop_tables(&self.conn)?;
+            index::create_tables(&self.conn)?;
+        }
         let mut stale = Vec::new();
         for page_id in store::page_ids(&self.conn)? {
             if index::indexed_seq(&self.conn, &page_id)?
@@ -232,11 +318,8 @@ impl Core {
             }
         }
         for page_id in &stale {
-            let doc = store::load_doc(&self.conn, page_id)?;
-            let snap = doc::snapshot(&doc, page_id)?;
             let tx = self.conn.transaction()?;
-            let seq = store::last_seq(&tx, page_id)?;
-            index::project_page(&tx, &snap, seq)?;
+            Self::reproject(&tx, page_id)?;
             tx.commit()?;
         }
         Ok(stale.len())
@@ -257,7 +340,6 @@ impl Core {
         page_id: &str,
         remote_sv: Option<&[u8]>,
     ) -> Result<Vec<u8>> {
-        use yrs::updates::decoder::Decode as _;
         let sv = match remote_sv {
             Some(bytes) => {
                 StateVector::decode_v1(bytes).map_err(|e| Error::Decode(e.to_string()))?
@@ -277,45 +359,12 @@ impl Core {
         Ok(store::load_updates(&self.conn, page_id)?.len())
     }
 
-    /// Blocks whose text references `target` via `((target))` or `[[target]]`.
-    pub fn backlinks(&self, target: &str) -> Result<Vec<BlockId>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT DISTINCT src_block FROM refs WHERE target = ?1 ORDER BY src_block")?;
-        let rows = stmt
-            .query_map([target], |r| r.get(0))?
-            .collect::<std::result::Result<_, _>>()?;
-        Ok(rows)
-    }
-
-    /// Blocks where property `key` equals `value`.
-    pub fn blocks_with_prop(&self, key: &str, value: &serde_json::Value) -> Result<Vec<BlockId>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT block_id FROM props WHERE key = ?1 AND value = ?2 ORDER BY block_id",
-        )?;
-        let rows = stmt
-            .query_map([key, &value.to_string()], |r| r.get(0))?
-            .collect::<std::result::Result<_, _>>()?;
-        Ok(rows)
-    }
-
-    /// Row ids of a database block, in order.
-    pub fn db_rows(&self, database_id: &str) -> Result<Vec<BlockId>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT row_id FROM db_rows WHERE database_id = ?1 ORDER BY position")?;
-        let rows = stmt
-            .query_map([database_id], |r| r.get(0))?
-            .collect::<std::result::Result<_, _>>()?;
-        Ok(rows)
-    }
-
     /// Ordered dump of every projected table, for comparing two indexes.
     pub fn index_dump(&self) -> Result<IndexDump> {
         index::dump(&self.conn)
     }
 
-    /// Read-only access for ad-hoc SQL against the index (e.g. in the demo).
+    /// Read-only access for ad-hoc SQL against the index (queries live in `query.rs`).
     pub fn conn(&self) -> &Connection {
         &self.conn
     }

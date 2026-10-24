@@ -3,10 +3,13 @@
 
 use std::sync::mpsc::{channel, Receiver, Sender};
 
+use serde::Serialize;
+
 use crate::schema::PageId;
 
 /// Where a committed change came from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Origin {
     /// Made through [`crate::Core::transact`] (core logic, modules, widgets).
     Local,
@@ -15,7 +18,12 @@ pub enum Origin {
     Remote,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
 pub enum Event {
     PageCreated {
         page_id: PageId,
@@ -25,6 +33,9 @@ pub enum Event {
         page_id: PageId,
         seq: i64,
         origin: Origin,
+    },
+    PageDeleted {
+        page_id: PageId,
     },
     IndexRebuilt {
         pages: usize,

@@ -6,22 +6,43 @@
 use rusqlite::{params, Connection, Transaction};
 
 use crate::error::Result;
-use crate::schema::{flavour, PageSnapshot};
+use crate::schema::PageSnapshot;
+
+/// Stands in for an inline reference inside `blocks.text`. Query helpers swap it for the
+/// target's current title, so renames never leave stale text in the index.
+pub const REF_MARK: char = '\u{FFFC}';
 
 const CREATE_PROJECTION: &str = r#"
+    CREATE TABLE IF NOT EXISTS page_meta (
+        id         TEXT PRIMARY KEY,
+        parent_id  TEXT,
+        title      TEXT    NOT NULL,
+        icon       TEXT    NOT NULL,
+        sort_key   TEXT    NOT NULL,
+        favorite   INTEGER NOT NULL,
+        archived   INTEGER NOT NULL,
+        trashed_at INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS page_meta_by_parent ON page_meta(parent_id, sort_key);
+
+    -- Every block, plus one row for the page itself and one per note.
     CREATE TABLE IF NOT EXISTS blocks (
         id        TEXT PRIMARY KEY,
         page_id   TEXT    NOT NULL,
+        note_id   TEXT,
         parent_id TEXT,
         flavour   TEXT    NOT NULL,
         position  INTEGER NOT NULL,
         depth     INTEGER NOT NULL,
-        text      TEXT    NOT NULL
+        text      TEXT    NOT NULL,
+        attrs     TEXT    NOT NULL
     );
     CREATE INDEX IF NOT EXISTS blocks_by_page   ON blocks(page_id);
     CREATE INDEX IF NOT EXISTS blocks_by_parent ON blocks(parent_id, position);
 
-    -- One row per (block, property). value is JSON; query it with json_extract().
+    -- One row per (block, module property). value is JSON; query it with json_extract().
     CREATE TABLE IF NOT EXISTS props (
         block_id TEXT NOT NULL,
         page_id  TEXT NOT NULL,
@@ -31,23 +52,26 @@ const CREATE_PROJECTION: &str = r#"
     );
     CREATE INDEX IF NOT EXISTS props_by_key ON props(key, value);
 
-    -- Links found in block text: ((block-id)) is a block ref, [[page-id]] a page link.
+    -- Inline refs and sub-page blocks. kind is 'page' or 'block'; ord is the ref's place
+    -- in the block's text, matching the order of REF_MARK characters in blocks.text.
     CREATE TABLE IF NOT EXISTS refs (
-        src_block TEXT NOT NULL,
-        page_id   TEXT NOT NULL,
-        target    TEXT NOT NULL,
-        kind      TEXT NOT NULL CHECK (kind IN ('block', 'page'))
+        src_block TEXT    NOT NULL,
+        page_id   TEXT    NOT NULL,
+        target    TEXT    NOT NULL,
+        kind      TEXT    NOT NULL,
+        ord       INTEGER NOT NULL,
+        PRIMARY KEY (src_block, ord)
     );
     CREATE INDEX IF NOT EXISTS refs_by_target ON refs(target);
 
-    -- Rows are blocks: any direct child of a `database` block is a row of it.
-    CREATE TABLE IF NOT EXISTS db_rows (
-        database_id TEXT    NOT NULL,
-        row_id      TEXT    NOT NULL,
-        page_id     TEXT    NOT NULL,
-        position    INTEGER NOT NULL,
-        PRIMARY KEY (database_id, row_id)
+    -- #tags found in block text, lower-cased.
+    CREATE TABLE IF NOT EXISTS tags (
+        block_id TEXT NOT NULL,
+        page_id  TEXT NOT NULL,
+        tag      TEXT NOT NULL,
+        PRIMARY KEY (block_id, tag)
     );
+    CREATE INDEX IF NOT EXISTS tags_by_tag ON tags(tag);
 
     -- Bookkeeping: the last log entry each page's projection reflects.
     CREATE TABLE IF NOT EXISTS index_state (
@@ -56,7 +80,14 @@ const CREATE_PROJECTION: &str = r#"
     );
 "#;
 
-const PROJECTED_TABLES: [&str; 5] = ["blocks", "props", "refs", "db_rows", "index_state"];
+const PROJECTED_TABLES: [&str; 6] = [
+    "page_meta",
+    "blocks",
+    "props",
+    "refs",
+    "tags",
+    "index_state",
+];
 
 pub(crate) fn create_tables(conn: &Connection) -> Result<()> {
     conn.execute_batch(CREATE_PROJECTION)?;
@@ -67,47 +98,65 @@ pub(crate) fn drop_tables(conn: &Connection) -> Result<()> {
     for t in PROJECTED_TABLES {
         conn.execute_batch(&format!("DROP TABLE IF EXISTS {t};"))?;
     }
+    // Tables from schema 1 that no longer exist.
+    conn.execute_batch("DROP TABLE IF EXISTS db_rows;")?;
     Ok(())
+}
+
+/// Log timestamps the projection needs alongside the snapshot.
+pub(crate) struct PageTimes {
+    pub created_at: i64,
+    pub updated_at: i64,
 }
 
 /// Replace everything the index knows about one page with `snap`.
 ///
-/// Spike strategy: delete-and-reinsert the whole page. Pages are small (large tables
-/// keep one row per block, per the architecture doc), so this stays cheap; a diff-based
-/// projector can replace it later without changing any caller.
-pub(crate) fn project_page(tx: &Transaction, snap: &PageSnapshot, seq: i64) -> Result<()> {
+/// Delete-and-reinsert the whole page. Inserts use `OR IGNORE` so that a malformed document
+/// (say, two blocks sharing an id after a paste) can never make a user's write fail: the
+/// first occurrence is indexed and the log still gets the update.
+pub(crate) fn project_page(
+    tx: &Transaction,
+    snap: &PageSnapshot,
+    seq: i64,
+    times: &PageTimes,
+) -> Result<()> {
     clear_page(tx, &snap.page_id)?;
+    let m = &snap.meta;
+    tx.execute(
+        "INSERT INTO page_meta(id, parent_id, title, icon, sort_key, favorite, archived, trashed_at, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        params![
+            snap.page_id, m.parent_id, m.title, m.icon, m.key, m.favorite, m.archived, m.trashed_at,
+            times.created_at, times.updated_at
+        ],
+    )?;
 
     let mut ins_block = tx.prepare_cached(
-        "INSERT INTO blocks(id, page_id, parent_id, flavour, position, depth, text)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT OR IGNORE INTO blocks(id, page_id, note_id, parent_id, flavour, position, depth, text, attrs)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
     )?;
     let mut ins_prop = tx.prepare_cached(
-        "INSERT INTO props(block_id, page_id, key, value) VALUES (?1, ?2, ?3, ?4)",
+        "INSERT OR IGNORE INTO props(block_id, page_id, key, value) VALUES (?1, ?2, ?3, ?4)",
     )?;
-    let mut ins_ref = tx.prepare_cached(
-        "INSERT INTO refs(src_block, page_id, target, kind) VALUES (?1, ?2, ?3, ?4)",
-    )?;
-    let mut ins_row = tx.prepare_cached(
-        "INSERT INTO db_rows(database_id, row_id, page_id, position) VALUES (?1, ?2, ?3, ?4)",
-    )?;
+    let mut ins_ref =
+        tx.prepare_cached("INSERT OR IGNORE INTO refs(src_block, page_id, target, kind, ord) VALUES (?1, ?2, ?3, ?4, ?5)")?;
+    let mut ins_tag = tx
+        .prepare_cached("INSERT OR IGNORE INTO tags(block_id, page_id, tag) VALUES (?1, ?2, ?3)")?;
 
     for b in &snap.blocks {
+        let attrs = serde_json::Value::Object(b.attrs.clone().into_iter().collect()).to_string();
         ins_block.execute(params![
-            b.id, b.page_id, b.parent, b.flavour, b.position, b.depth, b.text
+            b.id, b.page_id, b.note_id, b.parent, b.flavour, b.position, b.depth, b.text, attrs
         ])?;
         for (k, v) in &b.props {
             ins_prop.execute(params![b.id, b.page_id, k, v.to_string()])?;
         }
-        for (target, kind) in extract_refs(&b.text) {
-            ins_ref.execute(params![b.id, b.page_id, target, kind])?;
+        for (ord, (target, kind)) in b.refs.iter().enumerate() {
+            ins_ref.execute(params![b.id, b.page_id, target, kind, ord as i64])?;
         }
-        if let Some(parent) = &b.parent {
-            let parent_is_db = snap
-                .get(parent)
-                .is_some_and(|p| p.flavour == flavour::DATABASE);
-            if parent_is_db {
-                ins_row.execute(params![parent, b.id, b.page_id, b.position])?;
+        if b.note_id.is_some() {
+            for tag in extract_tags(&b.text) {
+                ins_tag.execute(params![b.id, b.page_id, tag])?;
             }
         }
     }
@@ -120,8 +169,9 @@ pub(crate) fn project_page(tx: &Transaction, snap: &PageSnapshot, seq: i64) -> R
     Ok(())
 }
 
-fn clear_page(tx: &Transaction, page_id: &str) -> Result<()> {
-    for t in ["blocks", "props", "refs", "db_rows"] {
+pub(crate) fn clear_page(tx: &Connection, page_id: &str) -> Result<()> {
+    tx.execute("DELETE FROM page_meta WHERE id = ?1", [page_id])?;
+    for t in ["blocks", "props", "refs", "tags"] {
         tx.execute(&format!("DELETE FROM {t} WHERE page_id = ?1"), [page_id])?;
     }
     Ok(())
@@ -138,19 +188,28 @@ pub(crate) fn indexed_seq(conn: &Connection, page_id: &str) -> Result<Option<i64
         .optional()?)
 }
 
-/// Find `((target))` block refs and `[[target]]` page links in a block's text.
-pub fn extract_refs(text: &str) -> Vec<(String, &'static str)> {
-    let mut out = Vec::new();
-    for (open, close, kind) in [("((", "))", "block"), ("[[", "]]", "page")] {
-        let mut rest = text;
-        while let Some(start) = rest.find(open) {
-            let after = &rest[start + open.len()..];
-            let Some(end) = after.find(close) else { break };
-            let target = after[..end].trim();
-            if !target.is_empty() {
-                out.push((target.to_string(), kind));
-            }
-            rest = &after[end + close.len()..];
+/// `#tags` in plain text: `#` at the start or after whitespace/`(`, then a letter or `_`,
+/// then letters, digits, `_`, `-` or `/`. Lower-cased, deduplicated.
+pub fn extract_tags(text: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    let chars: Vec<char> = text.chars().collect();
+    for i in 0..chars.len() {
+        if chars[i] != '#' || (i > 0 && !(chars[i - 1].is_whitespace() || chars[i - 1] == '(')) {
+            continue;
+        }
+        let Some(&first) = chars.get(i + 1) else {
+            continue;
+        };
+        if !(first.is_alphabetic() || first == '_') {
+            continue;
+        }
+        let tag: String = chars[i + 1..]
+            .iter()
+            .take_while(|c| c.is_alphanumeric() || matches!(c, '_' | '-' | '/'))
+            .collect::<String>()
+            .to_lowercase();
+        if !out.contains(&tag) {
+            out.push(tag);
         }
     }
     out
@@ -158,52 +217,38 @@ pub fn extract_refs(text: &str) -> Vec<(String, &'static str)> {
 
 /// A full, ordered dump of the projected tables. Used to prove that an index built
 /// incrementally and an index rebuilt from the log are identical.
-/// (id, page_id, parent_id, flavour, position, depth, text)
-pub type BlockRow = (String, String, Option<String>, String, i64, i64, String);
-
 #[derive(Debug, PartialEq, Eq)]
 pub struct IndexDump {
-    pub blocks: Vec<BlockRow>,
-    pub props: Vec<(String, String, String)>,
-    pub refs: Vec<(String, String, String)>,
-    pub db_rows: Vec<(String, String, i64)>,
+    pub pages: Vec<Vec<String>>,
+    pub blocks: Vec<Vec<String>>,
+    pub props: Vec<Vec<String>>,
+    pub refs: Vec<Vec<String>>,
+    pub tags: Vec<Vec<String>>,
 }
 
 pub(crate) fn dump(conn: &Connection) -> Result<IndexDump> {
-    let blocks = conn
-        .prepare(
-            "SELECT id, page_id, parent_id, flavour, position, depth, text FROM blocks ORDER BY id",
-        )?
-        .query_map([], |r| {
-            Ok((
-                r.get(0)?,
-                r.get(1)?,
-                r.get(2)?,
-                r.get(3)?,
-                r.get(4)?,
-                r.get(5)?,
-                r.get(6)?,
-            ))
-        })?
-        .collect::<std::result::Result<_, _>>()?;
-    let props = conn
-        .prepare("SELECT block_id, key, value FROM props ORDER BY block_id, key")?
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
-        .collect::<std::result::Result<_, _>>()?;
-    let refs = conn
-        .prepare("SELECT src_block, target, kind FROM refs ORDER BY src_block, target, kind")?
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
-        .collect::<std::result::Result<_, _>>()?;
-    let db_rows = conn
-        .prepare(
-            "SELECT database_id, row_id, position FROM db_rows ORDER BY database_id, position",
-        )?
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
-        .collect::<std::result::Result<_, _>>()?;
+    let rows = |sql: &str| -> Result<Vec<Vec<String>>> {
+        let mut stmt = conn.prepare(sql)?;
+        let n = stmt.column_count();
+        let out = stmt
+            .query_map([], |r| {
+                (0..n)
+                    .map(|i| {
+                        r.get::<_, rusqlite::types::Value>(i)
+                            .map(|v| format!("{v:?}"))
+                    })
+                    .collect::<std::result::Result<Vec<_>, _>>()
+            })?
+            .collect::<std::result::Result<_, _>>()?;
+        Ok(out)
+    };
     Ok(IndexDump {
-        blocks,
-        props,
-        refs,
-        db_rows,
+        // updated_at is when the last update was *written*; a rebuild recomputes it from the
+        // log, so it is compared too.
+        pages: rows("SELECT * FROM page_meta ORDER BY id")?,
+        blocks: rows("SELECT * FROM blocks ORDER BY id")?,
+        props: rows("SELECT * FROM props ORDER BY block_id, key")?,
+        refs: rows("SELECT * FROM refs ORDER BY src_block, ord")?,
+        tags: rows("SELECT * FROM tags ORDER BY block_id, tag")?,
     })
 }

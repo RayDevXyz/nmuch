@@ -1,3 +1,4 @@
+import type { JSONContent } from '@tiptap/core'
 import type { RefKind } from './schema'
 
 export interface PageOption {
@@ -38,4 +39,9 @@ export interface EditorHost {
   /** Turn a dropped or pasted image file into an `src`. */
   readImage(file: File): Promise<string>
   openExternal(url: string): void
+  /**
+   * Turn pasted plain text into blocks when it looks like Markdown. Return null to let the
+   * editor paste it as text.
+   */
+  markdownToContent?(text: string): JSONContent[] | null
 }

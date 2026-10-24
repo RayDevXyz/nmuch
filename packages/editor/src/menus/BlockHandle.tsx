@@ -3,7 +3,7 @@ import DragHandle from '@tiptap/extension-drag-handle-react'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { NodeSelection } from '@tiptap/pm/state'
 import { Copy, GripVertical, Plus, Smile, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { maybeHost } from '../host-extension'
 import { runSlash, slashItem, TURN_INTO, type SlashId } from './items'
@@ -37,7 +37,18 @@ const currentType = (n: PMNode): SlashId | null => {
  */
 export function BlockHandle({ editor }: { editor: Editor }) {
   const target = useRef<{ node: PMNode; pos: number } | null>(null)
-  const [menu, setMenu] = useState<{ x: number; y: number; node: PMNode; pos: number } | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number; top: number; node: PMNode; pos: number } | null>(null)
+  const menuEl = useRef<HTMLDivElement>(null)
+
+  // Open upwards when there isn't room below the handle.
+  useLayoutEffect(() => {
+    const el = menuEl.current
+    if (!el || !menu) return
+    const h = el.offsetHeight
+    const y = menu.y + h > window.innerHeight - 8 ? Math.max(8, menu.top - h - 4) : menu.y
+    el.style.top = `${y}px`
+    el.style.visibility = 'visible'
+  }, [menu])
 
   useEffect(() => {
     if (!menu) return
@@ -99,7 +110,7 @@ export function BlockHandle({ editor }: { editor: Editor }) {
               if (!t) return
               const r = e.currentTarget.getBoundingClientRect()
               selectBlock(t.pos)
-              setMenu({ x: r.left, y: r.bottom + 4, ...t })
+              setMenu({ x: r.left, y: r.bottom + 4, top: r.top, ...t })
             }}
           >
             <GripVertical size={15} />
@@ -108,7 +119,7 @@ export function BlockHandle({ editor }: { editor: Editor }) {
       </DragHandle>
       {menu &&
         createPortal(
-          <div className="popover block-menu" style={{ left: menu.x, top: menu.y }}>
+          <div ref={menuEl} className="popover block-menu" style={{ left: menu.x, top: menu.y, visibility: 'hidden' }}>
             {cur && (
               <>
                 <div className="menu-caption">Turn into</div>

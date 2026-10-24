@@ -28,7 +28,16 @@ export function NoteEditor({ fragment, host, editable = true, spellcheck = true,
       editable,
       immediatelyRender: true,
       shouldRerenderOnTransaction: false,
-      editorProps: { attributes: { class: 'bw-prose', spellcheck: String(spellcheck) } },
+      editorProps: {
+        attributes: { class: 'bw-prose', spellcheck: String(spellcheck) },
+        // Links open with Ctrl/Cmd+click while editing, or a plain click when read-only.
+        handleClick: (view, _pos, event) => {
+          const a = (event.target as HTMLElement).closest('a[href]')
+          if (!a || (view.editable && !(event.ctrlKey || event.metaKey))) return false
+          host.openExternal(a.getAttribute('href') ?? '')
+          return true
+        },
+      },
     },
     [fragment, host],
   )

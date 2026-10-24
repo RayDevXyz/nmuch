@@ -34,12 +34,6 @@ export interface Block {
   key: string
 }
 
-export interface BlockWrite extends Block {
-  plain: string
-  links: string[]
-  tags: string[]
-}
-
 export interface Page {
   id: string
   parentId: string | null
@@ -75,18 +69,32 @@ export interface TagCount {
   count: number
 }
 
+/** The fields of a page the core stores in its Y.Doc. */
+export type PageMeta = Pick<Page, 'title' | 'icon' | 'parentId' | 'key' | 'favorite' | 'archived' | 'trashedAt'>
+
+export interface BlockInfo {
+  id: string
+  pageId: string
+  flavour: string
+  text: string
+}
+
+/**
+ * The app's view of storage: page metadata and index queries. Page *content* doesn't go
+ * through here; editors sync a Y.Doc per page with the core (`lib/core/page-sync.ts`).
+ */
 export interface Storage {
-  kind: 'sqlite' | 'browser'
+  kind: 'sqlite' | 'dev'
   location(): Promise<string>
   listPages(): Promise<Page[]>
-  upsertPage(page: Page): Promise<void>
+  createPage(page: Page): Promise<void>
+  updatePage(id: string, patch: Partial<PageMeta>): Promise<void>
   deletePages(ids: string[]): Promise<void>
-  getBlocks(pageId: string): Promise<Block[]>
-  saveBlocks(pageId: string, writes: BlockWrite[], deletes: string[], updatedAt: number): Promise<void>
   backlinks(pageId: string): Promise<Ref[]>
   mentions(pageId: string, title: string): Promise<Ref[]>
   links(): Promise<Link[]>
   tags(): Promise<TagCount[]>
   pagesWithTag(tag: string): Promise<string[]>
   search(query: string, limit: number): Promise<Hit[]>
+  blockInfos(ids: string[]): Promise<BlockInfo[]>
 }

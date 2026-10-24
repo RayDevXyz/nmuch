@@ -57,7 +57,7 @@ function SettingsPanel({ x, y, onClose }: { x: number; y: number; onClose: () =>
       <div className="setting-storage">
         <HardDrive size={13} />
         <div>
-          <strong>{kind === 'sqlite' ? 'SQLite database' : 'Browser storage'}</strong>
+          <strong>{kind === 'sqlite' ? 'Yjs log + index · SQLite' : 'Dev server · SQLite'}</strong>
           <span title={loc}>{loc || '…'}</span>
         </div>
       </div>
@@ -104,9 +104,9 @@ export function TopBar() {
         >
           <Settings />
         </IconButton>
-        <span className="storage-chip" title={kind === 'sqlite' ? 'Notes are stored in a local SQLite file' : 'Running in a browser — notes are stored in IndexedDB'}>
+        <span className="storage-chip" title={kind === 'sqlite' ? 'Every edit is a Yjs update in a local SQLite file' : 'Running in a browser against bw-devserver'}>
           <span className="dot" />
-          {kind === 'sqlite' ? 'Local · SQLite' : 'Browser'}
+          {kind === 'sqlite' ? 'Local · SQLite' : 'Dev · SQLite'}
         </span>
       </div>
       {menu && (

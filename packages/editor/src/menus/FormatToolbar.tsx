@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/core'
 import { useEditorState } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { Bold, Code, Italic, Link2, Strikethrough, Underline } from 'lucide-react'
+import { NodeSelection } from '@tiptap/pm/state'
 import { useState } from 'react'
 
 /** Bold, italic, underline, strike, inline code and link, shown over a text selection. */
@@ -35,9 +36,9 @@ export function FormatToolbar({ editor }: { editor: Editor }) {
   return (
     <BubbleMenu
       editor={editor}
-      className="inline-toolbar"
-      shouldShow={({ editor: e, from, to }) =>
-        e.isEditable && from !== to && !e.isActive('codeBlock') && !e.isActive('image') && !e.isActive('pageLink')
+      className="inline-toolbar bw-bubble"
+      shouldShow={({ editor: e, from, to, state }) =>
+        e.isEditable && from !== to && !(state.selection instanceof NodeSelection) && !e.isActive('codeBlock')
       }
     >
       {linking === null ? (

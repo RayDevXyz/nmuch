@@ -1,11 +1,13 @@
-import { toWrite } from './blocks'
 import { keysBetween } from './fractional'
+import { blocksToDoc } from './convert'
 import { uid } from './id'
-import type { Block, BlockProps, BlockType, Page, Storage } from './types'
+import type { BlockProps, BlockType, Page, Storage } from './types'
+import type { PageSync } from './core/page-sync'
 
 const link = (id: string, title: string) => `<a class="page-link" data-page="${id}" contenteditable="false">${title}</a>`
 
-export async function seed(storage: Storage) {
+/** Sample pages for an empty workspace. */
+export async function seed(storage: Storage, open: (pageId: string) => Promise<PageSync>) {
   const now = Date.now()
   const mk = (title: string, icon: string, parentId: string | null = null, ago = 0): Page => ({
     id: uid(),
@@ -38,18 +40,19 @@ export async function seed(storage: Storage) {
       ['text', 'Nimbus keeps your notes close and your attention focused. Everything is organized into flexible documents built from <b>blocks</b> — every paragraph, heading, list item and image is one.'],
       ['bullet', 'Write in a clean, distraction-free editor'],
       ['bullet', 'Connect ideas with backlinks — type <code>[[</code> to link a page, e.g. ' + link(atlas.id, 'Project Atlas')],
+      ['bullet', 'Link a single block with <code>((</code> and search for its text'],
       ['bullet', 'Tag anything with a hashtag like #welcome and find it under Tags'],
       ['bullet', 'Find anything instantly with quick search (<code>Ctrl K</code>)'],
       ['h2', 'Capture everything'],
       ['text', 'From fleeting thoughts to fully formed plans, your workspace adapts to the way you work. Start simple and let your system grow with you.'],
-      ['callout', '<b>Try a slash command</b><br>Type <code>/</code> on an empty line to insert a block, or use Markdown: <code>#</code>, <code>-</code>, <code>1.</code>, <code>[]</code>, <code>&gt;</code>, <code>```</code>.', { icon: '⌘' }],
+      ['callout', '<b>Try a slash command</b><br>Type <code>/</code> on an empty line to insert a block, or use Markdown: <code>#</code>, <code>-</code>, <code>1.</code>, <code>[]</code>, <code>&gt;</code>, <code>!&gt;</code>, <code>```</code>.', { icon: '⌘' }],
       ['todo', 'Create your first page', { checked: true }],
       ['todo', 'Drag a block by its handle to reorder it'],
       ['todo', 'Select text to format it — bold, italic, code, links'],
       ['divider', ''],
       ['h2', 'Build your second brain'],
       ['text', 'Link related notes, add context as you go, and turn scattered thoughts into a map you can return to. Your knowledge is more powerful when it is connected — open the graph on the right to see it.'],
-      ['quote', 'Everything is stored locally in a SQLite file on your machine. No account, no cloud.'],
+      ['quote', 'Everything is stored locally: every edit is a Yjs update in a SQLite file on your machine, and the search index is rebuilt from it. No account, no cloud.'],
     ],
     [atlas.id]: [
       ['text', 'Planning hub for the Atlas project. Background reading lives in ' + link(reading.id, 'Reading List') + '. #project'],
@@ -60,6 +63,7 @@ export async function seed(storage: Storage) {
       ['h2', 'Notes'],
       ['text', 'See ' + link(start.id, 'Getting Started') + ' for how linking works.'],
       ['code', 'const atlas = { status: "planning", owner: "me" }', { lang: 'js' }],
+      ['page', '', { pageId: weekly.id }],
     ],
     [reading.id]: [
       ['text', 'Books and articles to get through. #reading'],
@@ -80,11 +84,11 @@ export async function seed(storage: Storage) {
     ],
   }
 
-  for (const p of [...roots, weekly]) await storage.upsertPage(p)
+  for (const p of [...roots, weekly]) await storage.createPage(p)
   for (const p of [...roots, weekly]) {
     const specs = content[p.id] ?? []
-    const keys = keysBetween(null, null, specs.length)
-    const blocks: Block[] = specs.map(([type, text, props], i) => ({ id: uid(), pageId: p.id, type, text, props: props ?? {}, key: keys[i] }))
-    await storage.saveBlocks(p.id, blocks.map(toWrite), [], p.updatedAt)
+    const sync = await open(p.id)
+    sync.setContent(blocksToDoc(specs.map(([type, text, props]) => ({ type, text, props: props ?? {} }))))
+    await sync.flush()
   }
 }

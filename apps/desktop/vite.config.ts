@@ -13,6 +13,8 @@ export default defineConfig({
     host: host || false,
     hmr: host ? { protocol: 'ws', host, port: 1421 } : undefined,
     watch: { ignored: ['**/src-tauri/**'] },
+    // In a browser, the core runs as `pnpm core` (bw-devserver) and is reached through /api.
+    proxy: { '/api': { target: 'http://127.0.0.1:1430', changeOrigin: false } },
   },
   envPrefix: ['VITE_', 'TAURI_ENV_*'],
   build: {

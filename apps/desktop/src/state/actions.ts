@@ -1,8 +1,8 @@
 import { keyBetween } from '../lib/fractional'
-import { toWrite } from '../lib/blocks'
 import { uid } from '../lib/id'
-import { db, initStorage } from '../lib/storage'
-import type { Block, Page } from '../lib/types'
+import { coreClient, db, initStorage, metaOf } from '../lib/storage'
+import { acquirePage, releasePage, type PageSync } from '../lib/core/page-sync'
+import type { Page } from '../lib/types'
 import { seed } from '../lib/seed'
 import { getState, setState, toast, type View } from './store'
 
@@ -76,22 +76,71 @@ export function titleOf(id: string): string {
   return p ? p.title || 'Untitled' : 'Missing page'
 }
 
+// ---------- page metadata writes ----------
+
+/** Pages with a metadata write that hasn't reached the core yet; refreshes keep our copy. */
+const dirty = new Map<string, number>()
+
+function track(ids: string[], write: () => Promise<void>) {
+  ids.forEach((id) => dirty.set(id, (dirty.get(id) ?? 0) + 1))
+  return enqueue(write).finally(() =>
+    ids.forEach((id) => {
+      const n = (dirty.get(id) ?? 1) - 1
+      if (n > 0) dirty.set(id, n)
+      else dirty.delete(id)
+    }),
+  )
+}
+
 function putPage(p: Page) {
   setState((s) => ({ pages: { ...s.pages, [p.id]: p } }))
-  return enqueue(() => db().upsertPage(p))
+  return track([p.id], () => db().updatePage(p.id, metaOf(p)))
 }
 
-// ---------- blocks ----------
+let refreshTimer: ReturnType<typeof setTimeout> | undefined
 
-export function saveBlocks(pageId: string, blocks: Block[], deletes: string[]) {
-  const now = Date.now()
-  const writes = blocks.map(toWrite)
-  setState((s) => (s.pages[pageId] ? { pages: { ...s.pages, [pageId]: { ...s.pages[pageId], updatedAt: now } } } : {}))
-  return enqueue(async () => {
-    await db().saveBlocks(pageId, writes, deletes, now)
-    setState((s) => ({ indexVersion: s.indexVersion + 1 }))
-  })
+/** Re-read the page list from the index after the core reports a change. */
+function scheduleRefresh() {
+  clearTimeout(refreshTimer)
+  refreshTimer = setTimeout(async () => {
+    const list = await db().listPages()
+    setState((s) => {
+      const pages: Record<string, Page> = {}
+      list.forEach((p) => (pages[p.id] = p))
+      dirty.forEach((_, id) => {
+        if (s.pages[id]) pages[id] = s.pages[id]
+        else delete pages[id]
+      })
+      return { pages, indexVersion: s.indexVersion + 1 }
+    })
+  }, 150)
 }
+
+// ---------- page content ----------
+
+function trackSave(p: Promise<void>) {
+  void enqueue(() => p)
+}
+
+/** Pages whose `createPage` write is still on its way to the core. */
+const creating = new Map<string, Promise<void>>()
+
+/** Open a page's Y.Doc (shared with any editor showing it). Call `releasePage` when done. */
+export function syncPage(pageId: string): PageSync {
+  return acquirePage(pageId, coreClient(), trackSave, creating.get(pageId))
+}
+
+async function withPage<T>(pageId: string, fn: (sync: PageSync) => Promise<T> | T): Promise<T> {
+  const sync = syncPage(pageId)
+  try {
+    await sync.ready
+    return await fn(sync)
+  } finally {
+    releasePage(pageId)
+  }
+}
+
+export { releasePage, withPage }
 
 // ---------- init ----------
 
@@ -104,9 +153,17 @@ export function init() {
 
 async function doInit() {
   const storage = await initStorage()
+  coreClient().onEvent(() => scheduleRefresh())
   let pages = await storage.listPages()
   if (pages.length === 0) {
-    await seed(storage)
+    const opened: string[] = []
+    await seed(storage, async (id) => {
+      opened.push(id)
+      const sync = syncPage(id)
+      await sync.ready
+      return sync
+    })
+    opened.forEach(releasePage)
     pages = await storage.listPages()
   }
   const map: Record<string, Page> = {}
@@ -176,7 +233,9 @@ export async function createPage(opts: { parentId?: string | null; title?: strin
     updatedAt: now,
   }
   setState((s) => ({ pages: { ...s.pages, [page.id]: page }, expanded: parentId ? { ...s.expanded, [parentId]: true } : s.expanded }))
-  const write = enqueue(() => db().upsertPage(page))
+  const write = track([page.id], () => db().createPage(page))
+  creating.set(page.id, write)
+  void write.finally(() => creating.delete(page.id))
   if (opts.open !== false) openPage(page.id, opts.open ?? 'tab')
   await write
   return page
@@ -184,22 +243,36 @@ export async function createPage(opts: { parentId?: string | null; title?: strin
 
 const titleTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
+function release(id: string) {
+  const n = (dirty.get(id) ?? 1) - 1
+  if (n > 0) dirty.set(id, n)
+  else dirty.delete(id)
+}
+
 export function updatePage(id: string, patch: Partial<Page>, debounce = 0) {
   const p = getState().pages[id]
   if (!p) return
   const next = { ...p, ...patch, updatedAt: Date.now() }
   setState((s) => ({ pages: { ...s.pages, [id]: next } }))
-  clearTimeout(titleTimers.get(id))
+  const prev = titleTimers.get(id)
+  if (prev) {
+    clearTimeout(prev)
+    titleTimers.delete(id)
+    release(id)
+  }
   if (debounce) {
+    dirty.set(id, (dirty.get(id) ?? 0) + 1) // keep the local title while typing
     titleTimers.set(
       id,
       setTimeout(() => {
+        titleTimers.delete(id)
+        release(id)
         const cur = getState().pages[id]
-        if (cur) enqueue(() => db().upsertPage(cur))
+        if (cur) track([id], () => db().updatePage(id, metaOf(cur)))
       }, debounce),
     )
   } else {
-    enqueue(() => db().upsertPage(next))
+    track([id], () => db().updatePage(id, metaOf(next)))
   }
 }
 
@@ -254,7 +327,7 @@ export async function deleteForever(ids: string[]) {
     return { pages }
   })
   list.forEach((id) => getState().tabs.includes(id) && closeTab(id))
-  await enqueue(() => db().deletePages(list))
+  await track(list, () => db().deletePages(list))
   setState((s) => ({ indexVersion: s.indexVersion + 1 }))
 }
 
@@ -293,15 +366,26 @@ export function movePage(id: string, targetId: string | null, pos: 'before' | 'a
 export async function duplicatePage(id: string) {
   const src = getState().pages[id]
   if (!src) return
-  const blocks = await db().getBlocks(id)
+  // All notes of the original, in order, become the copy's first note (with new block ids).
+  const content = await withPage(id, (s) => s.notesJSON().flatMap((n) => n.content ?? []))
   const copy = await createPage({ parentId: src.parentId, title: (src.title || 'Untitled') + ' (copy)', icon: src.icon, open: false })
-  const fresh = blocks.map((b) => ({ ...b, id: uid(), pageId: copy.id }))
-  await saveBlocks(copy.id, fresh, [])
+  await withPage(copy.id, (s) => {
+    s.setContent({ type: 'doc', content: stripIds(content) })
+    return s.flush()
+  })
   // place right after the original
   const sibs = childrenOf(src.parentId, { archived: true }).filter((p) => p.id !== copy.id)
   const i = sibs.findIndex((p) => p.id === id)
   putPage({ ...getState().pages[copy.id], key: keyBetween(src.key, sibs[i + 1]?.key ?? null) })
   openPage(copy.id, 'tab')
+}
+
+function stripIds<T extends { attrs?: Record<string, unknown>; content?: T[] }>(nodes: T[]): T[] {
+  return nodes.map((n) => ({
+    ...n,
+    ...(n.attrs && 'id' in n.attrs ? { attrs: { ...n.attrs, id: null } } : {}),
+    ...(n.content ? { content: stripIds(n.content) } : {}),
+  }))
 }
 
 /** Create a page with a given title (used by [[link]] menu and quick find). */

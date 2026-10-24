@@ -72,3 +72,9 @@ export const BlockId = Extension.create({
     ]
   },
 })
+
+/** Fill in missing block ids in ProseMirror JSON (content built outside an editor). */
+export function ensureIds<T extends { type?: string; attrs?: Record<string, unknown>; content?: T[] }>(node: T): T {
+  const attrs = (BLOCK_TYPES as readonly string[]).includes(node.type ?? '') && !node.attrs?.id ? { ...node.attrs, id: newId() } : node.attrs
+  return { ...node, ...(attrs ? { attrs } : {}), ...(node.content ? { content: node.content.map(ensureIds) } : {}) }
+}

@@ -11,7 +11,7 @@ export interface OutlineItem {
 
 export interface AppState {
   ready: boolean
-  storageKind: 'sqlite' | 'browser'
+  storageKind: 'sqlite' | 'dev'
   pages: Record<string, Page>
   view: View
   tag: string | null
@@ -50,7 +50,7 @@ function loadPrefs(): Partial<Prefs> {
 
 let state: AppState = {
   ready: false,
-  storageKind: 'browser',
+  storageKind: 'sqlite',
   pages: {},
   view: 'home',
   tag: null,

@@ -11,6 +11,7 @@ import { Callout } from './nodes/callout'
 import { Image } from './nodes/image'
 import { PageLink } from './nodes/page-link'
 import { Ref } from './nodes/ref'
+import { MarkdownPaste } from './nodes/markdown-paste'
 import { Tags } from './nodes/tags'
 import { BlockRefSuggestion, PageLinkSuggestion, SlashCommands } from './menus/suggestions'
 
@@ -54,7 +55,7 @@ export function editorExtensions({ fragment, host }: KitOptions): Extensions {
         return ''
       },
     }),
-    ...(host ? [SlashCommands, PageLinkSuggestion, BlockRefSuggestion] : []),
+    ...(host ? [SlashCommands, PageLinkSuggestion, BlockRefSuggestion, MarkdownPaste] : []),
     ...(fragment ? [Collaboration.configure({ fragment })] : []),
   ]
 }

@@ -1,0 +1,211 @@
+{
+  "pageId": "editor-page",
+  "title": "Made in the editor",
+  "blocks": [
+    {
+      "id": "h1",
+      "type": "heading",
+      "depth": 2,
+      "text": "Title bold",
+      "attrs": {
+        "level": 1
+      },
+      "refs": []
+    },
+    {
+      "id": "p1",
+      "type": "paragraph",
+      "depth": 2,
+      "text": "See ￼ and ￼\nline two #tag",
+      "attrs": {},
+      "refs": [
+        [
+          "page-2",
+          "page"
+        ],
+        [
+          "h1",
+          "block"
+        ]
+      ]
+    },
+    {
+      "id": "c1",
+      "type": "callout",
+      "depth": 2,
+      "text": "Callout text",
+      "attrs": {
+        "icon": "✨"
+      },
+      "refs": []
+    },
+    {
+      "id": "q1",
+      "type": "blockquote",
+      "depth": 2,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "q1p",
+      "type": "paragraph",
+      "depth": 3,
+      "text": "Quoted",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "ul1",
+      "type": "bulletList",
+      "depth": 2,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "li1",
+      "type": "listItem",
+      "depth": 3,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "li1p",
+      "type": "paragraph",
+      "depth": 4,
+      "text": "One",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "ul2",
+      "type": "bulletList",
+      "depth": 4,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "li2",
+      "type": "listItem",
+      "depth": 5,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "li2p",
+      "type": "paragraph",
+      "depth": 6,
+      "text": "Nested",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "ol1",
+      "type": "orderedList",
+      "depth": 2,
+      "text": "",
+      "attrs": {
+        "start": 3
+      },
+      "refs": []
+    },
+    {
+      "id": "li3",
+      "type": "listItem",
+      "depth": 3,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "li3p",
+      "type": "paragraph",
+      "depth": 4,
+      "text": "Third",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "tl1",
+      "type": "taskList",
+      "depth": 2,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "ti1",
+      "type": "taskItem",
+      "depth": 3,
+      "text": "",
+      "attrs": {
+        "checked": true
+      },
+      "refs": []
+    },
+    {
+      "id": "ti1p",
+      "type": "paragraph",
+      "depth": 4,
+      "text": "Done",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "cb1",
+      "type": "codeBlock",
+      "depth": 2,
+      "text": "const x = 1\nconst y = 2",
+      "attrs": {
+        "language": "ts"
+      },
+      "refs": []
+    },
+    {
+      "id": "hr1",
+      "type": "horizontalRule",
+      "depth": 2,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "img1",
+      "type": "image",
+      "depth": 2,
+      "text": "A picture",
+      "attrs": {
+        "src": "https://example.com/a.png",
+        "caption": "A picture"
+      },
+      "refs": []
+    },
+    {
+      "id": "pl1",
+      "type": "pageLink",
+      "depth": 2,
+      "text": "",
+      "attrs": {
+        "pageId": "page-3"
+      },
+      "refs": [
+        [
+          "page-3",
+          "page"
+        ]
+      ]
+    },
+    {
+      "id": "p2",
+      "type": "paragraph",
+      "depth": 2,
+      "text": "link",
+      "attrs": {},
+      "refs": []
+    }
+  ]
+}

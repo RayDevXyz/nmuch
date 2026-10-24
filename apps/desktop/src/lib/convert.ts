@@ -1,6 +1,6 @@
 import { ensureIds, schemaExtensions } from '@brainwaves/editor'
 import { generateJSON, type JSONContent } from '@tiptap/core'
-import { escapeHtml, parseMarkdown, type ParsedBlock } from './html'
+import { escapeHtml, parseMarkdown, type ParsedBlock } from './markdown'
 
 const extensions = schemaExtensions()
 

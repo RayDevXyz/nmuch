@@ -12,7 +12,7 @@
 **Status:** done. 12 of 12 acceptance tests pass.
 **Code:** `crates/bw-core/`.
 **Branch:** `claude/dazzling-einstein-0r1sxx`.
-**Plan:** step 1 of the build order in `BrainWaves Core Architecture.md`.
+**Plan:** step 1 of the build order in [architecture.md](architecture.md).
 
 ---
 
@@ -381,7 +381,7 @@ crates/bw-core/
   src/core.rs                    Core: the single writer, the write path, rebuild, queries
   src/events.rs                  event bus
   src/error.rs                   Error type
-  tests/spike.rs                 the 12 acceptance tests
+  tests/spike.rs                 the 12 acceptance tests (now tests/core.rs)
   examples/demo.rs               walkthrough + benchmark
 ```
 

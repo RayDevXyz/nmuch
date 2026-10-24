@@ -12,7 +12,7 @@
 
 **Branch:** `claude/dazzling-einstein-0r1sxx`.
 **Builds on:** [Spike 1](spike-01-block-model.md) (update log + index).
-**Plan:** step 2 of the build order in `BrainWaves Core Architecture.md`.
+**Plan:** step 2 of the build order in [architecture.md](architecture.md).
 
 ![The Nimbus app running on bw-core and Tiptap](images/phase2-app.png)
 

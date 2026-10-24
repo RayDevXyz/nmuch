@@ -1,6 +1,14 @@
+# build output
 target/
-node_modules/
 dist/
+apps/desktop/src-tauri/gen/
+
+# dependencies
+node_modules/
+
+# local workspaces (bw-devserver, tests)
 *.db
 *.db-wal
 *.db-shm
+
+*.log

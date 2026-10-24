@@ -74,4 +74,19 @@ The system uses a tiered approach to customization, allowing users and developer
 
 ## 🚀 Getting Started
 
-*(Add setup, installation, or contribution guidelines here once repository structure is initialized.)*
+```
+crates/bw-core       Rust core: block model on yrs, SQLite update log (truth), rebuildable SQL index
+crates/bw-api        the command surface the frontend uses (shared by Tauri and the dev server)
+crates/bw-devserver  bw-api over HTTP, so the UI can run in a browser during development
+packages/editor      @brainwaves/editor: the Tiptap block engine (schema, nodes, menus)
+apps/desktop         the desktop app (Nimbus shell, Tauri)
+docs/                design notes: spike-01-block-model.md, phase-02-editor.md
+```
+
+```bash
+pnpm install
+cargo test --workspace && pnpm -r test     # tests
+cd apps/desktop && pnpm tauri dev          # desktop app
+```
+
+See `apps/desktop/README.md` for running the UI in a browser.

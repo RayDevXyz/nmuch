@@ -1,4 +1,4 @@
-/* Nimbus — styles ported from the v0 "Nimbus" template, extended for the block editor. */
+/* BrainWaves — styles ported from the v0 "Nimbus" template, extended for the block editor. */
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
@@ -445,14 +445,14 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .bw-prose ul > li::marker { color: var(--accent); font-size: 1.15em; }
 .bw-prose ol > li::marker { color: var(--accent); font-family: var(--font-mono); font-size: 0.82em; }
 .bw-prose ul[data-type='taskList'] { list-style: none; padding-left: 2px; }
-.bw-prose li[data-type='taskItem'] { display: flex; align-items: flex-start; gap: 8px; }
-.bw-prose li[data-type='taskItem'] > label { flex: none; height: 1.72em; display: flex; align-items: center; user-select: none; }
-.bw-prose li[data-type='taskItem'] > label input { appearance: none; width: 17px; height: 17px; margin: 0; border: 1.5px solid var(--faint); border-radius: 4px; cursor: pointer; display: grid; place-items: center; }
-.bw-prose li[data-type='taskItem'] > label input:hover { border-color: var(--accent); }
-.bw-prose li[data-type='taskItem'] > label input:checked { background: var(--accent); border-color: var(--accent); }
-.bw-prose li[data-type='taskItem'] > label input:checked::after { content: '✓'; color: var(--accent-ink); font-size: 12px; font-weight: 800; line-height: 1; }
-.bw-prose li[data-type='taskItem'] > div { flex: 1; min-width: 0; }
-.bw-prose li[data-type='taskItem'][data-checked='true'] > div > p { text-decoration: line-through; color: var(--faint); }
+.bw-prose ul[data-type='taskList'] > li { display: flex; align-items: flex-start; gap: 8px; }
+.bw-prose ul[data-type='taskList'] > li > label { flex: none; height: 1.72em; display: flex; align-items: center; user-select: none; }
+.bw-prose ul[data-type='taskList'] > li > label input { appearance: none; width: 17px; height: 17px; margin: 0; border: 1.5px solid var(--faint); border-radius: 4px; cursor: pointer; display: grid; place-items: center; }
+.bw-prose ul[data-type='taskList'] > li > label input:hover { border-color: var(--accent); }
+.bw-prose ul[data-type='taskList'] > li > label input:checked { background: var(--accent); border-color: var(--accent); }
+.bw-prose ul[data-type='taskList'] > li > label input:checked::after { content: '✓'; color: var(--accent-ink); font-size: 12px; font-weight: 800; line-height: 1; }
+.bw-prose ul[data-type='taskList'] > li > div { flex: 1; min-width: 0; }
+.bw-prose ul[data-type='taskList'] > li[data-checked='true'] > div > p { text-decoration: line-through; color: var(--faint); }
 .bw-prose blockquote { border-left: 3px solid var(--accent); padding-left: 14px; margin: 4px 0; }
 .bw-prose blockquote p { color: var(--foreground); font-size: 1.04em; }
 .bw-prose .callout { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px; border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); background: var(--accent-soft); border-radius: 10px; margin: 8px 0; }
@@ -485,3 +485,23 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .suggestion-popover { position: fixed; }
 .block-menu { position: fixed; }
 .ProseMirror-dropcursor { background: var(--accent) !important; }
+
+/* ---------- import from Nimbus ---------- */
+.setting-action { display: flex; align-items: center; gap: 7px; width: 100%; margin-top: 8px; height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel-2); color: var(--foreground); font-size: 12px; cursor: pointer; }
+.setting-action:hover { background: var(--hover); }
+.import-modal { width: min(520px, calc(100% - 40px)); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 10px; }
+.import-head { display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: var(--foreground); }
+.import-head .icon-btn { border: 0; background: transparent; color: var(--muted-foreground); border-radius: 6px; width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; }
+.import-head .icon-btn:hover { background: var(--hover); }
+.import-modal p { margin: 0; line-height: 1.55; font-size: 12.5px; color: var(--muted-foreground); }
+.import-label { font-size: 11px; font-weight: 700; color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.05em; }
+.import-found { margin-left: 6px; color: var(--ok); text-transform: none; letter-spacing: 0; font-weight: 600; }
+.import-path { height: 34px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--foreground); font-family: var(--font-mono); font-size: 11.5px; padding: 0 10px; outline: 0; }
+.import-path:focus { border-color: var(--accent); }
+.import-progress { display: flex; flex-direction: column; gap: 6px; font-size: 11px; color: var(--muted-foreground); font-family: var(--font-mono); }
+.import-bar { height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
+.import-bar div { height: 100%; background: var(--accent); transition: width 0.15s; }
+.import-result strong { color: var(--ok); font-size: 13px; }
+.import-failed { color: var(--danger); font-size: 12px; word-break: break-word; }
+.import-actions { display: flex; justify-content: flex-end; }
+.import-actions .primary-btn:disabled { opacity: 0.5; cursor: default; }

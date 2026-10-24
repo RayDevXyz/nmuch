@@ -936,6 +936,8 @@ impl<T: ReadTxn, F: Fn(&str) -> BTreeMap<String, serde_json::Value>> Walk<'_, T,
                 .collect();
             if tag == node::PAGE_LINK {
                 if let Some(serde_json::Value::String(p)) = attrs.get("pageId") {
+                    // Its "text" is the linked page's title, resolved at query time like an inline ref.
+                    text.push(crate::index::REF_MARK);
                     refs.push((p.clone(), "page".into()));
                 }
             }
@@ -986,4 +988,14 @@ pub(crate) fn doc_maps(doc: &Doc) -> (MapRef, MapRef, MapRef) {
         doc.get_or_insert_map(keys::NOTES),
         doc.get_or_insert_map(keys::PROPS),
     )
+}
+
+/// The `page.id` stored inside a doc.
+pub(crate) fn stored_page_id(doc: &Doc) -> Option<String> {
+    let page = doc.get_or_insert_map(keys::PAGE);
+    let txn = doc.transact();
+    match page.get(&txn, keys::ID) {
+        Some(Out::Any(Any::String(s))) => Some(s.to_string()),
+        _ => None,
+    }
 }

@@ -10,3 +10,4 @@ bw-core = { path = "../bw-core" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22"
+rusqlite = { version = "0.41", features = ["bundled"] }

@@ -1,11 +1,11 @@
 [package]
-name = "nimbus"
+name = "brainwaves-desktop"
 version = "0.1.0"
-description = "Local-first block-based notes"
+description = "BrainWaves: local-first, block-based workspace"
 edition = "2021"
 
 [lib]
-name = "nimbus_lib"
+name = "brainwaves_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

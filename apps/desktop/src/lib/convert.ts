@@ -4,6 +4,9 @@ import { escapeHtml, parseMarkdown, type ParsedBlock } from './html'
 
 const extensions = schemaExtensions()
 
+/** ` data-id="…"` when the block has an id (Tiptap's block-id attribute reads it). */
+const idAttr = (b: ParsedBlock) => (b.id ? ` data-id="${escapeHtml(b.id)}"` : '')
+
 const LIST: Partial<Record<ParsedBlock['type'], 'ul' | 'ol' | 'task'>> = { bullet: 'ul', numbered: 'ol', todo: 'task' }
 
 /**
@@ -19,7 +22,8 @@ export function blocksToHTML(blocks: ParsedBlock[]): string {
     let out = open
     while (i < blocks.length && LIST[blocks[i].type] === kind && (blocks[i].props.indent ?? 0) === indent) {
       const b = blocks[i++]
-      const li = kind === 'task' ? `<li data-type="taskItem" data-checked="${b.props.checked ? 'true' : 'false'}">` : '<li>'
+      const li =
+        kind === 'task' ? `<li data-type="taskItem" data-checked="${b.props.checked ? 'true' : 'false'}"${idAttr(b)}>` : `<li${idAttr(b)}>`
       let inner = `<p>${b.text}</p>`
       while (i < blocks.length && LIST[blocks[i].type] && (blocks[i].props.indent ?? 0) > indent) inner += list(blocks[i].props.indent ?? 0)
       out += li + inner + '</li>'
@@ -37,28 +41,28 @@ export function blocksToHTML(blocks: ParsedBlock[]): string {
       case 'h1':
       case 'h2':
       case 'h3':
-        html += `<${b.type}>${b.text}</${b.type}>`
+        html += `<${b.type}${idAttr(b)}>${b.text}</${b.type}>`
         break
       case 'quote':
-        html += `<blockquote><p>${b.text}</p></blockquote>`
+        html += `<blockquote${idAttr(b)}><p>${b.text}</p></blockquote>`
         break
       case 'callout':
-        html += `<div data-type="callout" data-icon="${escapeHtml(b.props.icon ?? '💡')}">${b.text}</div>`
+        html += `<div data-type="callout" data-icon="${escapeHtml(b.props.icon ?? '💡')}"${idAttr(b)}>${b.text}</div>`
         break
       case 'code':
-        html += `<pre><code${b.props.lang ? ` class="language-${escapeHtml(b.props.lang)}"` : ''}>${escapeHtml(b.text)}</code></pre>`
+        html += `<pre${idAttr(b)}><code${b.props.lang ? ` class="language-${escapeHtml(b.props.lang)}"` : ''}>${escapeHtml(b.text)}</code></pre>`
         break
       case 'divider':
-        html += '<hr>'
+        html += `<hr${idAttr(b)}>`
         break
       case 'image':
-        html += `<figure data-type="image"><img src="${escapeHtml(b.props.src ?? '')}"><figcaption>${escapeHtml(b.props.caption ?? '')}</figcaption></figure>`
+        html += `<figure data-type="image"${idAttr(b)}><img src="${escapeHtml(b.props.src ?? '')}"><figcaption>${escapeHtml(b.props.caption ?? '')}</figcaption></figure>`
         break
       case 'page':
-        html += `<div data-type="page-link" data-page-id="${escapeHtml(b.props.pageId ?? '')}"></div>`
+        html += `<div data-type="page-link" data-page-id="${escapeHtml(b.props.pageId ?? '')}"${idAttr(b)}></div>`
         break
       default:
-        html += `<p>${b.text}</p>`
+        html += `<p${idAttr(b)}>${b.text}</p>`
     }
   }
   return html

@@ -1,7 +1,11 @@
 # Phase 2: Doc-mode editor (Tiptap) on the Rust core, inside Nimbus
 
+> **Follow-up:** the app has since been renamed **BrainWaves**, and it can import notes from
+> the old Nimbus app. See [section 12](#12-follow-up-renamed-to-brainwaves--nimbus-import).
+> "Nimbus" below refers to the shell as it arrived.
+
 **Status:** working end to end, in the browser and in Tauri.
-- **Rust tests:** 19 pass.
+- **Rust tests:** 21 pass.
 - **JS contract tests:** 3 pass.
 - **Typecheck and clippy:** clean.
 - **Manual run:** a scripted browser session found no console errors.
@@ -297,7 +301,7 @@ UPDATE_FIXTURES=1 pnpm --filter @brainwaves/editor test
 ## 9. Testing done
 
 **Automated:**
-- `cargo test --workspace`: 17 core tests, 1 contract test, 1 api test.
+- `cargo test --workspace`: 18 core tests, 1 contract test, 2 api tests (incl. the Nimbus reader).
   - The core tests cover the page layout, queries and live titles, metadata, edits, moves and
     deletes with cleanup, schema rules, atomic logging, failed transactions, persistence,
     incremental index = rebuilt index, self-healing index, compaction, delete forever,
@@ -356,9 +360,7 @@ pnpm -r typecheck
 
 These are honest gaps, not surprises:
 
-1. **No migration from an existing `nimbus.db` yet.** The new app starts a fresh `brainwaves.db`
-   and leaves the old file alone. The converter needed for an import (`lib/convert.ts`) already
-   exists. An "Import Nimbus notes" command is the natural next step if you have real notes there.
+1. ~~No migration from an existing `nimbus.db`.~~ **Done**: see section 12.
 2. **Nimbus editor features that didn't carry over 1:1:**
    - **Rubber-band multi-block selection.** It is gone; Tiptap's own text selection across
      blocks replaces most of it.
@@ -376,9 +378,93 @@ These are honest gaps, not surprises:
    operations and behave like any other edit.
 6. **Big bundle (~990 kB minified).** Splitting the graph view and the editor menus into lazy
    chunks would help. It doesn't matter for a desktop app but is worth doing.
-7. **Naming.** The app still says "Nimbus" (window title, Tauri identifier `app.nimbus.notes`).
-   I kept your name; say the word if it should become BrainWaves.
+7. ~~Naming.~~ **Done**: the app is BrainWaves (section 12).
 
 Next in the build order is **phase 3: the database block + views**. The pieces it needs are in
 place: an atom node in the editor, rows as their own small page docs with `props`, the `props`
 index for querying, and events for live updates.
+
+---
+
+## 12. Follow-up: renamed to BrainWaves + Nimbus import
+
+### 12.1 The rename
+
+| Where | Before | After |
+|---|---|---|
+| Window title, top bar, product name | Nimbus | BrainWaves |
+| Tauri identifier (decides the data folder) | `app.nimbus.notes` | `app.brainwaves.notes` |
+| Rust crate | `nimbus` / `nimbus_lib` | `brainwaves-desktop` / `brainwaves_lib` |
+| Saved UI preferences (localStorage) | `nimbus.prefs.v1` | `brainwaves.prefs.v1`, falling back to the old key once |
+
+Changing the identifier moves the data folder, for example on Windows from
+`%APPDATA%\app.nimbus.notes\` to `%APPDATA%\app.brainwaves.notes\`. Two things look in the old folder:
+- **A `brainwaves.db` written by a build from before the rename** is moved to the new folder on
+  first start (with its `-wal`/`-shm` files), and only if the new folder has no workspace yet.
+- **The old Nimbus app's `nimbus.db`** is offered for import. It is never moved or modified.
+
+### 12.2 The Nimbus import
+
+![Imported Nimbus page](images/phase2-import.png)
+
+```text
+nimbus.db (read-only) ──► bw-api/nimbus.rs ──nimbusPages / nimbusBlocks──► lib/nimbus-import.ts
+                                                                                   │ blocksToDoc (same converter as the sample pages)
+                                                                                   │ buildPageUpdate: page map + one note, as ONE Yjs update
+                                                                                   ▼
+                                                   Core::import_page(id, update, createdAt, updatedAt)
+                                                     validates the doc, then: pages row (original created_at)
+                                                     + one log row (original updated_at) + index, in one transaction
+```
+
+**What carries over:**
+- **Page content.** Every Nimbus block type:
+  - text and headings 1–3;
+  - bulleted, numbered and to-do lists (with checked state), with indentation becoming nested lists;
+  - quotes, callouts with their icon, code with its language, and dividers;
+  - images with their caption, and sub-page blocks.
+- **Inline formatting:** bold, italic, underline, strike, code, links and line breaks.
+  `[[page links]]` become inline refs that always show the current title.
+- **Ids.** Page ids are kept, so links between imported pages keep working. Block ids are kept too.
+- **Page metadata:** title, icon, parent (the page tree), sort order, favorite, archived and trash.
+- **Dates.** Original created and updated dates are kept, so "Recent" and "Updated …" still make sense.
+
+**When it runs:**
+- **Automatically on first run.** If the workspace is empty and a `nimbus.db` is found in the
+  old app's folder, it is imported *instead of* creating the sample pages. A toast says how
+  many pages came over.
+- **By hand:** *Settings → Import from Nimbus…* opens a dialog with the detected path (or a path
+  you type), a progress bar and a summary.
+- **Safe to repeat.** Pages that already exist (same id) are skipped, so running it twice, or
+  after a partial import, never duplicates anything. A page that fails to convert is reported
+  and the rest continue.
+
+**Design choice: why convert in the frontend.** Nimbus stored text as inline HTML. The frontend
+already turns that HTML into Tiptap content for the sample pages and for Markdown paste, using
+the editor's own schema, so the import reuses exactly that path. Rust only reads the old file,
+and the core gets a new general-purpose primitive, `import_page`, that any future importer
+(Markdown folders, Obsidian, …) can use.
+
+**Not carried over:**
+- **Indented plain paragraphs** lose their indent. Only list items nest in the new editor.
+- **Highlighted text** (Nimbus `<mark>`) keeps its text but not the highlight, because the editor
+  has no highlight mark yet.
+
+**Tests:**
+- `crates/bw-api/tests/nimbus.rs` builds a database in Nimbus's exact schema with every block
+  type. It checks the reader, the errors for a missing file or a non-Nimbus file, and that the
+  old file is byte-for-byte unchanged afterwards.
+- `import_page_keeps_dates_and_validates` in the core tests covers dates, rebuilding the index
+  and rejecting bad input.
+- The browser run imported the sample database on first start (4 pages: tree, favorite,
+  archived, trashed, dates, links, tags, every block type). A second run from the dialog
+  reported "4 already here", with no console errors.
+
+To try it by hand in the browser:
+
+```bash
+cargo run -p bw-api --example nimbus_sample -- /tmp/nimbus.db   # a sample Nimbus database
+cargo run -p bw-devserver -- /tmp/fresh.db 1430 /tmp/nimbus.db  # third argument = Nimbus db to offer
+pnpm --filter @brainwaves/desktop dev
+```
+

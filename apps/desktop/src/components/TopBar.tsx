@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronDown, CircleHelp, FilePlus2, HardDrive, Moon, Search, Settings, Sparkles, Star, Sun } from 'lucide-react'
+import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, Moon, Search, Settings, Sparkles, Star, Sun } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
@@ -61,6 +61,15 @@ function SettingsPanel({ x, y, onClose }: { x: number; y: number; onClose: () =>
           <span title={loc}>{loc || '…'}</span>
         </div>
       </div>
+      <button
+        className="setting-action"
+        onClick={() => {
+          onClose()
+          setState({ importDialog: true })
+        }}
+      >
+        <Download size={13} /> Import from Nimbus…
+      </button>
     </Popover>
   )
 }
@@ -83,7 +92,7 @@ export function TopBar() {
           <span className="brand-mark" aria-hidden>
             <Sparkles size={15} />
           </span>
-          <span className="brand-name">Nimbus</span>
+          <span className="brand-name">BrainWaves</span>
           <ChevronDown size={14} className="muted-icon" />
         </button>
       </div>

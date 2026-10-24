@@ -720,3 +720,53 @@ fn tempdir() -> std::path::PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
+
+#[test]
+fn import_page_keeps_dates_and_validates() {
+    // Build a page the way an importer would: in its own doc, then hand over one update.
+    let mut source = Core::open_in_memory().unwrap();
+    let id = source
+        .create_page_with_id("imported", meta("From elsewhere"))
+        .unwrap();
+    source
+        .transact(&id, |tx| {
+            let n = tx.first_note()?;
+            tx.append(&n, NewBlock::paragraph("old note #legacy"))
+        })
+        .unwrap();
+    let update = source.encode_update_for(&id, None).unwrap();
+
+    let mut core = Core::open_in_memory().unwrap();
+    let events = core.subscribe();
+    core.import_page(&id, &update, 1_000, 5_000).unwrap();
+    let row = core
+        .list_pages()
+        .unwrap()
+        .into_iter()
+        .find(|p| p.id == id)
+        .unwrap();
+    assert_eq!((row.created_at, row.updated_at), (1_000, 5_000));
+    assert_eq!(core.pages_with_tag("legacy").unwrap(), vec![id.clone()]);
+    assert_eq!(core.log_len(&id).unwrap(), 1);
+    assert!(matches!(
+        events.try_recv().unwrap(),
+        Event::PageCreated { .. }
+    ));
+
+    // Survives a rebuild with the same dates.
+    let dump = core.index_dump().unwrap();
+    core.rebuild_index().unwrap();
+    assert_eq!(core.index_dump().unwrap(), dump);
+
+    // Rejected: duplicates, wrong id, garbage. Nothing is written.
+    assert!(matches!(
+        core.import_page(&id, &update, 0, 0),
+        Err(Error::Invalid(_))
+    ));
+    assert!(matches!(
+        core.import_page("other-id", &update, 0, 0),
+        Err(Error::Invalid(_)) | Err(Error::PageNotFound(_))
+    ));
+    assert!(core.import_page("x", &[1, 2, 3], 0, 0).is_err());
+    assert_eq!(core.page_ids().unwrap(), vec![id]);
+}

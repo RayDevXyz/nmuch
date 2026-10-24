@@ -37,7 +37,7 @@ export async function seed(storage: Storage, open: (pageId: string) => Promise<P
       ['text', 'A calm place to capture what matters, connect your ideas, and make space for better thinking.'],
       ['callout', '<b>Make it yours</b><br>Use this space for a daily journal, a project hub, or anything you want to remember.', { icon: '✨' }],
       ['h2', 'A calm place to think'],
-      ['text', 'Nimbus keeps your notes close and your attention focused. Everything is organized into flexible documents built from <b>blocks</b> — every paragraph, heading, list item and image is one.'],
+      ['text', 'BrainWaves keeps your notes close and your attention focused. Everything is organized into flexible documents built from <b>blocks</b> — every paragraph, heading, list item and image is one.'],
       ['bullet', 'Write in a clean, distraction-free editor'],
       ['bullet', 'Connect ideas with backlinks — type <code>[[</code> to link a page, e.g. ' + link(atlas.id, 'Project Atlas')],
       ['bullet', 'Link a single block with <code>((</code> and search for its text'],

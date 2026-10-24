@@ -1,12 +1,12 @@
-# Nimbus
+# BrainWaves (desktop app)
 
-A local-first, block-based notes app built from the Nimbus v0 design template.
+A local-first, block-based notes app, built from the Nimbus v0 design template (it was called Nimbus before).
 Tauri v2 + Rust + SQLite on the desktop, React 19 + TypeScript + Vite in the UI.
 No account and no cloud: everything is stored in one SQLite file on your machine.
 
 ## Run it
 
-Nimbus is the app shell of BrainWaves. Its data lives in the BrainWaves Rust core (`crates/bw-core`):
+This is the app shell of BrainWaves. Its data lives in the BrainWaves Rust core (`crates/bw-core`):
 every edit is a Yjs update in a SQLite log, and the search/backlink/tag index is rebuilt from it.
 See `docs/phase-02-editor.md` at the repository root.
 
@@ -26,7 +26,12 @@ pnpm core                  # bw-devserver on 127.0.0.1:1430, data in brainwaves-
 pnpm dev                   # Vite on http://localhost:1420 (proxies /api to the dev server)
 ```
 
-Database location: `%APPDATA%\app.nimbus.notes\brainwaves.db` (an older `nimbus.db` there is not touched).
+Database location: `%APPDATA%\app.brainwaves.notes\brainwaves.db`.
+
+**Coming from Nimbus?** On first start, if `%APPDATA%\app.nimbus.notes\nimbus.db` exists, its pages are
+imported automatically (the old file is only read). You can also run it any time from
+*Settings → Import from Nimbus…*. In the browser, pass the file as the dev server's third argument:
+`cargo run -p bw-devserver -- ../../brainwaves-dev.db 1430 path/to/nimbus.db`.
 Settings → *Storage* shows the full path.
 
 ## What's in it

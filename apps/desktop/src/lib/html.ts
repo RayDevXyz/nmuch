@@ -254,6 +254,8 @@ export interface ParsedBlock {
   type: BlockType
   text: string
   props: BlockProps
+  /** Kept when importing from Nimbus, so blocks keep their identity. */
+  id?: string
 }
 
 export function parseMarkdown(text: string, resolvePage?: (title: string) => string | null): ParsedBlock[] {

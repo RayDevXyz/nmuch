@@ -40,9 +40,13 @@ pub(crate) fn now_millis() -> i64 {
 }
 
 pub(crate) fn insert_page(conn: &Connection, page_id: &str) -> Result<()> {
+    insert_page_at(conn, page_id, now_millis())
+}
+
+pub(crate) fn insert_page_at(conn: &Connection, page_id: &str, created_at: i64) -> Result<()> {
     conn.execute(
         "INSERT INTO pages(page_id, created_at) VALUES (?1, ?2)",
-        params![page_id, now_millis()],
+        params![page_id, created_at],
     )?;
     Ok(())
 }
@@ -83,9 +87,18 @@ pub(crate) fn page_ids(conn: &Connection) -> Result<Vec<String>> {
 
 /// Append one update to the log, returning its sequence number.
 pub(crate) fn append_update(conn: &Connection, page_id: &str, data: &[u8]) -> Result<i64> {
+    append_update_at(conn, page_id, data, now_millis())
+}
+
+pub(crate) fn append_update_at(
+    conn: &Connection,
+    page_id: &str,
+    data: &[u8],
+    created_at: i64,
+) -> Result<i64> {
     conn.execute(
         "INSERT INTO updates(page_id, data, created_at) VALUES (?1, ?2, ?3)",
-        params![page_id, data, now_millis()],
+        params![page_id, data, created_at],
     )?;
     Ok(conn.last_insert_rowid())
 }

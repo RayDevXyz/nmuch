@@ -1,6 +1,8 @@
 //! Development bridge: the same commands the Tauri app offers, over HTTP.
 //!
-//!     cargo run -p bw-devserver -- [path/to/workspace.db] [port]
+//!     cargo run -p bw-devserver -- [path/to/workspace.db] [port] [path/to/nimbus.db]
+//!
+//! The optional third argument is an old Nimbus database to offer for import.
 //!
 //! - `POST /api/<command>` with a JSON body runs `bw_api::dispatch`.
 //! - `GET /api/events` is a Server-Sent Events stream of core events.
@@ -25,6 +27,7 @@ use tokio_stream::StreamExt;
 #[derive(Clone)]
 struct AppState {
     core: Arc<Mutex<bw_core::Core>>,
+    ctx: Arc<bw_api::Context>,
     events: broadcast::Sender<String>,
 }
 
@@ -33,6 +36,9 @@ async fn main() {
     let mut args = std::env::args().skip(1);
     let db = args.next().unwrap_or_else(|| "brainwaves-dev.db".into());
     let port: u16 = args.next().and_then(|p| p.parse().ok()).unwrap_or(1430);
+    let ctx = bw_api::Context {
+        nimbus_db: args.next().map(Into::into),
+    };
 
     let mut core = bw_core::Core::open(&db).expect("open workspace");
     let rx = core.subscribe();
@@ -48,6 +54,7 @@ async fn main() {
 
     let state = AppState {
         core: Arc::new(Mutex::new(core)),
+        ctx: Arc::new(ctx),
         events: tx,
     };
     let app = Router::new()
@@ -72,10 +79,10 @@ async fn call(
     } else {
         args
     };
-    let core = s.core.clone();
+    let (core, ctx) = (s.core.clone(), s.ctx.clone());
     tokio::task::spawn_blocking(move || {
         let mut core = core.lock().map_err(|e| e.to_string())?;
-        bw_api::dispatch(&mut core, &command, args)
+        bw_api::dispatch(&mut core, &ctx, &command, args)
     })
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?

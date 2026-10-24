@@ -83,7 +83,7 @@ function pageMenu(page: Page, startRename?: () => void): (MenuEntry | 'sep')[] {
 }
 
 type DropPos = 'before' | 'after' | 'inside'
-const DND = 'application/x-nimbus-page'
+const DND = 'application/x-brainwaves-page'
 
 function TreeNode({ page, depth, childMap }: { page: Page; depth: number; childMap: Map<string | null, Page[]> }) {
   const expanded = useApp((s) => !!s.expanded[page.id])

@@ -1,8 +1,9 @@
-import { schemaExtensions, ensureIds } from '@brainwaves/editor'
+import { schemaExtensions, ensureIds, newId } from '@brainwaves/editor'
 import { getSchema, type JSONContent } from '@tiptap/core'
 import { prosemirrorJSONToYXmlFragment, yXmlFragmentToProseMirrorRootNode } from '@tiptap/y-tiptap'
 import * as Y from 'yjs'
 import { fromBase64, toBase64, type CoreClient } from './client'
+import type { PageMeta } from '../types'
 
 /** Transaction origin for changes that came from the core; those are never sent back. */
 const FROM_CORE = 'core'
@@ -114,6 +115,39 @@ export class PageSync {
     this.off()
     this.doc.destroy()
   }
+}
+
+/**
+ * A complete page as one Yjs update, in the layout the core expects (schema 2, see
+ * `crates/bw-core/src/schema.rs`): page metadata plus one note holding `content`.
+ * Used by importers with `importPage`; the core validates it before writing anything.
+ */
+export function buildPageUpdate(pageId: string, meta: PageMeta, content: JSONContent): Uint8Array {
+  const doc = new Y.Doc()
+  const fragment = new Y.XmlFragment()
+  doc.transact(() => {
+    const page = doc.getMap('page')
+    page.set('id', pageId)
+    page.set('schema', 2)
+    page.set('title', meta.title)
+    page.set('icon', meta.icon)
+    page.set('parent', meta.parentId)
+    page.set('key', meta.key)
+    page.set('favorite', meta.favorite)
+    page.set('archived', meta.archived)
+    page.set('trashedAt', meta.trashedAt)
+    const note = new Y.Map<unknown>()
+    const noteId = newId()
+    doc.getMap('notes').set(noteId, note)
+    note.set('id', noteId)
+    note.set('order', 'a0')
+    note.set('xywh', null)
+    note.set('content', fragment)
+  })
+  prosemirrorJSONToYXmlFragment(schema, ensureIds(content), fragment)
+  const update = Y.encodeStateAsUpdate(doc)
+  doc.destroy()
+  return update
 }
 
 // ---- shared instances: one PageSync per open page, reference counted

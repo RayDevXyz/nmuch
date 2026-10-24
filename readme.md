@@ -79,7 +79,7 @@ crates/bw-core       Rust core: block model on yrs, SQLite update log (truth), r
 crates/bw-api        the command surface the frontend uses (shared by Tauri and the dev server)
 crates/bw-devserver  bw-api over HTTP, so the UI can run in a browser during development
 packages/editor      @brainwaves/editor: the Tiptap block engine (schema, nodes, menus)
-apps/desktop         the desktop app (Nimbus shell, Tauri)
+apps/desktop         the BrainWaves desktop app (Tauri + React)
 docs/                design notes: spike-01-block-model.md, phase-02-editor.md
 ```
 

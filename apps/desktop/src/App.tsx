@@ -9,6 +9,7 @@ import { EditorPanel } from './components/EditorPanel'
 import { RightPanel } from './components/RightPanel'
 import { QuickFind } from './components/QuickFind'
 import { HelpModal } from './components/HelpModal'
+import { ImportDialog } from './components/ImportDialog'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
@@ -18,6 +19,7 @@ export default function App() {
   const rightOpen = useApp((s) => s.rightOpen)
   const quickFind = useApp((s) => s.quickFind)
   const help = useApp((s) => s.help)
+  const importDialog = useApp((s) => s.importDialog)
   const toast = useApp((s) => s.toast)
 
   useEffect(() => {
@@ -94,6 +96,7 @@ export default function App() {
       </div>
       {quickFind && <QuickFind />}
       {help && <HelpModal />}
+      {importDialog && <ImportDialog />}
       {toast && <div className="toast">{toast}</div>}
     </main>
   )

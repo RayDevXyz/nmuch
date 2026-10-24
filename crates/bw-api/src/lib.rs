@@ -10,8 +10,18 @@ use bw_core::{Core, PageMeta, PageMetaPatch};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::path::PathBuf;
+
+pub mod nimbus;
 
 pub use bw_core::Event;
+
+/// Things only the host (Tauri app or dev server) knows.
+#[derive(Debug, Clone, Default)]
+pub struct Context {
+    /// Where an old Nimbus database is expected (`<app data>/app.nimbus.notes/nimbus.db`).
+    pub nimbus_db: Option<PathBuf>,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -74,6 +84,23 @@ fn default_limit() -> i64 {
     25
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportPage {
+    id: String,
+    update: String,
+    created_at: i64,
+    updated_at: i64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct NimbusPath {
+    path: String,
+    #[serde(default)]
+    page_id: Option<String>,
+}
+
 fn args<T: DeserializeOwned>(v: Value) -> Result<T, String> {
     serde_json::from_value(v).map_err(|e| format!("bad arguments: {e}"))
 }
@@ -87,7 +114,7 @@ fn b64(s: &str) -> Result<Vec<u8>, String> {
 }
 
 /// Run one command against the core. Errors come back as strings for the frontend.
-pub fn dispatch(core: &mut Core, command: &str, a: Value) -> Result<Value, String> {
+pub fn dispatch(core: &mut Core, ctx: &Context, command: &str, a: Value) -> Result<Value, String> {
     let e = |err: bw_core::Error| err.to_string();
     match command {
         "listPages" => ok(core.list_pages().map_err(e)?),
@@ -156,6 +183,32 @@ pub fn dispatch(core: &mut Core, command: &str, a: Value) -> Result<Value, Strin
                 json!({ "pages": r.pages, "blocks": r.blocks, "updatesReplayed": r.updates_replayed, "ms": r.elapsed.as_millis() as u64 }),
             )
         }
+        "importPage" => {
+            let ImportPage {
+                id,
+                update,
+                created_at,
+                updated_at,
+            } = args(a)?;
+            core.import_page(&id, &b64(&update)?, created_at, updated_at)
+                .map_err(e)?;
+            ok(())
+        }
+        // ---- reading an old Nimbus database (read-only; see nimbus.rs)
+        "nimbusDefaultPath" => ok(ctx
+            .nimbus_db
+            .as_ref()
+            .filter(|p| p.is_file())
+            .map(|p| p.display().to_string())),
+        "nimbusPages" => {
+            let NimbusPath { path, .. } = args(a)?;
+            ok(nimbus::pages(std::path::Path::new(&path))?)
+        }
+        "nimbusBlocks" => {
+            let NimbusPath { path, page_id } = args(a)?;
+            let page_id = page_id.ok_or("pageId is required")?;
+            ok(nimbus::blocks(std::path::Path::new(&path), &page_id)?)
+        }
         other => Err(format!("unknown command: {other}")),
     }
 }
@@ -169,6 +222,7 @@ mod tests {
         let mut core = Core::open_in_memory().unwrap();
         let id = dispatch(
             &mut core,
+            &Context::default(),
             "createPage",
             json!({ "id": "p1", "meta": { "title": "Hello", "key": "a0" } }),
         )
@@ -176,25 +230,33 @@ mod tests {
         assert_eq!(id, json!("p1"));
         dispatch(
             &mut core,
+            &Context::default(),
             "updatePage",
             json!({ "id": "p1", "patch": { "icon": "📚" } }),
         )
         .unwrap();
-        let pages = dispatch(&mut core, "listPages", json!({})).unwrap();
+        let pages = dispatch(&mut core, &Context::default(), "listPages", json!({})).unwrap();
         assert_eq!(pages[0]["title"], "Hello");
         assert_eq!(pages[0]["icon"], "📚");
         assert_eq!(pages[0]["parentId"], Value::Null);
 
-        let full = dispatch(&mut core, "loadPage", json!({ "pageId": "p1" })).unwrap();
+        let full = dispatch(
+            &mut core,
+            &Context::default(),
+            "loadPage",
+            json!({ "pageId": "p1" }),
+        )
+        .unwrap();
         assert!(!full.as_str().unwrap().is_empty());
         let err = dispatch(
             &mut core,
+            &Context::default(),
             "pushUpdate",
             json!({ "pageId": "p1", "update": "!!" }),
         )
         .unwrap_err();
         assert!(err.contains("base64"));
-        assert!(dispatch(&mut core, "nope", json!({}))
+        assert!(dispatch(&mut core, &Context::default(), "nope", json!({}))
             .unwrap_err()
             .contains("unknown command"));
     }

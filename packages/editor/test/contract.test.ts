@@ -64,7 +64,10 @@ function expectedBlocks(doc: JSONContent) {
       }
     })
     if (n.type === 'image') text = node.attrs.caption
-    if (n.type === 'pageLink') refs.push([node.attrs.pageId, 'page'])
+    if (n.type === 'pageLink') {
+      text = '\uFFFC'
+      refs.push([node.attrs.pageId, 'page'])
+    }
     const attrs = Object.fromEntries(Object.entries(node.attrs).filter(([k, v]) => k !== 'id' && v !== null))
     out.push({ id: node.attrs.id, type: n.type, depth, text, attrs, refs })
     n.content?.forEach((c) => walk(c, depth + 1))

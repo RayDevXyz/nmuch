@@ -4,6 +4,7 @@ import { coreClient, db, initStorage, metaOf } from '../lib/storage'
 import { acquirePage, releasePage, type PageSync } from '../lib/core/page-sync'
 import type { Page } from '../lib/types'
 import { seed } from '../lib/seed'
+import { describeImport, importNimbus, nimbusDefaultPath } from '../lib/nimbus-import'
 import { getState, setState, toast, type View } from './store'
 
 // ---------- write queue ----------
@@ -155,6 +156,13 @@ async function doInit() {
   const storage = await initStorage()
   coreClient().onEvent(() => scheduleRefresh())
   let pages = await storage.listPages()
+  // First run: bring over notes from the old Nimbus app if they're there, else sample pages.
+  const nimbus = pages.length === 0 ? await nimbusDefaultPath().catch(() => null) : null
+  if (nimbus) {
+    const result = await importNimbus(nimbus)
+    pages = await storage.listPages()
+    setTimeout(() => toast(describeImport(result)), 300)
+  }
   if (pages.length === 0) {
     const opened: string[] = []
     await seed(storage, async (id) => {

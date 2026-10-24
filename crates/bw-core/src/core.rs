@@ -119,6 +119,62 @@ impl Core {
         Ok(page_id.to_string())
     }
 
+    /// Import a page built elsewhere (e.g. converted from another app) as a single update.
+    ///
+    /// `update` must encode a complete page in the schema-2 layout whose `page.id` is
+    /// `page_id` and that has at least one note. It is validated before anything is written.
+    /// The page keeps its original dates: `created_at` becomes its creation time and
+    /// `updated_at` the time of its (only) log entry.
+    pub fn import_page(
+        &mut self,
+        page_id: &str,
+        update: &[u8],
+        created_at: i64,
+        updated_at: i64,
+    ) -> Result<()> {
+        if store::page_exists(&self.conn, page_id)? {
+            return Err(Error::Invalid(format!("page {page_id} already exists")));
+        }
+        let decoded = Update::decode_v1(update).map_err(|e| Error::Decode(e.to_string()))?;
+        let doc = Doc::new();
+        doc.transact_mut()
+            .apply_update(decoded)
+            .map_err(|e| Error::Apply(e.to_string()))?;
+        let snap = doc::snapshot(&doc, page_id)?;
+        if doc::stored_page_id(&doc).as_deref() != Some(page_id) {
+            return Err(Error::Invalid(
+                "page.id in the document does not match".into(),
+            ));
+        }
+        if snap.notes().next().is_none() {
+            return Err(Error::Invalid(
+                "an imported page needs at least one note".into(),
+            ));
+        }
+
+        let tx = self.conn.transaction()?;
+        store::insert_page_at(&tx, page_id, created_at)?;
+        let seq = store::append_update_at(&tx, page_id, update, updated_at.max(created_at))?;
+        let (created_at, updated_at) = store::page_times(&tx, page_id)?;
+        index::project_page(
+            &tx,
+            &snap,
+            seq,
+            &PageTimes {
+                created_at,
+                updated_at,
+            },
+        )?;
+        tx.commit()?;
+
+        self.docs.insert(page_id.to_string(), doc);
+        self.bus.emit(Event::PageCreated {
+            page_id: page_id.to_string(),
+            seq,
+        });
+        Ok(())
+    }
+
     /// Change page metadata (title, icon, parent, sort key, favorite, archived, trashed).
     pub fn update_page(&mut self, page_id: &str, patch: &PageMetaPatch) -> Result<()> {
         self.transact(page_id, |tx| {

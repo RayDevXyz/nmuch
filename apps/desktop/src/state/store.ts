@@ -32,17 +32,21 @@ export interface AppState {
   indexVersion: number
   quickFind: boolean
   help: boolean
+  /** The "Import from Nimbus" dialog is open. */
+  importDialog: boolean
   /** request for the editor to scroll to / focus a block once a page is open */
   reveal: { pageId: string; blockId: string } | null
   toast: string | null
 }
 
-const PREFS_KEY = 'nimbus.prefs.v1'
+const PREFS_KEY = 'brainwaves.prefs.v1'
+/** Preferences saved before the rename to BrainWaves. */
+const OLD_PREFS_KEY = 'nimbus.prefs.v1'
 type Prefs = Pick<AppState, 'view' | 'tabs' | 'activeId' | 'theme' | 'sidebarOpen' | 'rightOpen' | 'expanded' | 'width' | 'fontSize' | 'spellcheck'>
 
 function loadPrefs(): Partial<Prefs> {
   try {
-    return JSON.parse(localStorage.getItem(PREFS_KEY) || '{}')
+    return JSON.parse(localStorage.getItem(PREFS_KEY) || localStorage.getItem(OLD_PREFS_KEY) || '{}')
   } catch {
     return {}
   }
@@ -71,6 +75,7 @@ let state: AppState = {
   indexVersion: 0,
   quickFind: false,
   help: false,
+  importDialog: false,
   reveal: null,
   toast: null,
   ...loadPrefs(),

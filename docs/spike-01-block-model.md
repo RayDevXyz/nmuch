@@ -1,5 +1,14 @@
 # Spike 1: Block model, yrs persistence and index rebuild
 
+> **Update (phase 2):** the write path, the update log, the rebuildable index, compaction and
+> the event bus described here are unchanged. Two things moved on:
+> - **The block layout.** Section 4: blocks are now ProseMirror nodes inside one
+>   `Y.XmlFragment` per note, so the Tiptap editor and the core read the same structure.
+> - **The index tables.** Section 6: they gained `page_meta` and `tags`.
+>
+> The demo example was replaced by `examples/contract_fixture.rs`. See
+> [phase-02-editor.md](phase-02-editor.md) for the current layout.
+
 **Status:** done. 12 of 12 acceptance tests pass.
 **Code:** `crates/bw-core/`.
 **Branch:** `claude/dazzling-einstein-0r1sxx`.

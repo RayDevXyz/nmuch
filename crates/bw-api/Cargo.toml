@@ -1,0 +1,13 @@
+[package]
+name = "bw-api"
+version = "0.1.0"
+edition = "2021"
+description = "The command surface the frontend uses to talk to bw-core (shared by Tauri and the dev server)"
+publish = false
+
+[dependencies]
+bw-core = { path = "../bw-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+base64 = "0.22"
+rusqlite = { version = "0.41", features = ["bundled"] }

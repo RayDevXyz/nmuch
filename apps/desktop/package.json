@@ -1,0 +1,38 @@
+{
+  "name": "@brainwaves/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "core": "cargo run -p bw-devserver -- ../../brainwaves-dev.db",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@brainwaves/editor": "workspace:*",
+    "@fontsource-variable/jetbrains-mono": "^5.1.1",
+    "@fontsource-variable/manrope": "^5.1.1",
+    "@tauri-apps/api": "^2.2.0",
+    "@tauri-apps/plugin-opener": "^2.2.5",
+    "@tiptap/core": "3.32.0",
+    "@tiptap/pm": "3.32.0",
+    "@tiptap/y-tiptap": "^3.0.7",
+    "d3-force": "^3.0.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "yjs": "13.6.33"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.2.0",
+    "@types/d3-force": "^3.0.10",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.7"
+  }
+}

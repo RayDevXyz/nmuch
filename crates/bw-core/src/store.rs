@@ -40,10 +40,31 @@ pub(crate) fn now_millis() -> i64 {
 }
 
 pub(crate) fn insert_page(conn: &Connection, page_id: &str) -> Result<()> {
+    insert_page_at(conn, page_id, now_millis())
+}
+
+pub(crate) fn insert_page_at(conn: &Connection, page_id: &str, created_at: i64) -> Result<()> {
     conn.execute(
         "INSERT INTO pages(page_id, created_at) VALUES (?1, ?2)",
-        params![page_id, now_millis()],
+        params![page_id, created_at],
     )?;
+    Ok(())
+}
+
+/// (created_at, updated_at): page creation time and the time of its last log entry.
+pub(crate) fn page_times(conn: &Connection, page_id: &str) -> Result<(i64, i64)> {
+    Ok(conn.query_row(
+        "SELECT p.created_at, COALESCE((SELECT MAX(created_at) FROM updates u WHERE u.page_id = p.page_id), p.created_at)
+         FROM pages p WHERE p.page_id = ?1",
+        [page_id],
+        |r| Ok((r.get(0)?, r.get(1)?)),
+    )?)
+}
+
+/// Permanently remove a page and its whole log. The only operation that destroys truth.
+pub(crate) fn delete_page(conn: &Connection, page_id: &str) -> Result<()> {
+    conn.execute("DELETE FROM updates WHERE page_id = ?1", [page_id])?;
+    conn.execute("DELETE FROM pages WHERE page_id = ?1", [page_id])?;
     Ok(())
 }
 
@@ -66,9 +87,18 @@ pub(crate) fn page_ids(conn: &Connection) -> Result<Vec<String>> {
 
 /// Append one update to the log, returning its sequence number.
 pub(crate) fn append_update(conn: &Connection, page_id: &str, data: &[u8]) -> Result<i64> {
+    append_update_at(conn, page_id, data, now_millis())
+}
+
+pub(crate) fn append_update_at(
+    conn: &Connection,
+    page_id: &str,
+    data: &[u8],
+    created_at: i64,
+) -> Result<i64> {
     conn.execute(
         "INSERT INTO updates(page_id, data, created_at) VALUES (?1, ?2, ?3)",
-        params![page_id, data, now_millis()],
+        params![page_id, data, created_at],
     )?;
     Ok(conn.last_insert_rowid())
 }
@@ -116,9 +146,14 @@ pub(crate) fn compact(conn: &mut Connection, page_id: &str) -> Result<usize> {
         return Ok(0);
     }
     let merged = yrs::merge_updates_v1(&updates).map_err(|e| Error::Decode(e.to_string()))?;
+    let (_, last_write) = page_times(conn, page_id)?;
     let tx = conn.transaction()?;
     let removed = tx.execute("DELETE FROM updates WHERE page_id = ?1", [page_id])?;
-    append_update(&tx, page_id, &merged)?;
+    // Keep the original time of the last write so "updated at" doesn't jump.
+    tx.execute(
+        "INSERT INTO updates(page_id, data, created_at) VALUES (?1, ?2, ?3)",
+        params![page_id, merged, last_write],
+    )?;
     tx.commit()?;
     Ok(removed)
 }

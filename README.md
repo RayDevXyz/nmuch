@@ -85,6 +85,17 @@ apps/desktop         the BrainWaves desktop app (Tauri + React)
 docs/                architecture.md (the plan), spike-01-block-model.md, phase-02-editor.md
 ```
 
+**Windows, from scratch:** double-click `scripts\install-windows.cmd`. It installs everything
+that's missing (Git, the C++ build tools, WebView2, Rust, Node.js, pnpm), installs the
+project's packages and compiles it once. Options: `-Run` starts the app afterwards, `-Build`
+builds the installer, `-Check` runs the tests.
+
+```powershell
+scripts\install-windows.cmd -Run
+```
+
+**Already have the tools:**
+
 ```bash
 pnpm install
 cargo test --workspace && pnpm -r test     # tests

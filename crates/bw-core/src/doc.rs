@@ -14,10 +14,11 @@ use yrs::{
     XmlTextPrelim, XmlTextRef,
 };
 
+use crate::database::{sort_by_order, DatabaseDef, Property, View};
 use crate::error::{Error, Result};
 use crate::schema::{
-    keys, new_id, node, BlockId, BlockSnapshot, PageId, PageMeta, PageMetaPatch, PageSnapshot,
-    SCHEMA_VERSION,
+    keys, new_id, node, BlockId, BlockSnapshot, PageId, PageKind, PageMeta, PageMetaPatch,
+    PageSnapshot, SCHEMA_VERSION,
 };
 
 // ---------------------------------------------------------------- owned XML tree
@@ -163,6 +164,18 @@ impl NewBlock {
         Self::el(
             node::PAGE_LINK,
             vec![("pageId", Any::from(page_id))],
+            vec![],
+        )
+    }
+
+    /// An inline view of a database page.
+    pub fn database(database_id: &str, view_id: &str) -> XNode {
+        Self::el(
+            node::DATABASE,
+            vec![
+                ("databaseId", Any::from(database_id)),
+                ("viewId", Any::from(view_id)),
+            ],
             vec![],
         )
     }
@@ -323,6 +336,12 @@ fn insert_note(
 }
 
 fn apply_meta(txn: &mut TransactionMut, page: &MapRef, p: &PageMetaPatch) {
+    if let Some(v) = p.kind {
+        page.insert(txn, "kind", v.as_str());
+    }
+    if let Some(v) = &p.database_id {
+        page.insert(txn, "database", opt_str(v));
+    }
     if let Some(v) = &p.title {
         page.insert(txn, "title", any_str(v));
     }
@@ -364,6 +383,11 @@ fn read_meta<T: ReadTxn>(txn: &T, page: &MapRef) -> PageMeta {
         _ => None,
     };
     PageMeta {
+        kind: match s("kind").as_deref() {
+            Some("database") => PageKind::Database,
+            _ => PageKind::Page,
+        },
+        database_id: s("database"),
         title: s("title").unwrap_or_default(),
         icon: s("icon").unwrap_or_default(),
         parent_id: s("parent"),
@@ -480,23 +504,75 @@ pub struct BlockTxn<'a, 'doc> {
     page: MapRef,
     notes: MapRef,
     props: MapRef,
+    db_props: MapRef,
+    db_views: MapRef,
     page_id: PageId,
 }
 
 impl<'a, 'doc> BlockTxn<'a, 'doc> {
     pub(crate) fn new(
         txn: &'a mut TransactionMut<'doc>,
-        doc_maps: (MapRef, MapRef, MapRef),
+        doc_maps: DocMaps,
         page_id: PageId,
     ) -> Self {
-        let (page, notes, props) = doc_maps;
+        let DocMaps {
+            page,
+            notes,
+            props,
+            db_props,
+            db_views,
+        } = doc_maps;
         Self {
             txn,
             page,
             notes,
             props,
+            db_props,
+            db_views,
             page_id,
         }
+    }
+
+    // ---- database pages (see database.rs)
+
+    fn require_database(&self) -> Result<()> {
+        if self.meta().kind != PageKind::Database {
+            return Err(Error::Invalid(format!(
+                "{} is not a database",
+                self.page_id
+            )));
+        }
+        Ok(())
+    }
+
+    /// Add or replace a column definition.
+    pub fn set_db_property(&mut self, prop: &Property) -> Result<()> {
+        self.require_database()?;
+        let json = serde_json::to_value(prop).map_err(|e| Error::Invalid(e.to_string()))?;
+        self.db_props
+            .insert(self.txn, prop.id.as_str(), to_any(json)?);
+        Ok(())
+    }
+
+    pub fn remove_db_property(&mut self, id: &str) -> Result<()> {
+        self.require_database()?;
+        self.db_props.remove(self.txn, id);
+        Ok(())
+    }
+
+    /// Add or replace a saved view.
+    pub fn set_db_view(&mut self, view: &View) -> Result<()> {
+        self.require_database()?;
+        let json = serde_json::to_value(view).map_err(|e| Error::Invalid(e.to_string()))?;
+        self.db_views
+            .insert(self.txn, view.id.as_str(), to_any(json)?);
+        Ok(())
+    }
+
+    pub fn remove_db_view(&mut self, id: &str) -> Result<()> {
+        self.require_database()?;
+        self.db_views.remove(self.txn, id);
+        Ok(())
     }
 
     pub fn page_id(&self) -> &str {
@@ -812,6 +888,8 @@ pub fn snapshot(doc: &Doc, page_id: &str) -> Result<PageSnapshot> {
     let page = doc.get_or_insert_map(keys::PAGE);
     let notes = doc.get_or_insert_map(keys::NOTES);
     let props = doc.get_or_insert_map(keys::PROPS);
+    let db_props = doc.get_or_insert_map(keys::DB_PROPERTIES);
+    let db_views = doc.get_or_insert_map(keys::DB_VIEWS);
     let txn = doc.transact();
     if page.get(&txn, keys::ID).is_none() {
         return Err(Error::PageNotFound(page_id.to_string()));
@@ -872,11 +950,32 @@ pub fn snapshot(doc: &Doc, page_id: &str) -> Result<PageSnapshot> {
         let children: Vec<XmlOut> = frag.children(&txn).collect();
         ctx.walk_children(children, &note_id, 2);
     }
+    let database =
+        (meta.kind == PageKind::Database).then(|| read_database(&txn, &db_props, &db_views));
     Ok(PageSnapshot {
         page_id: page_id.to_string(),
         meta,
         blocks,
+        database,
     })
+}
+
+/// Columns and views of a database page. Entries that don't parse (written by a newer
+/// version, say) are skipped rather than failing the whole page.
+fn read_database<T: ReadTxn>(txn: &T, props: &MapRef, views: &MapRef) -> DatabaseDef {
+    fn parse<T: ReadTxn, V: serde::de::DeserializeOwned>(txn: &T, map: &MapRef) -> Vec<V> {
+        map.iter(txn)
+            .filter_map(|(_, v)| match v {
+                Out::Any(a) => serde_json::from_value(to_json(&a)).ok(),
+                _ => None,
+            })
+            .collect()
+    }
+    let mut properties: Vec<Property> = parse(txn, props);
+    let mut views: Vec<View> = parse(txn, views);
+    sort_by_order(&mut properties, |p| (p.order.as_str(), p.id.as_str()));
+    sort_by_order(&mut views, |v| (v.order.as_str(), v.id.as_str()));
+    DatabaseDef { properties, views }
 }
 
 struct Walk<'a, T: ReadTxn, F: Fn(&str) -> BTreeMap<String, serde_json::Value>> {
@@ -934,6 +1033,12 @@ impl<T: ReadTxn, F: Fn(&str) -> BTreeMap<String, serde_json::Value>> Walk<'_, T,
                     _ => None,
                 })
                 .collect();
+            if tag == node::DATABASE {
+                if let Some(serde_json::Value::String(d)) = attrs.get("databaseId") {
+                    text.push(crate::index::REF_MARK);
+                    refs.push((d.clone(), "page".into()));
+                }
+            }
             if tag == node::PAGE_LINK {
                 if let Some(serde_json::Value::String(p)) = attrs.get("pageId") {
                     // Its "text" is the linked page's title, resolved at query time like an inline ref.
@@ -981,13 +1086,24 @@ fn plain<T: ReadTxn>(txn: &T, t: &XmlTextRef) -> String {
         .collect()
 }
 
+/// The root maps [`BlockTxn`] works on.
+pub(crate) struct DocMaps {
+    page: MapRef,
+    notes: MapRef,
+    props: MapRef,
+    db_props: MapRef,
+    db_views: MapRef,
+}
+
 /// Read the root maps needed by [`BlockTxn`]. Must be called outside any transaction.
-pub(crate) fn doc_maps(doc: &Doc) -> (MapRef, MapRef, MapRef) {
-    (
-        doc.get_or_insert_map(keys::PAGE),
-        doc.get_or_insert_map(keys::NOTES),
-        doc.get_or_insert_map(keys::PROPS),
-    )
+pub(crate) fn doc_maps(doc: &Doc) -> DocMaps {
+    DocMaps {
+        page: doc.get_or_insert_map(keys::PAGE),
+        notes: doc.get_or_insert_map(keys::NOTES),
+        props: doc.get_or_insert_map(keys::PROPS),
+        db_props: doc.get_or_insert_map(keys::DB_PROPERTIES),
+        db_views: doc.get_or_insert_map(keys::DB_VIEWS),
+    }
 }
 
 /// The `page.id` stored inside a doc.

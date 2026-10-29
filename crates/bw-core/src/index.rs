@@ -12,10 +12,18 @@ use crate::schema::PageSnapshot;
 /// target's current title, so renames never leave stale text in the index.
 pub const REF_MARK: char = '\u{FFFC}';
 
+/// Bump when the projection's tables or contents change: an index of another version is
+/// dropped and rebuilt from the log on open. 3 = databases (`page_meta.kind`/`database_id`).
+pub const INDEX_VERSION: i64 = 3;
+
 const CREATE_PROJECTION: &str = r#"
+    CREATE TABLE IF NOT EXISTS index_version (v INTEGER NOT NULL);
+
     CREATE TABLE IF NOT EXISTS page_meta (
-        id         TEXT PRIMARY KEY,
-        parent_id  TEXT,
+        id          TEXT PRIMARY KEY,
+        kind        TEXT    NOT NULL,
+        database_id TEXT,
+        parent_id   TEXT,
         title      TEXT    NOT NULL,
         icon       TEXT    NOT NULL,
         sort_key   TEXT    NOT NULL,
@@ -26,6 +34,7 @@ const CREATE_PROJECTION: &str = r#"
         updated_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS page_meta_by_parent ON page_meta(parent_id, sort_key);
+    CREATE INDEX IF NOT EXISTS page_meta_by_database ON page_meta(database_id, sort_key);
 
     -- Every block, plus one row for the page itself and one per note.
     CREATE TABLE IF NOT EXISTS blocks (
@@ -91,16 +100,42 @@ const PROJECTED_TABLES: [&str; 6] = [
 
 pub(crate) fn create_tables(conn: &Connection) -> Result<()> {
     conn.execute_batch(CREATE_PROJECTION)?;
+    conn.execute_batch(&format!(
+        "DELETE FROM index_version; INSERT INTO index_version(v) VALUES ({INDEX_VERSION});"
+    ))?;
     Ok(())
 }
 
+/// Drop every projected table, including ones from older index versions.
 pub(crate) fn drop_tables(conn: &Connection) -> Result<()> {
-    for t in PROJECTED_TABLES {
+    for t in PROJECTED_TABLES
+        .iter()
+        .chain(["index_version", "db_rows"].iter())
+    {
         conn.execute_batch(&format!("DROP TABLE IF EXISTS {t};"))?;
     }
-    // Tables from schema 1 that no longer exist.
-    conn.execute_batch("DROP TABLE IF EXISTS db_rows;")?;
     Ok(())
+}
+
+/// On open: an index written by a different version is dropped (the caller then re-projects
+/// every page from the log). Returns true if it was dropped.
+pub(crate) fn prepare(conn: &Connection) -> Result<bool> {
+    use rusqlite::OptionalExtension;
+    let has_any: bool = conn.query_row(
+        "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('page_meta', 'blocks', 'index_state')",
+        [],
+        |r| r.get::<_, i64>(0),
+    )? > 0;
+    let version: Option<i64> = conn
+        .query_row("SELECT v FROM index_version", [], |r| r.get(0))
+        .optional()
+        .unwrap_or(None);
+    let stale = has_any && version != Some(INDEX_VERSION);
+    if stale {
+        drop_tables(conn)?;
+    }
+    create_tables(conn)?;
+    Ok(stale)
 }
 
 /// Log timestamps the projection needs alongside the snapshot.
@@ -123,11 +158,11 @@ pub(crate) fn project_page(
     clear_page(tx, &snap.page_id)?;
     let m = &snap.meta;
     tx.execute(
-        "INSERT INTO page_meta(id, parent_id, title, icon, sort_key, favorite, archived, trashed_at, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+        "INSERT INTO page_meta(id, kind, database_id, parent_id, title, icon, sort_key, favorite, archived, trashed_at, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
-            snap.page_id, m.parent_id, m.title, m.icon, m.key, m.favorite, m.archived, m.trashed_at,
-            times.created_at, times.updated_at
+            snap.page_id, m.kind.as_str(), m.database_id, m.parent_id, m.title, m.icon, m.key, m.favorite,
+            m.archived, m.trashed_at, times.created_at, times.updated_at
         ],
     )?;
 

@@ -60,7 +60,7 @@ impl Core {
 
     fn init(conn: Connection) -> Result<Self> {
         store::migrate(&conn)?;
-        index::create_tables(&conn)?;
+        index::prepare(&conn)?;
         let mut core = Self {
             conn,
             path: None,
@@ -355,16 +355,6 @@ impl Core {
     /// On open, re-project any page whose index is missing or older than its log
     /// (e.g. the index tables were deleted, or written by an older projector).
     fn catch_up_index(&mut self) -> Result<usize> {
-        // A schema-1 index has a `db_rows` table and no `pages` projection: start over.
-        let old: bool = self.conn.query_row(
-            "SELECT COUNT(*) FROM sqlite_master WHERE name = 'db_rows'",
-            [],
-            |r| r.get::<_, i64>(0),
-        )? > 0;
-        if old {
-            index::drop_tables(&self.conn)?;
-            index::create_tables(&self.conn)?;
-        }
         let mut stale = Vec::new();
         for page_id in store::page_ids(&self.conn)? {
             if index::indexed_seq(&self.conn, &page_id)?

@@ -14,6 +14,10 @@ use crate::index::REF_MARK;
 #[serde(rename_all = "camelCase")]
 pub struct PageRow {
     pub id: String,
+    /// "page" or "database".
+    pub kind: String,
+    /// Set on database rows.
+    pub database_id: Option<String>,
     pub parent_id: Option<String>,
     pub title: String,
     pub icon: String,
@@ -78,13 +82,16 @@ fn like_pattern(q: &str) -> String {
 impl Core {
     pub fn list_pages(&self) -> Result<Vec<PageRow>> {
         let mut stmt = self.conn().prepare(
-            "SELECT id, parent_id, title, icon, sort_key, favorite, archived, trashed_at, created_at, updated_at
+            "SELECT id, parent_id, title, icon, sort_key, favorite, archived, trashed_at, created_at, updated_at,
+                    kind, database_id
              FROM page_meta ORDER BY sort_key, id",
         )?;
         let rows = stmt
             .query_map([], |r| {
                 Ok(PageRow {
                     id: r.get(0)?,
+                    kind: r.get(10)?,
+                    database_id: r.get(11)?,
                     parent_id: r.get(1)?,
                     title: r.get(2)?,
                     icon: r.get(3)?,

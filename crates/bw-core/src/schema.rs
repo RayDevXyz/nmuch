@@ -13,8 +13,15 @@
 //! │                  content: Y.XmlFragment   the ProseMirror document of this note
 //! │              }>
 //! ├── "props":   Y.Map<block_id, Y.Map<key, Any>>   module data on any block, e.g. "course.progress"
-//! └── "surface": Y.Map   reserved for edgeless shapes, arrows and frames
+//! ├── "surface": Y.Map   reserved for edgeless shapes, arrows and frames
+//! │
+//! │   only on database pages (page.kind = "database"), see `database.rs`:
+//! ├── "dbProperties": Y.Map<property_id, Any>   one JSON object per column
+//! └── "dbViews":      Y.Map<view_id, Any>       one JSON object per saved view
 //! ```
+//!
+//! A database **row** is an ordinary page with `page.database` set to its database's id; its
+//! cell values are module props on the page itself, keyed `db.<property_id>`.
 //!
 //! Inside a note's fragment, every block is a `Y.XmlElement` whose tag is the ProseMirror node
 //! name (`paragraph`, `heading`, `taskItem`, ...) and whose attributes are the node's attrs.
@@ -43,6 +50,11 @@ pub mod keys {
     pub const NOTE_ORDER: &str = "order";
     pub const NOTE_XYWH: &str = "xywh";
     pub const NOTE_CONTENT: &str = "content";
+
+    pub const DB_PROPERTIES: &str = "dbProperties";
+    pub const DB_VIEWS: &str = "dbViews";
+    /// Prefix of a row's cell values in its `props`: `db.<property_id>`.
+    pub const DB_VALUE_PREFIX: &str = "db.";
 }
 
 /// ProseMirror node names, shared with the Tiptap schema in `packages/editor`.
@@ -58,6 +70,8 @@ pub mod node {
     pub const TASK_ITEM: &str = "taskItem";
     pub const CODE_BLOCK: &str = "codeBlock";
     pub const HORIZONTAL_RULE: &str = "horizontalRule";
+    /// An inline view of a database. attrs: `databaseId`, `viewId`.
+    pub const DATABASE: &str = "database";
     pub const IMAGE: &str = "image";
     /// A sub-page embedded as a block. attrs: `pageId`.
     pub const PAGE_LINK: &str = "pageLink";
@@ -92,10 +106,31 @@ pub mod node {
     }
 }
 
+/// What a page is. A database page holds columns and views; its rows are pages too.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PageKind {
+    #[default]
+    Page,
+    Database,
+}
+
+impl PageKind {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            PageKind::Page => "page",
+            PageKind::Database => "database",
+        }
+    }
+}
+
 /// Page metadata, kept in the page's `page` map (last writer wins per field).
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PageMeta {
+    pub kind: PageKind,
+    /// Set on database rows: the database this page is a row of.
+    pub database_id: Option<PageId>,
     pub title: String,
     pub icon: String,
     pub parent_id: Option<PageId>,
@@ -111,6 +146,9 @@ pub struct PageMeta {
 #[derive(Debug, Clone, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PageMetaPatch {
+    pub kind: Option<PageKind>,
+    #[serde(deserialize_with = "double_option")]
+    pub database_id: Option<Option<PageId>>,
     pub title: Option<String>,
     pub icon: Option<String>,
     #[serde(deserialize_with = "double_option")]
@@ -135,6 +173,8 @@ where
 impl PageMetaPatch {
     pub fn from_meta(m: &PageMeta) -> Self {
         Self {
+            kind: Some(m.kind),
+            database_id: Some(m.database_id.clone()),
             title: Some(m.title.clone()),
             icon: Some(m.icon.clone()),
             parent_id: Some(m.parent_id.clone()),
@@ -176,6 +216,8 @@ pub struct PageSnapshot {
     pub page_id: PageId,
     pub meta: PageMeta,
     pub blocks: Vec<BlockSnapshot>,
+    /// Columns and views, for database pages.
+    pub database: Option<crate::database::DatabaseDef>,
 }
 
 impl PageSnapshot {

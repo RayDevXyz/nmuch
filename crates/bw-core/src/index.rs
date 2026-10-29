@@ -14,7 +14,7 @@ pub const REF_MARK: char = '\u{FFFC}';
 
 /// Bump when the projection's tables or contents change: an index of another version is
 /// dropped and rebuilt from the log on open. 3 = databases (`page_meta.kind`/`database_id`).
-pub const INDEX_VERSION: i64 = 3;
+pub const INDEX_VERSION: i64 = 4;
 
 const CREATE_PROJECTION: &str = r#"
     CREATE TABLE IF NOT EXISTS index_version (v INTEGER NOT NULL);

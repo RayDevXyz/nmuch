@@ -21,6 +21,7 @@ pub mod index;
 pub mod query;
 pub mod schema;
 mod store;
+pub mod surface;
 pub mod widgets;
 
 pub use crate::core::{Core, RebuildReport};

@@ -9,11 +9,16 @@
 //! ├── "notes":   Y.Map<note_id, Y.Map {
 //! │                  id:      String
 //! │                  order:   String          fractional key; doc mode shows notes in this order
-//! │                  xywh:    [x, y, w, h]?   position on the edgeless canvas (later)
+//! │                  xywh:    [x, y, w, h]?   position on the edgeless canvas (null: not placed yet)
+//! │                  display: "both" | "edgeless"?   "edgeless": a canvas-only note, hidden in doc mode
 //! │                  content: Y.XmlFragment   the ProseMirror document of this note
 //! │              }>
 //! ├── "props":   Y.Map<block_id, Y.Map<key, Any>>   module data on any block, e.g. "course.progress"
-//! ├── "surface": Y.Map   reserved for edgeless shapes, arrows and frames
+//! ├── "surface": Y.Map<element_id, Y.Map {       edgeless elements (see `surface.rs`)
+//! │                  id, type: "shape" | "text" | "connector" | "frame",
+//! │                  index: String               fractional key: stacking order
+//! │                  xywh, text, … per type      plain Any values, one per field
+//! │              }>
 //! │
 //! │   only on database pages (page.kind = "database"), see `database.rs`:
 //! ├── "dbProperties": Y.Map<property_id, Any>   one JSON object per column
@@ -50,6 +55,11 @@ pub mod keys {
     pub const NOTE_ORDER: &str = "order";
     pub const NOTE_XYWH: &str = "xywh";
     pub const NOTE_CONTENT: &str = "content";
+    pub const NOTE_DISPLAY: &str = "display";
+
+    pub const EL_TYPE: &str = "type";
+    pub const EL_INDEX: &str = "index";
+    pub const EL_TEXT: &str = "text";
 
     pub const DB_PROPERTIES: &str = "dbProperties";
     pub const DB_VIEWS: &str = "dbViews";
@@ -86,6 +96,8 @@ pub mod node {
     /// Synthetic flavours used in the index for the page itself and its notes.
     pub const PAGE: &str = "page";
     pub const NOTE: &str = "note";
+    /// Edgeless elements are indexed as `surface.<type>` (`surface.shape`, `surface.frame`, …).
+    pub const SURFACE_PREFIX: &str = "surface.";
 
     pub const INLINE: [&str; 2] = [REF, HARD_BREAK];
 

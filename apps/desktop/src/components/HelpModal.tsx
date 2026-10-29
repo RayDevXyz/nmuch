@@ -34,6 +34,23 @@ const GROUPS: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Canvas',
+    [
+      ['Ctrl Shift E', 'Switch document / canvas'],
+      ['V / H', 'Select / pan (or hold Space)'],
+      ['N / T', 'Note / text'],
+      ['R / O / D', 'Rectangle / ellipse / diamond'],
+      ['C', 'Connector: drag from item to item'],
+      ['F', 'Frame (▶ in the toolbar presents them)'],
+      ['Double-click', 'Edit text, or add text on empty space'],
+      ['Wheel / Ctrl wheel', 'Pan / zoom'],
+      ['Ctrl 1', 'Zoom to fit'],
+      ['Ctrl D', 'Duplicate'],
+      ['Arrows (Shift)', 'Nudge 1px (10px)'],
+      ['Del', 'Delete selection'],
+    ],
+  ],
+  [
     'Formatting',
     [
       ['Ctrl B / I / U', 'Bold / italic / underline'],

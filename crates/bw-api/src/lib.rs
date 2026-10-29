@@ -6,10 +6,11 @@
 
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
-use bw_core::{Core, PageMeta, PageMetaPatch};
+use bw_core::{Core, NewRelation, PageMeta, PageMetaPatch, Property, View};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 pub mod nimbus;
@@ -82,6 +83,79 @@ struct Search {
 
 fn default_limit() -> i64 {
     25
+}
+
+// ---- databases
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DbArg {
+    database_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct QueryDb {
+    database_id: String,
+    #[serde(default)]
+    view_id: Option<String>,
+    #[serde(default)]
+    view: Option<View>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SetProperty {
+    database_id: String,
+    property: Property,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateRelation {
+    database_id: String,
+    relation: NewRelation,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RemoveProperty {
+    database_id: String,
+    property_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SetView {
+    database_id: String,
+    view: View,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RemoveView {
+    database_id: String,
+    view_id: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateRow {
+    database_id: String,
+    id: String,
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    values: BTreeMap<String, Value>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SetValue {
+    row_id: String,
+    property_id: String,
+    #[serde(default)]
+    value: Value,
 }
 
 #[derive(Deserialize)]
@@ -183,6 +257,83 @@ pub fn dispatch(core: &mut Core, ctx: &Context, command: &str, a: Value) -> Resu
                 json!({ "pages": r.pages, "blocks": r.blocks, "updatesReplayed": r.updates_replayed, "ms": r.elapsed.as_millis() as u64 }),
             )
         }
+        // ---- databases (see bw_core::database)
+        "createDatabase" => {
+            let CreatePage { id, meta } = args(a)?;
+            ok(core.create_database(&id, meta).map_err(e)?)
+        }
+        "databaseDef" => {
+            let DbArg { database_id } = args(a)?;
+            ok(core.database_def(&database_id).map_err(e)?)
+        }
+        "queryDatabase" => {
+            let QueryDb {
+                database_id,
+                view_id,
+                view,
+            } = args(a)?;
+            ok(core
+                .query_database(&database_id, view_id.as_deref(), view)
+                .map_err(e)?)
+        }
+        "setProperty" => {
+            let SetProperty {
+                database_id,
+                property,
+            } = args(a)?;
+            core.set_property(&database_id, property).map_err(e)?;
+            ok(())
+        }
+        "createRelation" => {
+            let CreateRelation {
+                database_id,
+                relation,
+            } = args(a)?;
+            let (id, reverse) = core.create_relation(&database_id, &relation).map_err(e)?;
+            ok(json!({ "propertyId": id, "reversePropertyId": reverse }))
+        }
+        "removeProperty" => {
+            let RemoveProperty {
+                database_id,
+                property_id,
+            } = args(a)?;
+            core.remove_property(&database_id, &property_id)
+                .map_err(e)?;
+            ok(())
+        }
+        "setView" => {
+            let SetView { database_id, view } = args(a)?;
+            core.set_view(&database_id, view).map_err(e)?;
+            ok(())
+        }
+        "removeView" => {
+            let RemoveView {
+                database_id,
+                view_id,
+            } = args(a)?;
+            core.remove_view(&database_id, &view_id).map_err(e)?;
+            ok(())
+        }
+        "createRow" => {
+            let CreateRow {
+                database_id,
+                id,
+                title,
+                values,
+            } = args(a)?;
+            ok(core
+                .create_row(&database_id, &id, &title, &values)
+                .map_err(e)?)
+        }
+        "setValue" => {
+            let SetValue {
+                row_id,
+                property_id,
+                value,
+            } = args(a)?;
+            core.set_value(&row_id, &property_id, value).map_err(e)?;
+            ok(())
+        }
         "importPage" => {
             let ImportPage {
                 id,
@@ -259,5 +410,44 @@ mod tests {
         assert!(dispatch(&mut core, &Context::default(), "nope", json!({}))
             .unwrap_err()
             .contains("unknown command"));
+    }
+}
+
+#[cfg(test)]
+mod database_tests {
+    use super::*;
+
+    #[test]
+    fn database_commands_round_trip() {
+        let mut core = Core::open_in_memory().unwrap();
+        let ctx = Context::default();
+        let mut call = |c: &str, a: Value| dispatch(&mut core, &ctx, c, a);
+        call(
+            "createDatabase",
+            json!({ "id": "db", "meta": { "title": "Lessons" } }),
+        )
+        .unwrap();
+        call("setProperty", json!({ "databaseId": "db", "property": { "id": "done", "name": "Done", "type": "checkbox" } })).unwrap();
+        call(
+            "createRow",
+            json!({ "databaseId": "db", "id": "r1", "title": "Intro", "values": { "done": true } }),
+        )
+        .unwrap();
+        call(
+            "setValue",
+            json!({ "rowId": "r1", "propertyId": "title", "value": "Introduction" }),
+        )
+        .unwrap();
+        let r = call("queryDatabase", json!({ "databaseId": "db" })).unwrap();
+        assert_eq!(r["rows"][0]["title"], "Introduction");
+        assert_eq!(r["rows"][0]["values"]["done"], true);
+        assert_eq!(r["properties"][1]["type"], "checkbox");
+        assert_eq!(r["view"]["type"], "table");
+        let err = call(
+            "setValue",
+            json!({ "rowId": "r1", "propertyId": "done", "value": "maybe" }),
+        )
+        .unwrap_err();
+        assert!(err.contains("Done expects"), "{err}");
     }
 }

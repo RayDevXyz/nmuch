@@ -3,6 +3,7 @@ import {
   CheckSquare,
   Code2,
   FileText,
+  Table2,
   Heading1,
   Heading2,
   Heading3,
@@ -31,6 +32,8 @@ export type SlashId =
   | 'divider'
   | 'image'
   | 'page'
+  | 'database'
+  | 'databasePage'
 
 export interface SlashItem {
   id: SlashId
@@ -54,6 +57,8 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'code', label: 'Code', desc: 'Code snippet', icon: Code2, keywords: 'snippet pre programming ```', hint: '```' },
   { id: 'divider', label: 'Divider', desc: 'Visual separator', icon: Minus, keywords: 'hr line separator rule ---', hint: '---' },
   { id: 'image', label: 'Image', desc: 'Upload an image', icon: Image, keywords: 'picture photo img upload' },
+  { id: 'database', label: 'Database', desc: 'Table, board or gallery in this page', icon: Table2, keywords: 'table board kanban gallery inline db' },
+  { id: 'databasePage', label: 'Database page', desc: 'A new database as its own page', icon: Table2, keywords: 'table board full page db' },
   { id: 'page', label: 'Sub-page', desc: 'Nest a new page inside this one', icon: FileText, keywords: 'page subpage child document link' },
 ]
 
@@ -121,6 +126,16 @@ export function runSlash(editor: Editor, id: SlashId, range?: Range) {
     case 'image':
       chain().run()
       return pickImages(editor)
+    case 'database':
+    case 'databasePage': {
+      chain().run()
+      const host = maybeHost(editor)
+      void host?.createDatabase?.({ inline: id === 'database' }).then(({ databaseId, viewId }) => {
+        if (id === 'database') editor.chain().focus().insertDatabase(databaseId, viewId).run()
+        else editor.chain().focus().insertPageLink(databaseId).run()
+      })
+      return true
+    }
     case 'page': {
       chain().run()
       const host = maybeHost(editor)

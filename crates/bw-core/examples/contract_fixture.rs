@@ -53,6 +53,7 @@ fn main() -> bw_core::Result<()> {
         tx.append(&note, NewBlock::code("rust", "fn main() {}"))?;
         tx.append(&note, NewBlock::divider())?;
         tx.append(&note, NewBlock::page_link(&other))?;
+        tx.append(&note, NewBlock::database(&other, "view-1"))?;
         tx.set_prop(&h, "course.progress", json!(1))?;
         let second = tx.add_note();
         tx.append(&second, NewBlock::paragraph("Second note"))?;

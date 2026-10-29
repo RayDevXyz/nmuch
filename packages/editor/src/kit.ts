@@ -8,6 +8,7 @@ import { BlockId } from './block-id'
 import type { EditorHost } from './host'
 import { HostExtension } from './host-extension'
 import { Callout } from './nodes/callout'
+import { Database } from './nodes/database'
 import { Image } from './nodes/image'
 import { PageLink } from './nodes/page-link'
 import { Ref } from './nodes/ref'
@@ -38,6 +39,7 @@ export function schemaExtensions(): Extensions {
     Callout,
     Image,
     PageLink,
+    Database,
     Ref,
     BlockId,
   ]

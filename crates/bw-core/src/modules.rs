@@ -182,7 +182,14 @@ fn real(p: &Path) -> Result<PathBuf> {
             p.display()
         )));
     }
-    std::fs::canonicalize(p).map_err(|e| Error::Invalid(format!("{}: {e}", p.display())))
+    // `dunce`: on Windows, the plain `C:\…` form rather than `\\?\C:\…`, which can't take `/`
+    // separators (a module joining `folder + "/file"` would fail) and reads badly in the app.
+    dunce::canonicalize(p).map_err(|e| Error::Invalid(format!("{}: {e}", p.display())))
+}
+
+/// A stored path in its plain form (folders granted by older builds may be `\\?\C:\…`).
+pub(crate) fn plain(p: impl AsRef<Path>) -> PathBuf {
+    dunce::simplified(p.as_ref()).to_path_buf()
 }
 
 fn millis(t: std::io::Result<std::time::SystemTime>) -> i64 {
@@ -284,7 +291,13 @@ impl Core {
         Ok(ModuleInfo {
             approved: pending.is_empty(),
             pending,
-            folders: self.grants(id, "folder")?.into_iter().collect(),
+            folders: self
+                .grants(id, "folder")?
+                .into_iter()
+                .map(|f| plain(f).to_string_lossy().to_string())
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect(),
             manifest,
             builtin,
             installed_at,
@@ -343,10 +356,16 @@ impl Core {
     }
 
     pub fn revoke_folder(&mut self, module: &str, folder: &str) -> Result<()> {
-        self.conn().execute(
-            "DELETE FROM module_grants WHERE module_id = ?1 AND kind = 'folder' AND value = ?2",
-            params![module, folder],
-        )?;
+        // Match by plain form, so a folder stored as `\\?\C:\…` by an older build goes too.
+        let target = plain(folder);
+        for stored in self.grants(module, "folder")? {
+            if plain(&stored) == target {
+                self.conn().execute(
+                    "DELETE FROM module_grants WHERE module_id = ?1 AND kind = 'folder' AND value = ?2",
+                    params![module, stored],
+                )?;
+            }
+        }
         self.watch_generation += 1;
         Ok(())
     }
@@ -384,7 +403,7 @@ impl Core {
         let mut roots: Vec<PathBuf> = self
             .grants(module, "folder")?
             .into_iter()
-            .map(PathBuf::from)
+            .map(plain)
             .collect();
         for c in self.approved_caps(module)? {
             if let Capability::FsRead(p) = c {

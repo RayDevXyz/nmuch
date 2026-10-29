@@ -82,7 +82,7 @@ crates/bw-api        the command surface the frontend uses (shared by Tauri and 
 crates/bw-devserver  bw-api over HTTP, so the UI can run in a browser during development
 packages/editor      @brainwaves/editor: the Tiptap block engine (schema, nodes, menus)
 apps/desktop         the BrainWaves desktop app (Tauri + React)
-docs/                architecture.md (the plan), spike-01-block-model.md, phase-02-editor.md
+docs/                architecture.md (the plan), spike-01-block-model.md, phase-02-editor.md, phase-03-databases.md
 ```
 
 **Windows, from scratch:** double-click `scripts\install-windows.cmd`. It installs everything

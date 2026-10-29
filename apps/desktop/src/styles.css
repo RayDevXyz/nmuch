@@ -505,3 +505,135 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .import-failed { color: var(--danger); font-size: 12px; word-break: break-word; }
 .import-actions { display: flex; justify-content: flex-end; }
 .import-actions .primary-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------- databases (phase 3) ---------- */
+.db { margin: 10px 0 6px; font-size: 13px; color: var(--foreground); }
+.db-full { margin-top: 4px; }
+.db-loading, .db-footnote { color: var(--faint); font-size: 12px; padding: 6px 2px; }
+.db-error { color: var(--danger); font-size: 12px; padding: 6px 2px; white-space: pre-wrap; }
+.db-heading { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: var(--foreground); font-size: 1.05em; font-weight: 700; padding: 4px 4px; margin: 0 0 2px -4px; border-radius: 6px; cursor: pointer; }
+.db-heading:hover { background: var(--hover); }
+.db-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--line); margin-bottom: 2px; flex-wrap: wrap; }
+.db-tabs { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; }
+.db-tab { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 9px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted-foreground); font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+.db-tab:hover { color: var(--foreground); }
+.db-tab.active { color: var(--foreground); border-bottom-color: var(--foreground); font-weight: 600; }
+.db-tab.add { padding: 0 6px; }
+.db-tools { display: flex; align-items: center; gap: 4px; }
+.db-tool, .ghost-btn { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted-foreground); font-size: 12px; cursor: pointer; }
+.db-tool:hover, .ghost-btn:hover { background: var(--hover); color: var(--foreground); }
+.db-tool.on { color: var(--accent); }
+.db-new { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border: 0; border-radius: 6px; background: var(--accent); color: var(--accent-ink); font-weight: 650; font-size: 12px; cursor: pointer; }
+.db-new:hover { background: var(--accent-strong); }
+.icon-btn { border: 0; background: transparent; color: var(--muted-foreground); width: 24px; height: 24px; border-radius: 5px; display: inline-grid; place-items: center; cursor: pointer; flex: none; }
+.icon-btn:hover { background: var(--hover); color: var(--foreground); }
+
+.db-table-wrap { overflow-x: auto; }
+.db-table { border-collapse: collapse; width: max-content; min-width: 100%; }
+.db-table th, .db-table td { border-bottom: 1px solid var(--line-soft); border-right: 1px solid var(--line-soft); text-align: left; vertical-align: top; padding: 0; }
+.db-table th:last-child, .db-table td:last-child { border-right: 0; }
+.db-table th { height: 32px; padding: 0 9px; color: var(--muted-foreground); font-weight: 500; font-size: 12px; white-space: nowrap; cursor: pointer; user-select: none; }
+.db-table th:hover { background: var(--hover); }
+.db-table th .db-prop-icon { vertical-align: -2px; margin-right: 3px; opacity: 0.7; }
+.db-table td { min-width: 120px; max-width: 320px; }
+.db-table td.t-title { min-width: 220px; }
+.db-table td.t-checkbox, .db-table th.t-checkbox { min-width: 0; width: 70px; }
+.db-table tbody tr:hover { background: color-mix(in srgb, var(--hover) 50%, transparent); }
+.db-add-col { width: 34px; text-align: center !important; }
+.db-add-row { display: flex; align-items: center; gap: 5px; width: 100%; height: 32px; padding: 0 9px; border: 0; background: transparent; color: var(--faint); font-size: 12.5px; cursor: pointer; text-align: left; }
+.db-add-row:hover { background: var(--hover); color: var(--muted-foreground); }
+
+.db-cell-click { min-height: 32px; padding: 6px 9px; cursor: text; overflow: hidden; text-overflow: ellipsis; }
+.db-cell-click a { color: var(--accent); text-decoration: underline; }
+.db-number { text-align: right; font-variant-numeric: tabular-nums; }
+.db-input { width: 100%; min-height: 32px; border: 0; outline: 2px solid var(--accent); outline-offset: -2px; background: var(--panel); color: var(--foreground); padding: 6px 9px; font: inherit; border-radius: 3px; }
+.db-title-cell { position: relative; display: flex; align-items: center; min-height: 32px; }
+.db-title { flex: 1; padding: 6px 9px; font-weight: 600; cursor: text; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-row-icon { margin-right: 5px; }
+.db-placeholder { color: var(--faint); font-weight: 400; }
+.db-open { position: absolute; right: 6px; display: none; align-items: center; gap: 3px; height: 22px; padding: 0 7px; border: 1px solid var(--line); border-radius: 5px; background: var(--panel); color: var(--muted-foreground); font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em; cursor: pointer; }
+.db-table tr:hover .db-open { display: inline-flex; }
+.db-open:hover { color: var(--foreground); }
+.db-check { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 9px; cursor: pointer; font-size: 12px; color: var(--muted-foreground); }
+.db-check input { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+.db-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.db-chip { display: inline-flex; align-items: center; gap: 3px; max-width: 100%; height: 20px; padding: 0 7px; border-radius: 4px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: var(--c-bg); color: var(--c-fg); }
+.db-chip-x { border: 0; background: transparent; color: inherit; padding: 0; display: grid; cursor: pointer; opacity: 0.7; }
+.db-rel { display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; border-bottom: 1px solid var(--line); cursor: pointer; margin-right: 4px; white-space: nowrap; }
+.db-rel:hover { border-bottom-color: var(--accent); color: var(--accent); }
+.db-file { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+.db-progress { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 9px; }
+.db-progress-bar { flex: 1; min-width: 60px; height: 6px; border-radius: 3px; background: var(--panel-2); overflow: hidden; }
+.db-progress-bar span { display: block; height: 100%; background: var(--ok); border-radius: 3px; transition: width 0.25s ease; }
+.db-progress-num { font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); min-width: 32px; text-align: right; }
+.db-table td > .db-number, .db-table td > span.db-number { display: block; padding: 6px 9px; }
+.db-table td > .db-chips { padding: 6px 9px; }
+
+/* select colors (light + dark friendly) */
+.c-gray { --c-bg: color-mix(in srgb, #9b9a97 22%, transparent); --c-fg: var(--foreground); }
+.c-brown { --c-bg: color-mix(in srgb, #a27763 28%, transparent); --c-fg: var(--foreground); }
+.c-orange { --c-bg: color-mix(in srgb, #e9883c 28%, transparent); --c-fg: var(--foreground); }
+.c-yellow { --c-bg: color-mix(in srgb, #e3b341 30%, transparent); --c-fg: var(--foreground); }
+.c-green { --c-bg: color-mix(in srgb, #4fae6f 28%, transparent); --c-fg: var(--foreground); }
+.c-blue { --c-bg: color-mix(in srgb, #4f8fd8 28%, transparent); --c-fg: var(--foreground); }
+.c-purple { --c-bg: color-mix(in srgb, #9a6dd7 30%, transparent); --c-fg: var(--foreground); }
+.c-pink { --c-bg: color-mix(in srgb, #d667a6 28%, transparent); --c-fg: var(--foreground); }
+.c-red { --c-bg: color-mix(in srgb, #e05a55 28%, transparent); --c-fg: var(--foreground); }
+
+.db-board { display: flex; gap: 10px; overflow-x: auto; padding: 8px 0 4px; align-items: flex-start; }
+.db-column { flex: none; width: 250px; border-radius: 9px; padding: 6px; background: color-mix(in srgb, var(--panel-2) 60%, transparent); transition: background 0.1s; }
+.db-column.over { background: var(--accent-soft); }
+.db-column-head { display: flex; align-items: center; gap: 8px; padding: 2px 4px 8px; }
+.db-count { color: var(--faint); font-size: 11.5px; }
+.db-card { display: flex; flex-direction: column; gap: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 8px 6px 6px; margin-bottom: 6px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); text-align: left; color: var(--foreground); font: inherit; }
+.db-card[draggable='true'] { cursor: grab; }
+.db-card-title { font-weight: 650; padding: 0 3px 3px; cursor: pointer; }
+.db-card-title:hover { color: var(--accent); }
+.db-card-prop { font-size: 12px; }
+.db-card-prop .db-cell-click, .db-card-prop .db-progress, .db-card-prop .db-check { min-height: 22px; padding: 1px 3px; }
+.db-card-prop .db-number { text-align: left; }
+.db-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; padding: 10px 0; }
+.db-gallery .db-card { margin: 0; min-height: 90px; }
+.db-card-new { align-items: center; justify-content: center; flex-direction: row; gap: 5px; color: var(--faint); border-style: dashed; cursor: pointer; background: transparent; }
+.db-card-new:hover { color: var(--muted-foreground); background: var(--hover); }
+.db-empty-view { padding: 18px 4px; color: var(--muted-foreground); font-size: 12.5px; }
+
+/* menus and pickers */
+.db-menu { width: 280px; max-width: 320px; }
+.db-menu.wide { width: 470px; max-width: 470px; }
+.db-picker { width: 260px; }
+.db-picker-search, .db-form input, .db-form select { width: 100%; height: 30px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel-2); color: var(--foreground); padding: 0 8px; font: inherit; font-size: 12.5px; outline: 0; }
+.db-picker-search { margin-bottom: 4px; }
+.db-picker-search:focus, .db-form input:focus, .db-form select:focus { border-color: var(--accent); }
+.db-form { display: flex; flex-direction: column; gap: 7px; padding: 3px; }
+.db-form label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted-foreground); }
+.db-form label.db-check-row, .db-check-row { flex-direction: row; align-items: center; gap: 7px; font-size: 12.5px; color: var(--foreground); padding: 3px 4px; cursor: pointer; }
+.db-check-row input { width: auto; height: auto; accent-color: var(--accent); }
+.db-form-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.db-form-actions .primary-btn { margin-top: 0; height: 28px; }
+.db-note { font-size: 12px; color: var(--muted-foreground); line-height: 1.5; }
+.db-options { display: flex; flex-direction: column; gap: 4px; }
+.db-option-row { display: flex; align-items: center; gap: 5px; }
+.db-option-row input { flex: 1; height: 26px; }
+.db-color { width: 76px !important; height: 26px !important; background: var(--c-bg) !important; }
+.db-filter-row { display: flex; align-items: center; gap: 5px; }
+.db-filter-row select, .db-filter-row input { flex: 1; min-width: 0; height: 28px; }
+
+/* a row opened as a page */
+.db-row-props { display: flex; flex-direction: column; margin: 6px 0 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
+.db-row-parent { align-self: flex-start; border: 0; background: transparent; color: var(--muted-foreground); font-size: 12px; padding: 3px 6px; margin: 0 0 6px -6px; border-radius: 5px; cursor: pointer; }
+.db-row-parent:hover { background: var(--hover); color: var(--foreground); }
+.db-row-prop { display: flex; align-items: flex-start; min-height: 32px; }
+.db-row-label { flex: none; width: 170px; display: flex; align-items: center; gap: 6px; min-height: 32px; color: var(--muted-foreground); font-size: 12.5px; }
+.db-row-value { flex: 1; min-width: 0; border-radius: 5px; }
+.db-row-value:hover { background: var(--hover); }
+.db-row-value .db-cell-click:empty::after { content: 'Empty'; color: var(--faint); }
+
+/* the inline block inside a note */
+.bw-prose .database-block { margin: 10px 0; }
+.bw-prose .database-block.selected { outline: 2px solid var(--accent-soft); border-radius: 8px; }
+.db-row-value .db-number { text-align: left; }
+.db-card-prop { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.db-card-prop > :last-child { min-width: 0; flex: 1; }
+.db-card-label { flex: none; color: var(--faint); font-size: 11px; padding-left: 3px; }
+.db-card-prop .db-number { text-align: left; }

@@ -1,5 +1,5 @@
 export { BLOCK_TYPES, INLINE_TYPES, type BlockTypeName, type RefKind } from './schema'
-export type { BlockOption, EditorHost, PageOption, RefTarget } from './host'
+export type { BlockOption, DatabaseBlockProps, EditorHost, PageOption, RefTarget, SlashExtra } from './host'
 export { schemaExtensions, editorExtensions, type KitOptions } from './kit'
 export { NoteEditor, type NoteEditorProps } from './NoteEditor'
 export { ensureIds, newId } from './block-id'

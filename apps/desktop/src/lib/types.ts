@@ -26,6 +26,9 @@ export interface BlockProps {
 
 export interface Page {
   id: string
+  /** 'database' pages hold columns and views; their rows are pages with `databaseId` set. */
+  kind: 'page' | 'database'
+  databaseId: string | null
   parentId: string | null
   title: string
   icon: string
@@ -60,7 +63,7 @@ export interface TagCount {
 }
 
 /** The fields of a page the core stores in its Y.Doc. */
-export type PageMeta = Pick<Page, 'title' | 'icon' | 'parentId' | 'key' | 'favorite' | 'archived' | 'trashedAt'>
+export type PageMeta = Pick<Page, 'kind' | 'databaseId' | 'title' | 'icon' | 'parentId' | 'key' | 'favorite' | 'archived' | 'trashedAt'>
 
 export interface BlockInfo {
   id: string

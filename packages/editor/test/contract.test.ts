@@ -43,6 +43,7 @@ const DOC: JSONContent = {
     { type: 'horizontalRule', attrs: { id: 'hr1' } },
     { type: 'image', attrs: { id: 'img1', src: 'https://example.com/a.png', caption: 'A picture' } },
     { type: 'pageLink', attrs: { id: 'pl1', pageId: 'page-3' } },
+    { type: 'database', attrs: { id: 'db1', databaseId: 'db-courses', viewId: 'v-table' } },
     p('p2', t('link', ['link'])),
   ],
 }
@@ -64,6 +65,10 @@ function expectedBlocks(doc: JSONContent) {
       }
     })
     if (n.type === 'image') text = node.attrs.caption
+    if (n.type === 'database') {
+      text = '\uFFFC'
+      refs.push([node.attrs.databaseId, 'page'])
+    }
     if (n.type === 'pageLink') {
       text = '\uFFFC'
       refs.push([node.attrs.pageId, 'page'])

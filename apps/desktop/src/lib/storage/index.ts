@@ -8,6 +8,8 @@ let core: CoreClient | null = null
 
 /** Page metadata as the core stores it (timestamps are derived from the update log). */
 export const metaOf = (p: Page): PageMeta => ({
+  kind: p.kind ?? 'page',
+  databaseId: p.databaseId ?? null,
   title: p.title,
   icon: p.icon,
   parentId: p.parentId,
@@ -22,7 +24,8 @@ function createStorage(c: CoreClient): Storage {
     kind: c.kind === 'tauri' ? 'sqlite' : 'dev',
     location: () => c.call<string>('dbPath'),
     listPages: () => c.call<Page[]>('listPages'),
-    createPage: (page) => c.call<string>('createPage', { id: page.id, meta: metaOf(page) }).then(() => {}),
+    createPage: (page) =>
+      c.call<string>(page.kind === 'database' ? 'createDatabase' : 'createPage', { id: page.id, meta: metaOf(page) }).then(() => {}),
     updatePage: (id, patch) => c.call<void>('updatePage', { id, patch }),
     deletePages: (ids) => c.call<void>('deletePages', { ids }),
     backlinks: (pageId) => c.call<Ref[]>('backlinks', { pageId }),

@@ -5,11 +5,14 @@
 //! - `store`: the SQLite update log (the source of truth).
 //! - [`index`]: the SQL projection (`pages`, `blocks`, `props`, `refs`, `tags`), rebuildable.
 //! - [`query`]: read queries over the index.
+//! - [`database`] + [`db_query`]: databases (columns, views, rows, relations, rollups).
 //! - [`Core`]: the single writer that ties them together.
 //!
 //! See `docs/spike-01-block-model.md` and `docs/phase-02-editor.md`.
 
 pub mod core;
+pub mod database;
+pub mod db_query;
 pub mod doc;
 pub mod error;
 pub mod events;
@@ -19,10 +22,15 @@ pub mod schema;
 mod store;
 
 pub use crate::core::{Core, RebuildReport};
+pub use crate::database::{
+    DatabaseDef, Filter, FilterOp, NewRelation, PropType, Property, RelationConfig, RollupConfig,
+    RollupFn, SelectOption, Sort, View, ViewKind,
+};
+pub use crate::db_query::{DatabaseResult, Group, Row, RowRef};
 pub use crate::doc::{BlockTxn, Inline, NewBlock, RefKind, XNode};
 pub use crate::error::{Error, Result};
 pub use crate::events::{Event, Origin};
 pub use crate::index::IndexDump;
 pub use crate::schema::{
-    node, BlockId, BlockSnapshot, PageId, PageMeta, PageMetaPatch, PageSnapshot,
+    node, BlockId, BlockSnapshot, PageId, PageKind, PageMeta, PageMetaPatch, PageSnapshot,
 };

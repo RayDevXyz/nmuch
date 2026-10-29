@@ -11,6 +11,8 @@ export async function seed(storage: Storage, open: (pageId: string) => Promise<P
   const now = Date.now()
   const mk = (title: string, icon: string, parentId: string | null = null, ago = 0): Page => ({
     id: uid(),
+    kind: 'page',
+    databaseId: null,
     parentId,
     title,
     icon,

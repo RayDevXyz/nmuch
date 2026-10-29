@@ -18,6 +18,7 @@ export const BLOCK_TYPES = [
   'horizontalRule',
   'image',
   'pageLink',
+  'database',
 ] as const
 
 export type BlockTypeName = (typeof BLOCK_TYPES)[number]

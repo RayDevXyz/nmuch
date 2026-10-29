@@ -200,6 +200,22 @@
       ]
     },
     {
+      "id": "db1",
+      "type": "database",
+      "depth": 2,
+      "text": "￼",
+      "attrs": {
+        "databaseId": "db-courses",
+        "viewId": "v-table"
+      },
+      "refs": [
+        [
+          "db-courses",
+          "page"
+        ]
+      ]
+    },
+    {
       "id": "p2",
       "type": "paragraph",
       "depth": 2,

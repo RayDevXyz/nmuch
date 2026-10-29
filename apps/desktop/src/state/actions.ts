@@ -224,12 +224,16 @@ export function toggleExpanded(id: string, value?: boolean) {
 
 // ---------- page mutations ----------
 
-export async function createPage(opts: { parentId?: string | null; title?: string; icon?: string; open?: 'replace' | 'tab' | false } = {}) {
+export async function createPage(
+  opts: { parentId?: string | null; title?: string; icon?: string; open?: 'replace' | 'tab' | false; kind?: 'page' | 'database' } = {},
+) {
   const parentId = opts.parentId ?? null
   const siblings = childrenOf(parentId, { archived: true })
   const now = Date.now()
   const page: Page = {
     id: uid(),
+    kind: opts.kind ?? 'page',
+    databaseId: null,
     parentId,
     title: opts.title ?? '',
     icon: opts.icon ?? '',

@@ -1,4 +1,5 @@
-import type { JSONContent } from '@tiptap/core'
+import type { Editor, JSONContent } from '@tiptap/core'
+import type { ComponentType } from 'react'
 import type { RefKind } from './schema'
 
 export interface PageOption {
@@ -44,4 +45,30 @@ export interface EditorHost {
    * editor paste it as text.
    */
   markdownToContent?(text: string): JSONContent[] | null
+  /**
+   * Create a database for the `/database` commands. `inline`: shown inside this page (the
+   * database becomes a sub-page of it); otherwise a database page linked from here.
+   */
+  createDatabase?(opts: { inline: boolean }): Promise<{ databaseId: string; viewId: string }>
+  /** Renders an inline database block (the editor only stores which database and view). */
+  DatabaseBlock?: ComponentType<DatabaseBlockProps>
+  /** Extra `/` commands the app adds (templates, module blocks). */
+  slashExtras?: SlashExtra[]
+}
+
+export interface SlashExtra {
+  id: string
+  label: string
+  desc: string
+  keywords?: string
+  /** Runs after the typed `/query` has been removed. */
+  run(editor: Editor): void
+}
+
+export interface DatabaseBlockProps {
+  databaseId: string
+  viewId: string
+  editable: boolean
+  /** The user switched views inside the block; persist it on the node. */
+  onViewChange(viewId: string): void
 }

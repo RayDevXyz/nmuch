@@ -42,7 +42,7 @@ function GraphView({ links, mode }: { links: Link[]; mode: 'local' | 'all' }) {
       edges.push({ s: l.source, t: l.target, kind: 'link' })
     })
     Object.values(pages).forEach((p) => {
-      if (p.parentId && live(p.id) && live(p.parentId)) {
+      if (p.parentId && !p.databaseId && live(p.id) && live(p.parentId)) {
         const k = [p.id, p.parentId].sort().join('|')
         if (!seen.has(k)) {
           seen.add(k)
@@ -62,7 +62,7 @@ function GraphView({ links, mode }: { links: Link[]; mode: 'local' | 'all' }) {
         add.forEach((a) => ids.add(a))
       }
     } else {
-      ids = new Set(Object.values(pages).filter((p) => p.trashedAt == null && !p.archived).map((p) => p.id))
+      ids = new Set(Object.values(pages).filter((p) => p.trashedAt == null && !p.archived && !p.databaseId).map((p) => p.id))
     }
     const deg = new Map<string, number>()
     const es = edges.filter((e) => ids.has(e.s) && ids.has(e.t))

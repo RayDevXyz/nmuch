@@ -524,6 +524,7 @@ pub struct BlockTxn<'a, 'doc> {
     props: MapRef,
     db_props: MapRef,
     db_views: MapRef,
+    surface: MapRef,
     page_id: PageId,
 }
 
@@ -539,6 +540,7 @@ impl<'a, 'doc> BlockTxn<'a, 'doc> {
             props,
             db_props,
             db_views,
+            surface,
         } = doc_maps;
         Self {
             txn,
@@ -547,6 +549,7 @@ impl<'a, 'doc> BlockTxn<'a, 'doc> {
             props,
             db_props,
             db_views,
+            surface,
             page_id,
         }
     }
@@ -590,6 +593,67 @@ impl<'a, 'doc> BlockTxn<'a, 'doc> {
     pub fn remove_db_view(&mut self, id: &str) -> Result<()> {
         self.require_database()?;
         self.db_views.remove(self.txn, id);
+        Ok(())
+    }
+
+    // ---- edgeless (see surface.rs)
+
+    /// Add or replace an edgeless element. `element` is a JSON object with at least `type`;
+    /// every field becomes one entry of the element's map, so concurrent edits to different
+    /// fields (one person moves a shape, another renames it) both survive.
+    pub fn set_element(&mut self, id: &str, element: serde_json::Value) -> Result<()> {
+        let fields = crate::surface::validate(id, element)?;
+        let prelim = fields
+            .into_iter()
+            .map(|(k, v)| Ok((k, In::Any(to_any(v)?))))
+            .collect::<Result<Vec<_>>>()?;
+        self.surface
+            .insert(self.txn, id, MapPrelim::from_iter(prelim));
+        Ok(())
+    }
+
+    /// Change some fields of an existing element.
+    pub fn update_element(&mut self, id: &str, patch: serde_json::Value) -> Result<()> {
+        let Some(Out::YMap(m)) = self.surface.get(&*self.txn, id) else {
+            return Err(Error::BlockNotFound(id.to_string()));
+        };
+        let serde_json::Value::Object(patch) = patch else {
+            return Err(Error::Invalid("element patch must be an object".into()));
+        };
+        for (k, v) in patch {
+            if k == keys::ID || k == keys::EL_TYPE {
+                return Err(Error::Invalid(format!("an element's {k} can't change")));
+            }
+            m.insert(self.txn, k, to_any(v)?);
+        }
+        Ok(())
+    }
+
+    pub fn remove_element(&mut self, id: &str) {
+        self.surface.remove(self.txn, id);
+    }
+
+    /// Place a note on the canvas, or show it only there (`display = "edgeless"`).
+    pub fn set_note_layout(
+        &mut self,
+        note_id: &str,
+        xywh: Option<[f64; 4]>,
+        display: Option<&str>,
+    ) -> Result<()> {
+        let Some(Out::YMap(m)) = self.notes.get(&*self.txn, note_id) else {
+            return Err(Error::BlockNotFound(note_id.to_string()));
+        };
+        if let Some(x) = xywh {
+            m.insert(self.txn, keys::NOTE_XYWH, to_any(serde_json::json!(x))?);
+        }
+        if let Some(d) = display {
+            if !matches!(d, "both" | "edgeless") {
+                return Err(Error::Invalid(format!(
+                    "note display must be both or edgeless, not {d}"
+                )));
+            }
+            m.insert(self.txn, keys::NOTE_DISPLAY, d);
+        }
         Ok(())
     }
 
@@ -908,6 +972,7 @@ pub fn snapshot(doc: &Doc, page_id: &str) -> Result<PageSnapshot> {
     let props = doc.get_or_insert_map(keys::PROPS);
     let db_props = doc.get_or_insert_map(keys::DB_PROPERTIES);
     let db_views = doc.get_or_insert_map(keys::DB_VIEWS);
+    let surface = doc.get_or_insert_map(keys::SURFACE);
     let txn = doc.transact();
     if page.get(&txn, keys::ID).is_none() {
         return Err(Error::PageNotFound(page_id.to_string()));
@@ -945,6 +1010,11 @@ pub fn snapshot(doc: &Doc, page_id: &str) -> Result<PageSnapshot> {
         if let Some(x) = xywh {
             attrs.insert("xywh".into(), x);
         }
+        if let Some(Out::YMap(m)) = notes.get(&txn, &note_id) {
+            if let Some(Out::Any(Any::String(d))) = m.get(&txn, keys::NOTE_DISPLAY) {
+                attrs.insert("display".into(), serde_json::Value::String(d.to_string()));
+            }
+        }
         blocks.push(BlockSnapshot {
             id: note_id.clone(),
             page_id: page_id.to_string(),
@@ -967,6 +1037,24 @@ pub fn snapshot(doc: &Doc, page_id: &str) -> Result<PageSnapshot> {
         };
         let children: Vec<XmlOut> = frag.children(&txn).collect();
         ctx.walk_children(children, &note_id, 2);
+    }
+    for (pos, el) in crate::surface::read_elements(&txn, &surface)
+        .into_iter()
+        .enumerate()
+    {
+        blocks.push(BlockSnapshot {
+            id: el.id.clone(),
+            page_id: page_id.to_string(),
+            parent: Some(page_id.to_string()),
+            note_id: None,
+            flavour: format!("{}{}", node::SURFACE_PREFIX, el.kind),
+            position: pos as u32,
+            depth: 1,
+            text: el.text.clone(),
+            attrs: el.attrs,
+            props: props_of(&el.id),
+            refs: vec![],
+        });
     }
     let database =
         (meta.kind == PageKind::Database).then(|| read_database(&txn, &db_props, &db_views));
@@ -1123,6 +1211,7 @@ pub(crate) struct DocMaps {
     props: MapRef,
     db_props: MapRef,
     db_views: MapRef,
+    surface: MapRef,
 }
 
 /// Read the root maps needed by [`BlockTxn`]. Must be called outside any transaction.
@@ -1133,6 +1222,7 @@ pub(crate) fn doc_maps(doc: &Doc) -> DocMaps {
         props: doc.get_or_insert_map(keys::PROPS),
         db_props: doc.get_or_insert_map(keys::DB_PROPERTIES),
         db_views: doc.get_or_insert_map(keys::DB_VIEWS),
+        surface: doc.get_or_insert_map(keys::SURFACE),
     }
 }
 

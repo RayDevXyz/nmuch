@@ -529,13 +529,15 @@ impl Core {
 
     fn require_db(&mut self, module: &str, database_id: &str, write: bool) -> Result<()> {
         let caps = self.approved_caps(module)?;
-        let own = caps.contains(&Capability::DbOwn)
-            && self.owner_of(database_id)?.as_deref() == Some(module);
         let any = caps.contains(if write {
             &Capability::DbWrite
         } else {
             &Capability::DbRead
         });
+        // A page that doesn't exist reads as "not allowed" too: no probing for page ids.
+        let own = !any
+            && caps.contains(&Capability::DbOwn)
+            && self.owner_of(database_id).ok().flatten().as_deref() == Some(module);
         if own || any {
             Ok(())
         } else {

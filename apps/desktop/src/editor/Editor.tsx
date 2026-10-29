@@ -18,6 +18,7 @@ import { databaseDef } from '../database/api'
 import { DatabaseView, RowProperties } from '../database/DatabaseView'
 import { createCourseTracker } from '../database/templates'
 import { installedWidgets } from '../widgets/api'
+import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
 import { Canvas } from '../edgeless/Canvas'
 
@@ -293,7 +294,16 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
       WidgetBlock: (props) => <WidgetBlock {...props} pageId={pageId} />,
       // A getter: the slash menu reads it on every keystroke, so newly installed widgets show up.
       get slashExtras() {
-        return [courseTrackerExtra(pageId), ...installedWidgets().map((w) => ({
+        const modules = installedModules()
+          .filter((m) => !m.builtin)
+          .map((m) => ({
+            id: `module:${m.manifest.id}`,
+            label: m.manifest.name,
+            desc: m.manifest.description || 'Module',
+            keywords: `module ${m.manifest.id}`,
+            run: (editor: TiptapEditor) => void editor.chain().focus().insertWidget(`module:${m.manifest.id}`).run(),
+          }))
+        return [courseTrackerExtra(pageId), ...modules, ...installedWidgets().map((w) => ({
           id: `widget:${w.manifest.id}`,
           label: w.manifest.name,
           desc: w.manifest.description || 'Widget',

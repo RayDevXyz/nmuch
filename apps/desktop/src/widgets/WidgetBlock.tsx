@@ -5,6 +5,7 @@ import { coreClient } from '../lib/storage'
 import { openPage } from '../state/actions'
 import { useApp } from '../state/store'
 import { BindingSetup } from './BindingSetup'
+import { ModuleBlock } from '../modules/ModuleBlock'
 import { buildSrcdoc, themeVars } from './runtime'
 import {
   loadWidget,
@@ -34,6 +35,12 @@ export function bindingsComplete(manifest: Manifest, bindings: Record<string, un
  * stored on the block, so the widget can't name another database or column.
  */
 export function WidgetBlock(props: WidgetBlockProps & { pageId: string }) {
+  // A third-party module placed in the page uses the same block, as `module:<id>`.
+  if (props.widgetId.startsWith('module:')) return <ModuleBlock {...props} moduleId={props.widgetId.slice(7)} />
+  return <WidgetInstance {...props} />
+}
+
+function WidgetInstance(props: WidgetBlockProps & { pageId: string }) {
   const { widgetId, bindings, editable, onBindings } = props
   const [def, setDef] = useState<WidgetDef | null>(null)
   const [error, setError] = useState<string | null>(null)

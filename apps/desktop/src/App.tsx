@@ -11,6 +11,7 @@ import { QuickFind } from './components/QuickFind'
 import { HelpModal } from './components/HelpModal'
 import { ImportDialog } from './components/ImportDialog'
 import { WidgetsDialog } from './widgets/WidgetsDialog'
+import { ModulesDialog } from './modules/ModulesDialog'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
@@ -22,6 +23,7 @@ export default function App() {
   const help = useApp((s) => s.help)
   const importDialog = useApp((s) => s.importDialog)
   const widgetsDialog = useApp((s) => s.widgetsDialog)
+  const modulesDialog = useApp((s) => s.modulesDialog)
   const toast = useApp((s) => s.toast)
 
   useEffect(() => {
@@ -106,6 +108,7 @@ export default function App() {
       {help && <HelpModal />}
       {importDialog && <ImportDialog />}
       {widgetsDialog && <WidgetsDialog />}
+      {modulesDialog && <ModulesDialog />}
       {toast && <div className="toast">{toast}</div>}
     </main>
   )

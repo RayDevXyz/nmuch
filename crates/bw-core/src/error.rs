@@ -23,6 +23,10 @@ pub enum Error {
 
     #[error("malformed block data: {0}")]
     Malformed(String),
+
+    /// A widget tried to do something its manifest and bindings don't allow.
+    #[error("not allowed: {0}")]
+    Forbidden(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

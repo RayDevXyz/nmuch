@@ -168,6 +168,24 @@ impl NewBlock {
         )
     }
 
+    /// A widget instance: which widget, how its slots are bound, its own settings.
+    pub fn widget(
+        widget_id: &str,
+        bindings: serde_json::Value,
+        settings: serde_json::Value,
+    ) -> XNode {
+        let any = |v: serde_json::Value| serde_json::from_value::<Any>(v).unwrap_or(Any::Null);
+        Self::el(
+            node::WIDGET,
+            vec![
+                ("widget", Any::from(widget_id)),
+                ("bindings", any(bindings)),
+                ("settings", any(settings)),
+            ],
+            vec![],
+        )
+    }
+
     /// An inline view of a database page.
     pub fn database(database_id: &str, view_id: &str) -> XNode {
         Self::el(
@@ -1033,6 +1051,16 @@ impl<T: ReadTxn, F: Fn(&str) -> BTreeMap<String, serde_json::Value>> Walk<'_, T,
                     _ => None,
                 })
                 .collect();
+            if tag == node::WIDGET {
+                // Link the widget to the databases it is bound to (backlinks: "used by").
+                if let Some(serde_json::Value::Object(b)) = attrs.get("bindings") {
+                    for binding in b.values() {
+                        if let Some(serde_json::Value::String(d)) = binding.get("databaseId") {
+                            refs.push((d.clone(), "page".into()));
+                        }
+                    }
+                }
+            }
             if tag == node::DATABASE {
                 if let Some(serde_json::Value::String(d)) = attrs.get("databaseId") {
                     text.push(crate::index::REF_MARK);

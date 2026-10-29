@@ -1,4 +1,4 @@
-import { NoteEditor, outlineOf, statsOf, toMarkdown, type EditorHost, type RefKind } from '@brainwaves/editor'
+import { NoteEditor, outlineOf, statsOf, toMarkdown, type EditorHost, type RefKind, type SlashExtra } from '@brainwaves/editor'
 import type { Editor as TiptapEditor } from '@tiptap/core'
 import { Selection } from '@tiptap/pm/state'
 import { Smile } from 'lucide-react'
@@ -17,6 +17,8 @@ import { getState, setState, toast, useApp } from '../state/store'
 import { databaseDef } from '../database/api'
 import { DatabaseView, RowProperties } from '../database/DatabaseView'
 import { createCourseTracker } from '../database/templates'
+import { installedWidgets } from '../widgets/api'
+import { WidgetBlock } from '../widgets/WidgetBlock'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -135,6 +137,30 @@ function useNotes(sync: PageSync | null): NoteRef[] {
   return notes
 }
 
+/** `/Course tracker`: the Courses + Lessons databases, inserted inline. */
+function courseTrackerExtra(pageId: string): SlashExtra {
+  return {
+    id: 'course-tracker',
+    label: 'Course tracker',
+    desc: 'Courses + Lessons databases with progress',
+    keywords: 'template course lessons progress module',
+    run: (editor) => {
+      toast('Creating the course tracker…')
+      void createCourseTracker(pageId).then(
+        ({ courses, lessons }) => {
+          editor
+            .chain()
+            .focus()
+            .insertContent([{ type: 'database', attrs: courses }, { type: 'database', attrs: lessons }, { type: 'paragraph' }])
+            .run()
+          toast('Course tracker ready')
+        },
+        (e) => toast('Could not create the course tracker: ' + String(e)),
+      )
+    },
+  }
+}
+
 export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React.RefObject<HTMLDivElement | null> }) {
   const page = useApp((s) => s.pages[pageId])
   const spellcheck = useApp((s) => s.spellcheck)
@@ -244,32 +270,20 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
       DatabaseBlock: ({ databaseId, viewId, editable, onViewChange }) => (
         <DatabaseView databaseId={databaseId} viewId={viewId} onViewChange={onViewChange} editable={editable} inline />
       ),
-      slashExtras: [
-        {
-          id: 'course-tracker',
-          label: 'Course tracker',
-          desc: 'Courses + Lessons databases with progress',
-          keywords: 'template course lessons progress module',
-          run: (editor) => {
-            toast('Creating the course tracker…')
-            void createCourseTracker(pageId).then(
-              ({ courses, lessons }) => {
-                editor
-                  .chain()
-                  .focus()
-                  .insertContent([{ type: 'database', attrs: courses }, { type: 'database', attrs: lessons }, { type: 'paragraph' }])
-                  .run()
-                toast('Course tracker ready')
-              },
-              (e) => toast('Could not create the course tracker: ' + String(e)),
-            )
-          },
-        },
-      ],
+      WidgetBlock: (props) => <WidgetBlock {...props} pageId={pageId} />,
+      // A getter: the slash menu reads it on every keystroke, so newly installed widgets show up.
+      get slashExtras() {
+        return [courseTrackerExtra(pageId), ...installedWidgets().map((w) => ({
+          id: `widget:${w.manifest.id}`,
+          label: w.manifest.name,
+          desc: w.manifest.description || 'Widget',
+          keywords: `widget ${w.manifest.id}`,
+          run: (editor: TiptapEditor) => void editor.chain().focus().insertWidget(w.manifest.id).run(),
+        }))]
+      },
     }),
     [pageId],
   )
-
   // ---------- reveal a block / track the current heading ----------
 
   useEffect(() => {

@@ -72,6 +72,9 @@ pub mod node {
     pub const HORIZONTAL_RULE: &str = "horizontalRule";
     /// An inline view of a database. attrs: `databaseId`, `viewId`.
     pub const DATABASE: &str = "database";
+    /// A widget instance. attrs: `widget` (definition id), `bindings` (slot -> database and
+    /// columns), `settings` (the widget's own options). See `widgets.rs`.
+    pub const WIDGET: &str = "widget";
     pub const IMAGE: &str = "image";
     /// A sub-page embedded as a block. attrs: `pageId`.
     pub const PAGE_LINK: &str = "pageLink";

@@ -77,6 +77,8 @@ export const SlashCommands = suggestionExtension<SlashEntry>('slashCommands', {
     const q = query.trim().toLowerCase()
     const extras = (maybeHost(editor)?.slashExtras ?? [])
       .filter((x) => !q || `${x.label} ${x.keywords ?? ''}`.toLowerCase().includes(q))
+      // Name matches before keyword-only matches ("/progress" → the Progress widget first).
+      .sort((a, b) => Number(!a.label.toLowerCase().includes(q)) - Number(!b.label.toLowerCase().includes(q)))
       .map((x) => ({ ...x, extra: true as const }))
     return [...filterSlash(query), ...extras]
   },

@@ -19,6 +19,7 @@ export const BLOCK_TYPES = [
   'image',
   'pageLink',
   'database',
+  'widget',
 ] as const
 
 export type BlockTypeName = (typeof BLOCK_TYPES)[number]

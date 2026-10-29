@@ -27,6 +27,16 @@ pub(crate) fn migrate(conn: &Connection) -> Result<()> {
             created_at INTEGER NOT NULL
         );
         CREATE INDEX IF NOT EXISTS updates_by_page ON updates(page_id, seq);
+
+        -- Installed widgets: their manifest and code. App code, not user content, so it is
+        -- kept as plain rows rather than in the Yjs log (see widgets.rs).
+        CREATE TABLE IF NOT EXISTS widget_defs (
+            id           TEXT PRIMARY KEY,
+            manifest     TEXT    NOT NULL,
+            html         TEXT    NOT NULL,
+            builtin      INTEGER NOT NULL,
+            installed_at INTEGER NOT NULL
+        );
         "#,
     )?;
     Ok(())

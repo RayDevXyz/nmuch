@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<script type="application/bw-widget+json">
+{
+  "id": "brainwaves.course-dashboard",
+  "name": "Course dashboard",
+  "description": "Your courses with their progress; click one to open it.",
+  "version": "1",
+  "icon": "🎓",
+  "height": 180,
+  "slots": {
+    "courses": {
+      "access": "read",
+      "label": "Courses",
+      "description": "Works with the Course tracker template: Progress is its percent-checked rollup.",
+      "fields": {
+        "progress": { "label": "Progress", "types": ["rollup", "number"] },
+        "status": { "label": "Status", "types": ["select"], "optional": true }
+      }
+    }
+  }
+}
+</script>
+<style>
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+  .card { padding: 10px 12px; border-radius: 9px; border: 1px solid var(--bw-line); background: var(--bw-panel); cursor: pointer; }
+  .card:hover { border-color: var(--bw-accent); }
+  .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { display: flex; justify-content: space-between; color: var(--bw-muted); font-size: 12px; margin: 6px 0 5px; }
+  .bar { height: 6px; border-radius: 99px; background: var(--bw-panel-2); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--bw-accent); transition: width .3s; }
+  .card.complete .bar i { background: var(--bw-ok); }
+  .head { display: flex; justify-content: space-between; color: var(--bw-muted); font-size: 12px; margin-bottom: 6px; }
+  .empty { color: var(--bw-faint); }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script>
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+  // A percent-checked rollup is a fraction (0..1); a number column may hold 0..100.
+  const frac = (v) => { const n = Number(v); return !Number.isFinite(n) ? 0 : n > 1 ? Math.min(n / 100, 1) : Math.max(n, 0) }
+
+  function render(r, error) {
+    const out = document.getElementById('out')
+    if (error) return (out.innerHTML = `<div class="empty">${esc(error)}</div>`)
+    if (!r.rows.length) return (out.innerHTML = '<div class="empty">No courses yet.</div>')
+    const status = r.fields.find((f) => f.key === 'status')
+    const rows = r.rows.map((x) => ({ ...x, p: frac(x.values.progress) })).sort((a, b) => (a.p === 1) - (b.p === 1) || b.p - a.p)
+    const avg = rows.reduce((s, x) => s + x.p, 0) / rows.length
+    const finished = rows.filter((x) => x.p === 1).length
+    out.innerHTML =
+      `<div class="head"><span>${rows.length} courses · ${finished} finished</span><span>${Math.round(avg * 100)}% overall</span></div><div class="grid">` +
+      rows
+        .map((x) => {
+          const st = status && status.options?.find((o) => o.id === x.values.status)?.name
+          return `<div class="card ${x.p === 1 ? 'complete' : ''}" data-id="${esc(x.id)}"><div class="name">${esc(x.icon ? x.icon + ' ' : '')}${esc(x.title || 'Untitled')}</div><div class="meta"><span>${esc(st || '')}</span><span>${Math.round(x.p * 100)}%</span></div><div class="bar"><i style="width:${x.p * 100}%"></i></div></div>`
+        })
+        .join('') +
+      '</div>'
+  }
+
+  document.addEventListener('click', (e) => {
+    const card = e.target.closest('.card')
+    if (card) bw.openRow(card.dataset.id)
+  })
+  bw.ready.then(() => bw.subscribe('courses', {}, render))
+</script>
+</body>
+</html>

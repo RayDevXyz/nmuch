@@ -6,6 +6,7 @@
 //! - [`index`]: the SQL projection (`pages`, `blocks`, `props`, `refs`, `tags`), rebuildable.
 //! - [`query`]: read queries over the index.
 //! - [`database`] + [`db_query`]: databases (columns, views, rows, relations, rollups).
+//! - [`widgets`]: widget definitions and the access-checked widget data API.
 //! - [`Core`]: the single writer that ties them together.
 //!
 //! See `docs/spike-01-block-model.md` and `docs/phase-02-editor.md`.
@@ -20,6 +21,7 @@ pub mod index;
 pub mod query;
 pub mod schema;
 mod store;
+pub mod widgets;
 
 pub use crate::core::{Core, RebuildReport};
 pub use crate::database::{
@@ -33,4 +35,7 @@ pub use crate::events::{Event, Origin};
 pub use crate::index::IndexDump;
 pub use crate::schema::{
     node, BlockId, BlockSnapshot, PageId, PageKind, PageMeta, PageMetaPatch, PageSnapshot,
+};
+pub use crate::widgets::{
+    Access, Binding, FieldSpec, Manifest, SlotSpec, WidgetDef, WidgetQuery, WidgetResult,
 };

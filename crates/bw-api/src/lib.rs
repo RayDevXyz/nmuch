@@ -6,7 +6,7 @@
 
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
-use bw_core::{Core, NewRelation, PageMeta, PageMetaPatch, Property, View};
+use bw_core::{Core, Manifest, NewRelation, PageMeta, PageMetaPatch, Property, View, WidgetQuery};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -156,6 +156,38 @@ struct SetValue {
     property_id: String,
     #[serde(default)]
     value: Value,
+}
+
+// ---- widgets
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct InstallWidget {
+    manifest: Manifest,
+    html: String,
+    #[serde(default)]
+    builtin: bool,
+}
+
+#[derive(Deserialize)]
+struct WidgetId {
+    id: String,
+}
+
+/// Which widget instance is calling: always filled in by the host from where the widget is
+/// mounted, never taken from the widget itself.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WidgetCall {
+    page_id: String,
+    block_id: String,
+    slot: String,
+    #[serde(default)]
+    query: Option<WidgetQuery>,
+    #[serde(default)]
+    row_id: Option<String>,
+    #[serde(default)]
+    values: BTreeMap<String, Value>,
 }
 
 #[derive(Deserialize)]
@@ -333,6 +365,50 @@ pub fn dispatch(core: &mut Core, ctx: &Context, command: &str, a: Value) -> Resu
             } = args(a)?;
             core.set_value(&row_id, &property_id, value).map_err(e)?;
             ok(())
+        }
+        // ---- widgets (see bw_core::widgets)
+        "listWidgets" => ok(core.list_widgets().map_err(e)?),
+        "widgetDef" => {
+            let WidgetId { id } = args(a)?;
+            ok(core.widget_def(&id).map_err(e)?)
+        }
+        "installWidget" => {
+            let InstallWidget {
+                manifest,
+                html,
+                builtin,
+            } = args(a)?;
+            core.install_widget(&manifest, &html, builtin).map_err(e)?;
+            ok(())
+        }
+        "removeWidget" => {
+            let WidgetId { id } = args(a)?;
+            core.remove_widget(&id).map_err(e)?;
+            ok(())
+        }
+        "widgetQuery" => {
+            let c: WidgetCall = args(a)?;
+            ok(core
+                .widget_query(
+                    &c.page_id,
+                    &c.block_id,
+                    &c.slot,
+                    &c.query.unwrap_or_default(),
+                )
+                .map_err(e)?)
+        }
+        "widgetMutate" => {
+            let c: WidgetCall = args(a)?;
+            let row = c.row_id.ok_or("rowId is required")?;
+            core.widget_mutate(&c.page_id, &c.block_id, &c.slot, &row, &c.values)
+                .map_err(e)?;
+            ok(())
+        }
+        "widgetCreateRow" => {
+            let c: WidgetCall = args(a)?;
+            ok(core
+                .widget_create_row(&c.page_id, &c.block_id, &c.slot, &c.values)
+                .map_err(e)?)
         }
         "importPage" => {
             let ImportPage {

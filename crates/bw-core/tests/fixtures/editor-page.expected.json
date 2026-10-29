@@ -216,6 +216,23 @@
       ]
     },
     {
+      "id": "w1",
+      "type": "widget",
+      "depth": 2,
+      "text": "",
+      "attrs": {
+        "widget": "progress",
+        "bindings": "{\"items\":{\"databaseId\":\"db-lessons\",\"fields\":{\"done\":\"done\"}}}",
+        "settings": "{\"label\":\"Done\"}"
+      },
+      "refs": [
+        [
+          "db-lessons",
+          "page"
+        ]
+      ]
+    },
+    {
       "id": "p2",
       "type": "paragraph",
       "depth": 2,

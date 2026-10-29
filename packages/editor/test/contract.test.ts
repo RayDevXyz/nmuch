@@ -44,6 +44,10 @@ const DOC: JSONContent = {
     { type: 'image', attrs: { id: 'img1', src: 'https://example.com/a.png', caption: 'A picture' } },
     { type: 'pageLink', attrs: { id: 'pl1', pageId: 'page-3' } },
     { type: 'database', attrs: { id: 'db1', databaseId: 'db-courses', viewId: 'v-table' } },
+    {
+      type: 'widget',
+      attrs: { id: 'w1', widget: 'progress', bindings: JSON.stringify({ items: { databaseId: 'db-lessons', fields: { done: 'done' } } }), settings: '{"label":"Done"}' },
+    },
     p('p2', t('link', ['link'])),
   ],
 }
@@ -65,6 +69,10 @@ function expectedBlocks(doc: JSONContent) {
       }
     })
     if (n.type === 'image') text = node.attrs.caption
+    if (n.type === 'widget') {
+      const b = JSON.parse(node.attrs.bindings) as Record<string, { databaseId: string }>
+      Object.values(b).forEach((x) => refs.push([x.databaseId, 'page']))
+    }
     if (n.type === 'database') {
       text = '\uFFFC'
       refs.push([node.attrs.databaseId, 'page'])

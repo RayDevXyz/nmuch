@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, Moon, Search, Settings, Sparkles, Star, Sun } from 'lucide-react'
+import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, Moon, Search, Settings, Sparkles, Star, Sun, Blocks } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
@@ -69,6 +69,15 @@ function SettingsPanel({ x, y, onClose }: { x: number; y: number; onClose: () =>
         }}
       >
         <Download size={13} /> Import from Nimbus…
+      </button>
+      <button
+        className="setting-action"
+        onClick={() => {
+          onClose()
+          setState({ widgetsDialog: true })
+        }}
+      >
+        <Blocks size={13} /> Widgets…
       </button>
     </Popover>
   )

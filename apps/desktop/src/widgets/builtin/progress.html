@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+<script type="application/bw-widget+json">
+{
+  "id": "brainwaves.progress",
+  "name": "Progress",
+  "description": "How many rows are done, overall or per group.",
+  "version": "1",
+  "icon": "📊",
+  "height": 72,
+  "slots": {
+    "items": {
+      "access": "read",
+      "label": "Items",
+      "description": "The rows to count, e.g. lessons or tasks.",
+      "fields": {
+        "done": { "label": "Done", "types": ["checkbox"] },
+        "group": { "label": "Group by", "types": ["select", "relation"], "optional": true }
+      }
+    }
+  }
+}
+</script>
+<style>
+  .row { display: grid; grid-template-columns: minmax(80px, 30%) 1fr auto; gap: 10px; align-items: center; padding: 3px 0; }
+  .row.total { grid-template-columns: 1fr auto; font-weight: 600; }
+  .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--bw-muted); }
+  .bar { height: 8px; border-radius: 99px; background: var(--bw-panel-2); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--bw-accent); border-radius: 99px; transition: width .3s; }
+  .num { color: var(--bw-muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .total .bar { grid-column: 1 / -1; height: 10px; }
+  .total .bar i { background: var(--bw-ok); }
+  .empty { color: var(--bw-faint); }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script>
+  const out = document.getElementById('out')
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+  const pct = (d, n) => (n ? Math.round((d / n) * 100) : 0)
+  const row = (name, done, total, cls = '') =>
+    cls
+      ? `<div class="row ${cls}"><span>${esc(name)}</span><span class="num">${done} / ${total} · ${pct(done, total)}%</span><div class="bar"><i style="width:${pct(done, total)}%"></i></div></div>`
+      : `<div class="row"><span class="name">${esc(name)}</span><div class="bar"><i style="width:${pct(done, total)}%"></i></div><span class="num">${done}/${total}</span></div>`
+
+  function render(r, error) {
+    if (error) return (out.innerHTML = `<div class="empty">${esc(error)}</div>`)
+    if (!r.rows.length) return (out.innerHTML = '<div class="empty">Nothing to count yet.</div>')
+    const groupField = r.fields.find((f) => f.key === 'group')
+    const done = r.rows.filter((x) => x.values.done === true).length
+    let html = row(bw.settings.label || r.database.title || 'Done', done, r.rows.length, 'total')
+    if (groupField) {
+      const groups = new Map()
+      const name = (id) =>
+        groupField.type === 'select' ? groupField.options?.find((o) => o.id === id)?.name ?? id : r.related[id]?.title || 'Untitled'
+      for (const x of r.rows) {
+        const v = x.values.group
+        const keys = v == null || v === '' ? ['—'] : Array.isArray(v) ? (v.length ? v : ['—']) : [v]
+        for (const k of keys) {
+          const g = groups.get(k) ?? { done: 0, total: 0 }
+          g.total++
+          if (x.values.done === true) g.done++
+          groups.set(k, g)
+        }
+      }
+      for (const [k, g] of groups) html += row(k === '—' ? 'No group' : name(k), g.done, g.total)
+    }
+    out.innerHTML = html
+  }
+
+  bw.ready.then(() => {
+    bw.subscribe('items', {}, render)
+    bw.onSettings(() => bw.query('items').then((r) => render(r)))
+  })
+</script>
+</body>
+</html>

@@ -12,6 +12,7 @@ See `docs/phase-02-editor.md` at the repository root.
 
 Prerequisites: Node 20+, pnpm, Rust (via rustup), and the usual Tauri setup
 (Microsoft C++ Build Tools on Windows; WebView2 ships with Windows 10/11).
+On Windows, `scripts\install-windows.cmd` at the repository root installs all of it for you.
 
 ```bash
 pnpm install               # at the repository root

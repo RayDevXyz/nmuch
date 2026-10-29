@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowUpRight,
   Calendar,
@@ -13,6 +13,7 @@ import {
   Tags,
   Type,
   X,
+  Play,
 } from 'lucide-react'
 import { Popover } from '../components/Popover'
 import { uid } from '../lib/id'
@@ -145,10 +146,17 @@ interface CellProps {
   compact?: boolean
 }
 
+/**
+ * A module can offer to open a row's file (the Course module does for lessons). Cells of type
+ * File then get an open button; the module checks the file is one it was given.
+ */
+export const FileOpener = createContext<((rowId: string) => void) | null>(null)
+
 /** One cell: shows the value and edits it in place (or in a picker for selects and relations). */
 export function Cell({ prop, row, result, editable, compact }: CellProps) {
   const [editing, setEditing] = useState(false)
   const [picker, setPicker] = useState<{ x: number; y: number; top: number } | null>(null)
+  const openFile = useContext(FileOpener)
   const value = row.values[prop.id]
   const save = (v: unknown) => void setValue(row.id, prop.id, v)
   const openPicker = (e: React.MouseEvent) => {
@@ -253,8 +261,24 @@ export function Cell({ prop, row, result, editable, compact }: CellProps) {
               {text}
             </a>
           ) : prop.type === 'file' && text ? (
-            <span className="db-file" title={text}>
-              <FolderOpen size={12} /> {text}
+            <span className={`db-file ${row.values.missing === true ? 'missing' : ''}`} title={row.values.missing === true ? `Missing: ${text}` : text}>
+              {openFile && row.values.missing !== true ? (
+                <button
+                  className="db-file-open"
+                  title="Open in its app"
+                  aria-label="Open file"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openFile(row.id)
+                  }}
+                >
+                  <Play size={11} />
+                </button>
+              ) : (
+                <FolderOpen size={12} />
+              )}
+              {row.values.missing === true && <span className="db-missing">missing</span>}
+              {fileName(text)}
             </span>
           ) : prop.type === 'date' && text ? (
             <span>{new Date(text + 'T00:00:00').toLocaleDateString()}</span>
@@ -266,6 +290,8 @@ export function Cell({ prop, row, result, editable, compact }: CellProps) {
     }
   }
 }
+
+const fileName = (p: string) => p.split(/[\\/]/).filter(Boolean).pop() ?? p
 
 /** Shows the new state at once; the query result catches up a moment later. */
 function CheckboxCell({ checked, label, editable, onChange }: { checked: boolean; label?: string; editable: boolean; onChange: (v: boolean) => void }) {

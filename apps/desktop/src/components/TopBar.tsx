@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, Moon, Search, Settings, Sparkles, Star, Sun, Blocks } from 'lucide-react'
+import { refreshModules } from '../modules/api'
+import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, Moon, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
@@ -78,6 +79,16 @@ function SettingsPanel({ x, y, onClose }: { x: number; y: number; onClose: () =>
         }}
       >
         <Blocks size={13} /> Widgets…
+      </button>
+      <button
+        className="setting-action"
+        onClick={() => {
+          onClose()
+          void refreshModules()
+          setState({ modulesDialog: true })
+        }}
+      >
+        <Puzzle size={13} /> Modules…
       </button>
     </Popover>
   )

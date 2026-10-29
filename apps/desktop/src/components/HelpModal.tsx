@@ -34,6 +34,18 @@ const GROUPS: [string, [string, string][]][] = [
     ],
   ],
   [
+    'Courses',
+    [
+      ['/course tracker', '1. Create Courses + Lessons'],
+      ['Import folder', '2. On Courses: pick a folder of videos'],
+      ['▶ in File', '3. Watch a lesson (marks it watched)'],
+      ['Done', 'Tick lessons: course progress updates'],
+      ['Folder changes', 'New files become lessons by themselves'],
+      ['/course dashboard', 'Progress cards (after step 1)'],
+      ['⚙ → Modules', 'See or remove course folders'],
+    ],
+  ],
+  [
     'Canvas',
     [
       ['Ctrl Shift E', 'Switch document / canvas'],

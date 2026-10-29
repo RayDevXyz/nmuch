@@ -76,9 +76,12 @@ const BASE_CSS = `
   button, input, select { font: inherit; color: inherit; }
 `
 
-/** Wrap a widget's HTML: CSP first (so it applies to everything after), then base styles and `bw`. */
-export function buildSrcdoc(html: string): string {
-  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP}"><style>${BASE_CSS}</style><script>${CLIENT}</script>`
+/**
+ * Wrap a widget's (or a module's) HTML: CSP first (so it applies to everything after), then base
+ * styles and the `bw` client.
+ */
+export function buildSrcdoc(html: string, client: string = CLIENT): string {
+  const head = `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${CSP}"><style>${BASE_CSS}</style><script>${client}</script>`
   const m = html.match(/<head[^>]*>/i)
   if (m && m.index !== undefined) {
     const at = m.index + m[0].length
@@ -109,9 +112,10 @@ export function themeVars(): Record<string, string> {
   }
 }
 
-/** A widget file carries its manifest in `<script type="application/bw-widget+json">`. */
-export function manifestFromHtml(html: string): unknown {
-  const m = html.match(/<script[^>]*type=["']application\/bw-widget\+json["'][^>]*>([\s\S]*?)<\/script>/i)
-  if (!m) throw new Error('No manifest found: add <script type="application/bw-widget+json">{ … }</script> to the widget file.')
+/** A widget (or module) file carries its manifest in `<script type="application/bw-widget+json">`. */
+export function manifestFromHtml(html: string, kind: 'widget' | 'module' = 'widget'): unknown {
+  const re = new RegExp(`<script[^>]*type=["']application/bw-${kind}\\+json["'][^>]*>([\\s\\S]*?)</script>`, 'i')
+  const m = html.match(re)
+  if (!m) throw new Error(`No manifest found: add <script type="application/bw-${kind}+json">{ … }</script> to the ${kind} file.`)
   return JSON.parse(m[1])
 }

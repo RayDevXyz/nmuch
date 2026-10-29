@@ -2,12 +2,12 @@
 //! `core_call(command, args)` (see `bw-api`) and listens to `core-event` for changes.
 
 use std::path::Path;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use serde_json::Value;
 use tauri::{Emitter, Manager, State};
 
-struct CoreState(Mutex<bw_core::Core>, bw_api::Context);
+struct CoreState(Arc<Mutex<bw_core::Core>>, bw_api::Context);
 
 /// The app's identifier before the rename to BrainWaves. Its data folder is where the old
 /// Nimbus app kept `nimbus.db` (imported, never modified) and where early BrainWaves builds
@@ -27,6 +27,27 @@ fn core_call(
         &command,
         args.unwrap_or(Value::Object(Default::default())),
     )
+}
+
+/// Ask the user for a folder (for a module: the answer becomes the module's to read).
+#[tauri::command]
+async fn pick_folder(app: tauri::AppHandle, title: Option<String>) -> Option<String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mut dialog = app.dialog().file();
+    if let Some(t) = title {
+        dialog = dialog.set_title(t);
+    }
+    dialog.pick_folder(move |f| {
+        let _ = tx.send(
+            f.and_then(|p| p.into_path().ok())
+                .map(|p| p.display().to_string()),
+        );
+    });
+    tauri::async_runtime::spawn_blocking(move || rx.recv().ok().flatten())
+        .await
+        .ok()
+        .flatten()
 }
 
 /// Builds made before the rename stored `brainwaves.db` in the old folder. Move it (and its
@@ -50,6 +71,7 @@ fn adopt_early_workspace(old_dir: &Path, new_dir: &Path) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
@@ -59,6 +81,7 @@ pub fn run() {
             }
             let ctx = bw_api::Context {
                 nimbus_db: old_dir.map(|d| d.join("nimbus.db")),
+                open_files: true,
             };
 
             let mut core = bw_core::Core::open(dir.join("brainwaves.db"))?;
@@ -69,10 +92,12 @@ pub fn run() {
                     let _ = handle.emit("core-event", &event);
                 }
             });
-            app.manage(CoreState(Mutex::new(core), ctx));
+            let core = Arc::new(Mutex::new(core));
+            bw_api::watch::spawn(core.clone());
+            app.manage(CoreState(core, ctx));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![core_call])
+        .invoke_handler(tauri::generate_handler![core_call, pick_folder])
         .run(tauri::generate_context!())
         .expect("error while running BrainWaves");
 }

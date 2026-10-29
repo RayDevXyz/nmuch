@@ -16,6 +16,7 @@ fn reads_an_old_nimbus_database_without_changing_it() {
     let mut core = Core::open_in_memory().unwrap();
     let ctx = Context {
         nimbus_db: Some(path.clone()),
+        ..Default::default()
     };
     let p = path.display().to_string();
 
@@ -25,6 +26,7 @@ fn reads_an_old_nimbus_database_without_changing_it() {
     );
     let missing = Context {
         nimbus_db: Some(dir.join("nope.db")),
+        ..Default::default()
     };
     assert_eq!(
         dispatch(&mut core, &missing, "nimbusDefaultPath", json!({})).unwrap(),

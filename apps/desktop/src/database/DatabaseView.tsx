@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { ArrowUpDown, ChevronDown, Filter as FilterIcon, LayoutGrid, Plus, Settings2, SquareKanban, Table2 } from 'lucide-react'
+import { ArrowUpDown, ChevronDown, Filter as FilterIcon, FolderInput, LayoutGrid, Play, Plus, RefreshCw, Settings2, SquareKanban, Table2 } from 'lucide-react'
 import { MenuList, Popover } from '../components/Popover'
 import { uid } from '../lib/id'
 import { openPage } from '../state/actions'
 import { createRow, removeView, setValue, setView } from './api'
-import { Cell, PropIcon, visibleProps } from './cells'
+import { Cell, FileOpener, PropIcon, visibleProps } from './cells'
+import { useCourseActions } from '../modules/course'
 import { AddPropertyMenu, anchorOf, FilterMenu, PropertyMenu, SortMenu, ViewSettingsMenu, type Anchor } from './menus'
 import { useDatabase } from './useDatabase'
 import type { DatabaseResult, Property, Row, ViewKind } from './types'
@@ -37,6 +38,7 @@ export function DatabaseView({
   const current = onViewChange ? viewId : localView
   const { result, error, refresh } = useDatabase(databaseId, current)
   const [menu, setMenu] = useState<Menu>(null)
+  const course = useCourseActions(databaseId)
   const close = () => setMenu(null)
   const choose = (id: string) => (onViewChange ? onViewChange(id) : setLocalView(id))
 
@@ -106,6 +108,11 @@ export function DatabaseView({
             <button className="db-tool" aria-label="View settings" onClick={(e) => setMenu({ kind: 'settings', at: anchorOf(e) })}>
               <Settings2 size={13} />
             </button>
+            {course?.role === 'courses' && (
+              <button className="db-tool" title="Turn a folder of videos and documents into a course" onClick={() => void course.importFolder()}>
+                <FolderInput size={13} /> Import folder
+              </button>
+            )}
             <button className="db-new" onClick={() => void addRow()}>
               <Plus size={13} /> New
             </button>
@@ -113,9 +120,28 @@ export function DatabaseView({
         )}
       </div>
 
-      {view.type === 'table' && <TableView result={result} editable={editable} setMenu={setMenu} onAdd={() => void addRow()} />}
-      {view.type === 'board' && <BoardView result={result} editable={editable} onAdd={addRow} setMenu={setMenu} />}
-      {view.type === 'gallery' && <GalleryView result={result} editable={editable} onAdd={() => void addRow()} />}
+      {course?.role === 'courses' && result.total === 0 && (
+        <div className="course-empty">
+          <div className="course-empty-icon">🎓</div>
+          <div>
+            <strong>No courses yet</strong>
+            <p>
+              Pick a folder of videos and documents (for example <code>Courses/Rust</code>). Every file becomes a lesson, in
+              order, with subfolders as sections. New files show up by themselves.
+            </p>
+            {editable && (
+              <button className="primary-btn" onClick={() => void course.importFolder()}>
+                <FolderInput size={14} /> Import a course folder
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      <FileOpener.Provider value={course?.role === 'lessons' ? course.openLesson : null}>
+        {view.type === 'table' && <TableView result={result} editable={editable} setMenu={setMenu} onAdd={() => void addRow()} />}
+        {view.type === 'board' && <BoardView result={result} editable={editable} onAdd={addRow} setMenu={setMenu} />}
+        {view.type === 'gallery' && <GalleryView result={result} editable={editable} onAdd={() => void addRow()} />}
+      </FileOpener.Provider>
       {result.rows.length < result.total && (
         <div className="db-footnote">
           {result.total - result.rows.length} row{result.total - result.rows.length === 1 ? '' : 's'} hidden by filters
@@ -330,14 +356,29 @@ function GalleryView({ result, editable, onAdd }: { result: DatabaseResult; edit
 /** A row's values, shown at the top of the row when it is opened as a page. */
 export function RowProperties({ rowId, databaseId }: { rowId: string; databaseId: string }) {
   const { result } = useDatabase(databaseId, undefined, { id: '', name: '', type: 'table', order: '', filters: [], sorts: [] })
+  const course = useCourseActions(databaseId)
   const row = result?.rows.find((r) => r.id === rowId)
   if (!result || !row) return null
   const props = result.properties.filter((p) => p.id !== 'title')
+  const file = typeof row.values.file === 'string' && row.values.missing !== true
   return (
+    <FileOpener.Provider value={course?.role === 'lessons' ? course.openLesson : null}>
     <div className="db-row-props">
-      <button className="db-row-parent" onClick={(e) => openPage(databaseId, e.ctrlKey || e.metaKey ? 'tab' : 'replace')}>
-        {result.icon || '🗂️'} {result.title || 'Untitled database'}
-      </button>
+      <div className="db-row-head">
+        <button className="db-row-parent" onClick={(e) => openPage(databaseId, e.ctrlKey || e.metaKey ? 'tab' : 'replace')}>
+          {result.icon || '🗂️'} {result.title || 'Untitled database'}
+        </button>
+        {course?.role === 'lessons' && file && (
+          <button className="db-row-action primary" onClick={() => course.openLesson(rowId)}>
+            <Play size={13} /> Open lesson
+          </button>
+        )}
+        {course?.role === 'courses' && typeof row.values.folder === 'string' && (
+          <button className="db-row-action" title="Compare the course with its folder now" onClick={() => course.sync(rowId)}>
+            <RefreshCw size={13} /> Sync with folder
+          </button>
+        )}
+      </div>
       {props.map((p) => (
         <div key={p.id} className="db-row-prop">
           <span className="db-row-label">
@@ -349,5 +390,6 @@ export function RowProperties({ rowId, databaseId }: { rowId: string; databaseId
         </div>
       ))}
     </div>
+    </FileOpener.Provider>
   )
 }

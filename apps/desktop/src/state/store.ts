@@ -37,6 +37,7 @@ export interface AppState {
   /** The "Import from Nimbus" dialog is open. */
   importDialog: boolean
   widgetsDialog: boolean
+  modulesDialog: boolean
   /** request for the editor to scroll to / focus a block once a page is open */
   reveal: { pageId: string; blockId: string } | null
   toast: string | null
@@ -81,6 +82,7 @@ let state: AppState = {
   help: false,
   importDialog: false,
   widgetsDialog: false,
+  modulesDialog: false,
   reveal: null,
   toast: null,
   ...loadPrefs(),

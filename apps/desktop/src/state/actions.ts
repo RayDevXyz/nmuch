@@ -1,5 +1,6 @@
 import { keyBetween } from '../lib/fractional'
 import { registerBuiltinWidgets } from '../widgets/builtin'
+import { refreshModules } from '../modules/api'
 import { uid } from '../lib/id'
 import { coreClient, db, initStorage, metaOf } from '../lib/storage'
 import { acquirePage, releasePage, type PageSync } from '../lib/core/page-sync'
@@ -157,6 +158,7 @@ async function doInit() {
   const storage = await initStorage()
   coreClient().onEvent(() => scheduleRefresh())
   void registerBuiltinWidgets().catch((e) => console.error('widgets:', e))
+  void refreshModules().catch((e) => console.error('modules:', e))
   let pages = await storage.listPages()
   // First run: bring over notes from the old Nimbus app if they're there, else sample pages.
   const nimbus = pages.length === 0 ? await nimbusDefaultPath().catch(() => null) : null

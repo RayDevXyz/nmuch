@@ -12,12 +12,14 @@
 //! See `docs/spike-01-block-model.md` and `docs/phase-02-editor.md`.
 
 pub mod core;
+pub mod course;
 pub mod database;
 pub mod db_query;
 pub mod doc;
 pub mod error;
 pub mod events;
 pub mod index;
+pub mod modules;
 pub mod query;
 pub mod schema;
 mod store;

@@ -11,6 +11,8 @@ export type CoreEvent =
   | { type: 'pageChanged'; pageId: string; seq: number; origin: 'local' | 'remote' }
   | { type: 'pageDeleted'; pageId: string }
   | { type: 'indexRebuilt'; pages: number }
+  /** Files changed in a folder a module may read. */
+  | { type: 'fsChanged'; moduleId: string; root: string }
 
 export interface CoreClient {
   kind: 'tauri' | 'dev'

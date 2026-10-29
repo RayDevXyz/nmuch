@@ -764,3 +764,40 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .cv-doc-toggle:hover { background: var(--hover); }
 .cv-doc-toggle.on { color: var(--ok); }
 .cv-present-bar { left: 50%; bottom: 16px; transform: translateX(-50%); gap: 14px; padding: 6px 14px; font-size: 12.5px; color: var(--foreground); }
+
+/* ---------- modules & courses (phase 6) ---------- */
+.db-file { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.db-file.missing { color: var(--faint); text-decoration: line-through; }
+.db-missing { font-size: 10.5px; font-weight: 700; color: var(--warm); text-transform: uppercase; letter-spacing: 0.04em; text-decoration: none; }
+.db-file-open { width: 20px; height: 20px; flex: none; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--accent-soft); color: var(--accent); cursor: pointer; padding: 0; }
+.db-file-open:hover { background: var(--accent); color: var(--accent-ink); }
+.db-row-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.db-row-action { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel-2); color: var(--foreground); font-size: 12.5px; cursor: pointer; }
+.db-row-action:hover { background: var(--hover); }
+.db-row-action.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.db-row-action.primary:hover { background: var(--accent-strong); }
+.modules-modal { width: min(620px, calc(100% - 40px)); }
+.modules-modal .widgets-list { max-height: 56vh; gap: 8px; }
+.module-item { border: 1px solid var(--line-soft); border-radius: 10px; padding: 4px 4px 10px; }
+.module-item.pending { border-color: color-mix(in srgb, var(--warm) 55%, transparent); }
+.module-item .widgets-item { border: 0; }
+.module-status { font-size: 10px; font-weight: 700; padding: 0 7px; border-radius: 99px; }
+.module-status.ok { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+.module-status.wait { background: color-mix(in srgb, var(--warm) 20%, transparent); color: var(--warm); }
+.module-caps { margin: 0 12px 0 44px; padding: 0; list-style: none; font-size: 12px; color: var(--muted-foreground); display: flex; flex-direction: column; gap: 2px; }
+.module-caps li::before { content: '✓ '; color: var(--ok); }
+.module-caps li.pending::before { content: '? '; color: var(--warm); font-weight: 700; }
+.widget-setup .module-caps { margin: 0 0 0 26px; }
+.module-folders { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 12px 0 44px; }
+.module-folder { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; font-family: var(--font-mono); font-size: 11px; padding: 2px 4px 2px 8px; border-radius: 6px; background: var(--panel-2); color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.module-folder button { border: 0; background: transparent; color: var(--faint); cursor: pointer; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 4px; }
+.module-folder button:hover { background: var(--hover); color: var(--danger); }
+.module-actions { display: flex; gap: 6px; margin: 8px 12px 0 44px; }
+.module-actions .primary-btn { margin-top: 0; height: 28px; font-size: 12px; }
+.course-empty { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; margin: 6px 0 10px; border: 1px dashed var(--line); border-radius: 12px; background: var(--panel); }
+.course-empty-icon { font-size: 28px; line-height: 1; }
+.course-empty strong { font-size: 14px; color: var(--foreground); }
+.course-empty p { margin: 4px 0 10px; font-size: 12.5px; line-height: 1.55; color: var(--muted-foreground); max-width: 560px; }
+.course-empty code { font-family: var(--font-mono); font-size: 11.5px; background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+.course-empty .primary-btn { margin-top: 0; }
+.widget-hint { font-size: 12px; color: var(--warm); }

@@ -40,6 +40,11 @@ pub enum Event {
     IndexRebuilt {
         pages: usize,
     },
+    /// Files changed in a folder a module may read (see `Core::notify_fs_changed`).
+    FsChanged {
+        module_id: String,
+        root: String,
+    },
 }
 
 #[derive(Default)]

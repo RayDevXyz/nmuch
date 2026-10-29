@@ -18,6 +18,7 @@ import { databaseDef } from '../database/api'
 import { DatabaseView, RowProperties } from '../database/DatabaseView'
 import { createCourseTracker } from '../database/templates'
 import { installedWidgets } from '../widgets/api'
+import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
 import { Canvas } from '../edgeless/Canvas'
 
@@ -160,8 +161,8 @@ function courseTrackerExtra(pageId: string): SlashExtra {
   return {
     id: 'course-tracker',
     label: 'Course tracker',
-    desc: 'Courses + Lessons databases with progress',
-    keywords: 'template course lessons progress module',
+    desc: 'Start here: Courses + Lessons; import folders of videos as courses',
+    keywords: 'template course lessons progress module import folder',
     run: (editor) => {
       toast('Creating the course tracker…')
       void createCourseTracker(pageId).then(
@@ -169,9 +170,23 @@ function courseTrackerExtra(pageId: string): SlashExtra {
           editor
             .chain()
             .focus()
-            .insertContent([{ type: 'database', attrs: courses }, { type: 'database', attrs: lessons }, { type: 'paragraph' }])
+            .insertContent([
+              {
+                type: 'callout',
+                attrs: { icon: '🎓' },
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Add a course with Import folder on Courses: pick a folder of videos and documents, and each file becomes a lesson. New files show up by themselves; press ▶ on a lesson to watch it.',
+                  },
+                ],
+              },
+              { type: 'database', attrs: courses },
+              { type: 'database', attrs: lessons },
+              { type: 'paragraph' },
+            ])
             .run()
-          toast('Course tracker ready')
+          toast('Course tracker ready: now Import folder on Courses')
         },
         (e) => toast('Could not create the course tracker: ' + String(e)),
       )
@@ -293,7 +308,16 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
       WidgetBlock: (props) => <WidgetBlock {...props} pageId={pageId} />,
       // A getter: the slash menu reads it on every keystroke, so newly installed widgets show up.
       get slashExtras() {
-        return [courseTrackerExtra(pageId), ...installedWidgets().map((w) => ({
+        const modules = installedModules()
+          .filter((m) => !m.builtin)
+          .map((m) => ({
+            id: `module:${m.manifest.id}`,
+            label: m.manifest.name,
+            desc: m.manifest.description || 'Module',
+            keywords: `module ${m.manifest.id}`,
+            run: (editor: TiptapEditor) => void editor.chain().focus().insertWidget(`module:${m.manifest.id}`).run(),
+          }))
+        return [courseTrackerExtra(pageId), ...modules, ...installedWidgets().map((w) => ({
           id: `widget:${w.manifest.id}`,
           label: w.manifest.name,
           desc: w.manifest.description || 'Widget',

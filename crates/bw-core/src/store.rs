@@ -37,6 +37,23 @@ pub(crate) fn migrate(conn: &Connection) -> Result<()> {
             builtin      INTEGER NOT NULL,
             installed_at INTEGER NOT NULL
         );
+
+        -- Installed modules and what the user allowed them (see modules.rs). App data too.
+        CREATE TABLE IF NOT EXISTS modules (
+            id           TEXT PRIMARY KEY,
+            manifest     TEXT    NOT NULL,
+            code         TEXT    NOT NULL,
+            builtin      INTEGER NOT NULL,
+            installed_at INTEGER NOT NULL
+        );
+        -- kind 'capability': an approved manifest capability; kind 'folder': a picked folder.
+        CREATE TABLE IF NOT EXISTS module_grants (
+            module_id  TEXT    NOT NULL,
+            kind       TEXT    NOT NULL,
+            value      TEXT    NOT NULL,
+            granted_at INTEGER NOT NULL,
+            PRIMARY KEY (module_id, kind, value)
+        );
         "#,
     )?;
     Ok(())

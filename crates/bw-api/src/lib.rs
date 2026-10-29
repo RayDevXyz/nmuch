@@ -13,7 +13,9 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+mod modules_api;
 pub mod nimbus;
+pub mod watch;
 
 pub use bw_core::Event;
 
@@ -22,6 +24,8 @@ pub use bw_core::Event;
 pub struct Context {
     /// Where an old Nimbus database is expected (`<app data>/app.nimbus.notes/nimbus.db`).
     pub nimbus_db: Option<PathBuf>,
+    /// Open files in their default app when a module asks (and is allowed). Off in tests.
+    pub open_files: bool,
 }
 
 #[derive(Deserialize)]
@@ -436,7 +440,8 @@ pub fn dispatch(core: &mut Core, ctx: &Context, command: &str, a: Value) -> Resu
             let page_id = page_id.ok_or("pageId is required")?;
             ok(nimbus::blocks(std::path::Path::new(&path), &page_id)?)
         }
-        other => Err(format!("unknown command: {other}")),
+        other => modules_api::dispatch(core, ctx, other, a)
+            .unwrap_or_else(|| Err(format!("unknown command: {other}"))),
     }
 }
 

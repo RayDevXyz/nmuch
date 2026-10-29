@@ -38,6 +38,8 @@ async fn main() {
     let port: u16 = args.next().and_then(|p| p.parse().ok()).unwrap_or(1430);
     let ctx = bw_api::Context {
         nimbus_db: args.next().map(Into::into),
+        // BW_NO_OPEN=1: don't open files in their apps (headless test runs).
+        open_files: std::env::var_os("BW_NO_OPEN").is_none(),
     };
 
     let mut core = bw_core::Core::open(&db).expect("open workspace");
@@ -52,8 +54,10 @@ async fn main() {
         }
     });
 
+    let core = Arc::new(Mutex::new(core));
+    bw_api::watch::spawn(core.clone());
     let state = AppState {
-        core: Arc::new(Mutex::new(core)),
+        core,
         ctx: Arc::new(ctx),
         events: tx,
     };

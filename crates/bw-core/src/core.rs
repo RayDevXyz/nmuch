@@ -35,7 +35,9 @@ pub struct Core {
     path: Option<PathBuf>,
     /// Loaded pages. A cache only: any entry can be evicted and replayed from the log.
     docs: HashMap<PageId, Doc>,
-    bus: EventBus,
+    pub(crate) bus: EventBus,
+    /// Bumped whenever the set of folders modules may read changes (see `modules.rs`).
+    pub(crate) watch_generation: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,8 +68,10 @@ impl Core {
             path: None,
             docs: HashMap::new(),
             bus: EventBus::default(),
+            watch_generation: 0,
         };
         core.catch_up_index()?;
+        core.register_course_module()?;
         Ok(core)
     }
 

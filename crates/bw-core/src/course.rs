@@ -344,7 +344,7 @@ impl Core {
         if let Some(existing) = self
             .course_rows(&t)?
             .into_iter()
-            .find(|(_, f)| f == &real_s)
+            .find(|(_, f)| crate::modules::plain(f) == real)
         {
             return self.course_sync(&existing.0);
         }
@@ -492,7 +492,8 @@ impl Core {
         let mut out = vec![];
         for t in self.course_trackers()? {
             for (course, folder) in self.course_rows(&t)? {
-                if Path::new(&folder).starts_with(root) || root.starts_with(&folder) {
+                let (folder, root) = (crate::modules::plain(&folder), crate::modules::plain(root));
+                if folder.starts_with(&root) || root.starts_with(&folder) {
                     let r = self.course_sync(&course)?;
                     if r.added + r.missing + r.restored > 0 {
                         out.push(r);

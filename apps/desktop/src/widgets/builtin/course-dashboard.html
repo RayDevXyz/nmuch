@@ -5,15 +5,15 @@
 {
   "id": "brainwaves.course-dashboard",
   "name": "Course dashboard",
-  "description": "Your courses with their progress; click one to open it.",
-  "version": "1",
+  "description": "Your courses with their progress; click one to open it. Needs a Course tracker (/course tracker).",
+  "version": "2",
   "icon": "🎓",
   "height": 180,
   "slots": {
     "courses": {
       "access": "read",
       "label": "Courses",
-      "description": "Works with the Course tracker template: Progress is its percent-checked rollup.",
+      "description": "Choose the Courses database of a course tracker. No tracker yet? Type /course tracker in a page first.",
       "fields": {
         "progress": { "label": "Progress", "types": ["rollup", "number"] },
         "status": { "label": "Status", "types": ["select"], "optional": true }

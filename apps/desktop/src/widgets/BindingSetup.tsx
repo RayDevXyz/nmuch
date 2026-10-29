@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { databaseDef, setProperty } from '../database/api'
 import { PropIcon } from '../database/cells'
 import { TYPE_LABEL, type PropType, type Property } from '../database/types'
+import { coreClient } from '../lib/storage'
 import { createPage } from '../state/actions'
 import { useApp } from '../state/store'
-import type { Binding, Manifest, SlotSpec } from './api'
+import type { Binding, FieldSpec, Manifest, SlotSpec } from './api'
 
 /** Column types a new database can be given for a field (relations and rollups need a target). */
 const CREATABLE: PropType[] = ['checkbox', 'number', 'select', 'multiSelect', 'date', 'text', 'url', 'file']
@@ -95,6 +96,54 @@ function SlotSetup({
   const dbId = binding?.databaseId ?? ''
   const [columns, setColumns] = useState<Property[] | null>(null)
   const [busy, setBusy] = useState(false)
+  // Databases that have a fitting column for every required field.
+  const [fitting, setFitting] = useState<string[] | null>(null)
+
+  // Re-checked when data changes while nothing is picked yet (a course tracker created in the
+  // meantime gets its columns just after its database pages appear).
+  const [tick, setTick] = useState(0)
+  useEffect(() => {
+    if (dbId) return
+    let t: ReturnType<typeof setTimeout> | undefined
+    const off = coreClient().onEvent(() => {
+      clearTimeout(t)
+      t = setTimeout(() => setTick((n) => n + 1), 400)
+    })
+    return () => {
+      off()
+      clearTimeout(t)
+    }
+  }, [dbId])
+  const dbKey = databases.map((d) => d.id).join(',') + ':' + tick
+  useEffect(() => {
+    let live = true
+    const required = Object.entries(spec.fields).filter(([, f]) => !f.optional)
+    const named = (key: string, f: FieldSpec, p: Property) => [key, f.label].some((n) => n && p.name.toLowerCase() === n.toLowerCase())
+    void Promise.all(
+      databases.map((d) =>
+        databaseDef(d.id).then(
+          (def) => {
+            const fits = required.every(([, f]) => def.properties.some((p) => f.types.includes(p.type)))
+            const byName = fits && required.every(([k, f]) => def.properties.some((p) => f.types.includes(p.type) && named(k, f, p)))
+            return fits ? { id: d.id, byName } : null
+          },
+          () => null,
+        ),
+      ),
+    ).then((found) => {
+      if (!live) return
+      const fit = found.filter((x): x is { id: string; byName: boolean } => !!x)
+      setFitting(fit.map((f) => f.id))
+      // One database fits, or one has columns with the very names asked for: that's the one.
+      const named = fit.filter((f) => f.byName)
+      const pick = fit.length === 1 ? fit[0] : named.length === 1 ? named[0] : null
+      if (!dbId && pick) onChange({ databaseId: pick.id, fields: {} })
+    })
+    return () => {
+      live = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbKey])
 
   useEffect(() => {
     let live = true
@@ -154,6 +203,11 @@ function SlotSetup({
         </span>
       </div>
       {spec.description && <div className="widget-setup-desc">{spec.description}</div>}
+      {fitting && fitting.length === 0 && (
+        <div className="widget-hint">
+          None of your databases has the columns this needs yet. Use <strong>New</strong> to make one, or add the columns to a database.
+        </div>
+      )}
       <div className="widget-field">
         <span className="widget-field-label">Database</span>
         <select value={dbId} onChange={(e) => onChange({ databaseId: e.target.value, fields: {} })}>

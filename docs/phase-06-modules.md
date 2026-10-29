@@ -13,7 +13,7 @@ folder and the folder watcher running.
 **Builds on:** [Phase 5](phase-05-edgeless.md).
 **Plan:** step 6 of the build order in [architecture.md](architecture.md).
 
-**Writing a module?** [modules.md](modules.md) is the authoring guide.
+**Using courses?** [courses.md](courses.md) is the how-to. **Writing a module?** [modules.md](modules.md) is the authoring guide.
 
 ![A course imported from a folder](images/phase6-course.png)
 
@@ -99,6 +99,11 @@ The Course module is first-party Rust (`crates/bw-core/src/course.rs`), held to 
   becomes "Extra". `3D printing` keeps its 3, because a number is only stripped when a
   separator follows it.
 - **Skipped:** images, subtitles and hidden files.
+
+**Getting started is shown in the app.** The tracker starts empty, with an instruction callout
+and a big **Import a course folder** button on Courses. Help (Ctrl /) has a Courses section. The
+Course dashboard widget picks the Courses database by itself, and tells you to create a tracker
+if there isn't one yet.
 
 **Everything the module stores is ordinary, editable data**: rows, columns, and a few `course.*`
 props that tie them to disk (the course's folder, and each lesson's path inside it). "A course is

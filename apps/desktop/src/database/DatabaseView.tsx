@@ -120,6 +120,23 @@ export function DatabaseView({
         )}
       </div>
 
+      {course?.role === 'courses' && result.total === 0 && (
+        <div className="course-empty">
+          <div className="course-empty-icon">🎓</div>
+          <div>
+            <strong>No courses yet</strong>
+            <p>
+              Pick a folder of videos and documents (for example <code>Courses/Rust</code>). Every file becomes a lesson, in
+              order, with subfolders as sections. New files show up by themselves.
+            </p>
+            {editable && (
+              <button className="primary-btn" onClick={() => void course.importFolder()}>
+                <FolderInput size={14} /> Import a course folder
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <FileOpener.Provider value={course?.role === 'lessons' ? course.openLesson : null}>
         {view.type === 'table' && <TableView result={result} editable={editable} setMenu={setMenu} onAdd={() => void addRow()} />}
         {view.type === 'board' && <BoardView result={result} editable={editable} onAdd={addRow} setMenu={setMenu} />}

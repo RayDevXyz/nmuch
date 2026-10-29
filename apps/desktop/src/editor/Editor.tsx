@@ -161,8 +161,8 @@ function courseTrackerExtra(pageId: string): SlashExtra {
   return {
     id: 'course-tracker',
     label: 'Course tracker',
-    desc: 'Courses + Lessons databases with progress',
-    keywords: 'template course lessons progress module',
+    desc: 'Start here: Courses + Lessons; import folders of videos as courses',
+    keywords: 'template course lessons progress module import folder',
     run: (editor) => {
       toast('Creating the course tracker…')
       void createCourseTracker(pageId).then(
@@ -170,9 +170,23 @@ function courseTrackerExtra(pageId: string): SlashExtra {
           editor
             .chain()
             .focus()
-            .insertContent([{ type: 'database', attrs: courses }, { type: 'database', attrs: lessons }, { type: 'paragraph' }])
+            .insertContent([
+              {
+                type: 'callout',
+                attrs: { icon: '🎓' },
+                content: [
+                  {
+                    type: 'text',
+                    text: 'Add a course with Import folder on Courses: pick a folder of videos and documents, and each file becomes a lesson. New files show up by themselves; press ▶ on a lesson to watch it.',
+                  },
+                ],
+              },
+              { type: 'database', attrs: courses },
+              { type: 'database', attrs: lessons },
+              { type: 'paragraph' },
+            ])
             .run()
-          toast('Course tracker ready')
+          toast('Course tracker ready: now Import folder on Courses')
         },
         (e) => toast('Could not create the course tracker: ' + String(e)),
       )

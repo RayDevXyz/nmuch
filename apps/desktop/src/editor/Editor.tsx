@@ -3,7 +3,7 @@ import type { Editor as TiptapEditor } from '@tiptap/core'
 import { Selection } from '@tiptap/pm/state'
 import { Smile } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type * as Y from 'yjs'
+import * as Y from 'yjs'
 import { EmojiPicker } from '../components/EmojiPicker'
 import { blockInfo, useBlockInfo } from '../lib/block-cache'
 import { caretOnLastLine } from '../lib/caret'
@@ -19,6 +19,7 @@ import { DatabaseView, RowProperties } from '../database/DatabaseView'
 import { createCourseTracker } from '../database/templates'
 import { installedWidgets } from '../widgets/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
+import { Canvas } from '../edgeless/Canvas'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -34,7 +35,7 @@ export async function pageMarkdown(pageId: string): Promise<string> {
     return new Map(infos.map((b) => [b.id, b.text]))
   }
   return withPage(pageId, async (sync) => {
-    const notes = sync.notesJSON()
+    const notes = sync.notesJSON(true)
     const blockText = await titles(notes)
     return toMarkdown(page?.title ?? '', notes, (kind, id) => (kind === 'page' ? titleOf(id) : (blockText.get(id) ?? '')))
   })
@@ -123,16 +124,33 @@ function Title({ page, onExit }: { page: Page; onExit: () => void }) {
   )
 }
 
-/** The notes of a page, re-read when notes are added or removed. */
+/**
+ * The notes of a page, re-read when notes are added or removed or a note's own fields change
+ * (order, display, position), but not on every keystroke inside one.
+ */
 function useNotes(sync: PageSync | null): NoteRef[] {
   const [notes, setNotes] = useState<NoteRef[]>([])
   useEffect(() => {
     if (!sync) return
-    const map = sync.doc.getMap('notes') as Y.Map<unknown>
-    const update = () => setNotes(sync.notes())
+    const map = sync.doc.getMap('notes') as Y.Map<Y.Map<unknown>>
+    let subs: (() => void)[] = []
+    const update = () => {
+      subs.forEach((u) => u())
+      subs = []
+      map.forEach((m) => {
+        if (!(m instanceof Y.Map)) return
+        const f = (e: Y.YMapEvent<unknown>) => (e.keysChanged.has('order') || e.keysChanged.has('display')) && setNotes(sync.notes())
+        m.observe(f)
+        subs.push(() => m.unobserve(f))
+      })
+      setNotes(sync.notes())
+    }
     update()
     map.observe(update)
-    return () => map.unobserve(update)
+    return () => {
+      map.unobserve(update)
+      subs.forEach((u) => u())
+    }
   }, [sync])
   return notes
 }
@@ -171,7 +189,9 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
 
   const [sync, setSync] = useState<PageSync | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const notes = useNotes(sync)
+  const allNotes = useNotes(sync)
+  const edgeless = useApp((s) => !!s.edgeless[pageId]) && page?.kind !== 'database'
+  const notes = useMemo(() => (edgeless ? allNotes : allNotes.filter((n) => n.display !== 'edgeless')), [allNotes, edgeless])
   const editors = useRef(new Map<string, TiptapEditor>())
   const [editorCount, setEditorCount] = useState(0)
   const [picker, setPicker] = useState<{ x: number; y: number; page: boolean; resolve?: (e: string | null) => void } | null>(null)
@@ -287,7 +307,13 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   // ---------- reveal a block / track the current heading ----------
 
   useEffect(() => {
-    if (!sync || !editorCount || !reveal || reveal.pageId !== pageId) return
+    if (!sync || !reveal || reveal.pageId !== pageId) return
+    // Something drawn on the canvas (found by search): show the canvas, which reveals it.
+    if ((sync.doc.getMap('surface') as Y.Map<unknown>).has(reveal.blockId)) {
+      if (!edgeless) setState((s) => ({ edgeless: { ...s.edgeless, [pageId]: true } }))
+      return
+    }
+    if (!editorCount || edgeless) return
     const t = setTimeout(() => {
       const el = scrollRef.current?.querySelector(`.bw-prose [data-id="${CSS.escape(reveal.blockId)}"]`) as HTMLElement | null
       setState({ reveal: null })
@@ -297,7 +323,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
       setTimeout(() => el.classList.remove('flash'), 1400)
     }, 60)
     return () => clearTimeout(t)
-  }, [sync, editorCount, reveal, pageId, scrollRef])
+  }, [sync, editorCount, reveal, pageId, scrollRef, edgeless])
 
   useEffect(() => {
     const sc = scrollRef.current
@@ -346,6 +372,33 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   if (!page) return null
   const readMin = Math.max(1, Math.round(words / 200))
 
+  const emojiPicker = picker && (
+    <EmojiPicker
+      x={picker.x}
+      y={picker.y}
+      allowRemove={picker.page}
+      onClose={() => {
+        picker.resolve?.(null)
+        setPicker(null)
+      }}
+      onPick={(em) => {
+        if (picker.page) updatePage(pageId, { icon: em })
+        else picker.resolve?.(em || null)
+        setPicker(null)
+      }}
+    />
+  )
+
+  if (edgeless) {
+    return (
+      <div className="note-scroll edgeless" ref={scrollRef}>
+        {error && <div className="editor-error">Could not open this page: {error}</div>}
+        {sync && <Canvas pageId={pageId} doc={sync.doc} notes={notes} host={host} spellcheck={spellcheck} onEditor={editorCallback} />}
+        {emojiPicker}
+      </div>
+    )
+  }
+
   return (
     <div className="note-scroll" ref={scrollRef}>
       <article className={`note-canvas ${width === 'wide' ? 'wide' : ''}`}>
@@ -391,22 +444,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
         {page.kind !== 'database' && <div className="editor-tail" onClick={tailClick} />}
       </article>
 
-      {picker && (
-        <EmojiPicker
-          x={picker.x}
-          y={picker.y}
-          allowRemove={picker.page}
-          onClose={() => {
-            picker.resolve?.(null)
-            setPicker(null)
-          }}
-          onPick={(em) => {
-            if (picker.page) updatePage(pageId, { icon: em })
-            else picker.resolve?.(em || null)
-            setPicker(null)
-          }}
-        />
-      )}
+      {emojiPicker}
     </div>
   )
 }

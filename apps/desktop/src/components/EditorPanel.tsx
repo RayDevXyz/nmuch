@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Archive, ArchiveRestore, ChevronRight, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, Plus, Star, Trash2, X } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronRight, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, Plus, Shapes, Star, Trash2, X } from 'lucide-react'
 import { ancestors, closeTab, createPage, duplicatePage, openPage, setArchived, toggleFavorite, trashPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
 import { Editor, pageMarkdown } from '../editor/Editor'
@@ -108,6 +108,7 @@ export function EditorPanel() {
   const activeId = useApp((s) => s.activeId)
   const page = useApp((s) => (s.activeId ? s.pages[s.activeId] : undefined))
   const width = useApp((s) => s.width)
+  const edgeless = useApp((s) => (s.activeId ? !!s.edgeless[s.activeId] : false))
   const [more, setMore] = useState<{ x: number; y: number } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -124,6 +125,26 @@ export function EditorPanel() {
         </div>
         {page && (
           <div className="editor-actions">
+            {page.kind !== 'database' && (
+              <div className="mode-switch" role="group" aria-label="View">
+                <button
+                  className={!edgeless ? 'active' : ''}
+                  title="Document (Ctrl Shift E)"
+                  aria-pressed={!edgeless}
+                  onClick={() => setState((s) => ({ edgeless: { ...s.edgeless, [page.id]: false } }))}
+                >
+                  <FileText size={14} />
+                </button>
+                <button
+                  className={edgeless ? 'active' : ''}
+                  title="Canvas (Ctrl Shift E)"
+                  aria-pressed={edgeless}
+                  onClick={() => setState((s) => ({ edgeless: { ...s.edgeless, [page.id]: true } }))}
+                >
+                  <Shapes size={14} />
+                </button>
+              </div>
+            )}
             <IconButton label={page.favorite ? 'Remove from favorites' : 'Add to favorites'} active={page.favorite} onClick={() => toggleFavorite(page.id)}>
               <Star className={page.favorite ? 'star-on' : ''} />
             </IconButton>

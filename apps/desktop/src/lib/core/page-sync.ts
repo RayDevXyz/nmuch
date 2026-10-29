@@ -14,6 +14,8 @@ export interface NoteRef {
   id: string
   order: string
   fragment: Y.XmlFragment
+  /** "edgeless": a canvas-only note, not shown in doc mode or exports. */
+  display: 'both' | 'edgeless'
 }
 
 /**
@@ -93,14 +95,17 @@ export class PageSync {
     const out: NoteRef[] = []
     ;(this.doc.getMap('notes') as Y.Map<Y.Map<unknown>>).forEach((m, id) => {
       const fragment = m.get('content')
-      if (fragment instanceof Y.XmlFragment) out.push({ id, order: String(m.get('order') ?? ''), fragment })
+      if (fragment instanceof Y.XmlFragment)
+        out.push({ id, order: String(m.get('order') ?? ''), fragment, display: m.get('display') === 'edgeless' ? 'edgeless' : 'both' })
     })
     return out.sort((a, b) => (a.order === b.order ? (a.id < b.id ? -1 : 1) : a.order < b.order ? -1 : 1))
   }
 
-  /** Each note as ProseMirror JSON. */
-  notesJSON(): JSONContent[] {
-    return this.notes().map((n) => yXmlFragmentToProseMirrorRootNode(n.fragment, schema).toJSON())
+  /** Each note as ProseMirror JSON (`docOnly`: without canvas-only notes). */
+  notesJSON(docOnly = false): JSONContent[] {
+    return this.notes()
+      .filter((n) => !docOnly || n.display !== 'edgeless')
+      .map((n) => yXmlFragmentToProseMirrorRootNode(n.fragment, schema).toJSON())
   }
 
   /** Replace the first note's content (seeding, duplicating). Missing block ids are filled in. */

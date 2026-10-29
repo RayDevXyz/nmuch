@@ -678,3 +678,89 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .widgets-item .icon-btn { border: 0; background: transparent; color: var(--faint); border-radius: 6px; width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; }
 .widgets-item .icon-btn:hover { background: var(--hover); color: var(--danger); }
 .import-actions .primary-btn { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------- edgeless canvas (phase 5) ---------- */
+.mode-switch { display: inline-flex; padding: 2px; gap: 2px; border-radius: 8px; background: var(--panel-2); margin-right: 6px; }
+.mode-switch button { width: 28px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--faint); display: grid; place-items: center; cursor: pointer; }
+.mode-switch button:hover { color: var(--foreground); }
+.mode-switch button.active { background: var(--hover); color: var(--foreground); }
+.note-scroll.edgeless { overflow: hidden; position: relative; padding: 0; }
+.cv-root {
+  position: absolute; inset: 0; overflow: hidden; outline: none; touch-action: none; user-select: none;
+  background-color: var(--editor-bg);
+  background-image: radial-gradient(circle, var(--line-soft) 1px, transparent 1.2px);
+}
+.cv-root.tool-hand, .cv-root.tool-hand * { cursor: grab; }
+.cv-root.tool-note, .cv-root.tool-text, .cv-root.tool-rect, .cv-root.tool-ellipse, .cv-root.tool-diamond, .cv-root.tool-frame, .cv-root.tool-connector { cursor: crosshair; }
+.cv-root.presenting { position: fixed; z-index: 90; }
+.cv-world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.cv-root.presenting .cv-world { transition: transform 0.35s ease; }
+
+.cv-note { position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); padding: 4px 22px 10px; user-select: text; }
+.cv-note.canvas-only { border-style: dashed; }
+.cv-note.selected { border-color: var(--accent); }
+.cv-note-grip { height: 16px; margin: 0 -22px 2px; border-radius: 12px 12px 0 0; cursor: move; position: relative; }
+.cv-note-grip::after { content: ''; position: absolute; left: 50%; top: 6px; width: 36px; height: 4px; margin-left: -18px; border-radius: 4px; background: var(--line); opacity: 0; transition: opacity 0.12s; }
+.cv-note:hover .cv-note-grip::after, .cv-note.selected .cv-note-grip::after { opacity: 1; }
+.cv-note .bw-prose { min-height: 24px; }
+.cv-root:not(.tool-select) .cv-note-body { pointer-events: none; }
+
+.cv-box { position: absolute; display: flex; }
+.cv-box.kind-shape { align-items: center; }
+.cv-shape { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.cv-text { position: relative; width: 100%; white-space: pre-wrap; word-break: break-word; line-height: 1.35; color: var(--foreground); }
+.cv-text.centered { display: flex; align-items: center; justify-content: center; text-align: center; height: 100%; padding: 6px 10px; }
+.cv-placeholder { color: var(--faint); }
+.cv-box.kind-text { min-width: 20px; }
+.cv-edit { position: relative; width: 100%; border: 0; outline: none; resize: none; background: transparent; font: inherit; line-height: 1.35; padding: 0; overflow: hidden; color: var(--foreground); user-select: text; }
+.cv-edit.centered { text-align: center; align-self: center; padding: 6px 10px; }
+.cv-edit.single { white-space: nowrap; }
+
+.cv-frame { position: absolute; border: 1.5px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--panel) 45%, transparent); }
+.cv-frame.selected { border-color: var(--accent); }
+.cv-frame-title { position: absolute; left: 2px; bottom: 100%; margin-bottom: 4px; font-size: 13px; font-weight: 600; color: var(--muted-foreground); white-space: nowrap; cursor: move; padding: 1px 4px; border-radius: 4px; }
+.cv-frame-title:hover { background: var(--hover); }
+.cv-frame-title .cv-edit { width: 220px; }
+
+.cv-links { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.cv-link { stroke-width: 2; fill: none; }
+.cv-link-hit { stroke: transparent; stroke-width: 14; pointer-events: stroke; cursor: pointer; }
+.selected .cv-link { stroke: var(--accent) !important; stroke-width: 2.5; }
+.cv-link-label { position: absolute; transform: translate(-50%, -50%); background: var(--editor-bg); color: var(--foreground); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; white-space: nowrap; }
+.cv-link-label .cv-edit { width: 140px; text-align: center; }
+
+.cv-selection { position: absolute; border: 1.5px solid var(--accent); border-radius: 6px; pointer-events: none; }
+.cv-handle { position: absolute; width: 10px; height: 10px; background: var(--editor-bg); border: 1.5px solid var(--accent); border-radius: 3px; pointer-events: auto; }
+.cv-handle.h-nw { left: -5px; top: -5px; cursor: nwse-resize; }
+.cv-handle.h-se { right: -5px; bottom: -5px; cursor: nwse-resize; }
+.cv-handle.h-ne { right: -5px; top: -5px; cursor: nesw-resize; }
+.cv-handle.h-sw { left: -5px; bottom: -5px; cursor: nesw-resize; }
+.cv-handle.h-e { right: -5px; top: 50%; margin-top: -8px; height: 16px; width: 8px; cursor: ew-resize; }
+.cv-handle.h-w { left: -5px; top: 50%; margin-top: -8px; height: 16px; width: 8px; cursor: ew-resize; }
+.cv-preview { position: absolute; border: 1.5px dashed var(--accent); border-radius: 6px; pointer-events: none; }
+.cv-preview.marquee { background: var(--accent-soft); border-style: solid; border-width: 1px; }
+.cv-preview-line { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.cv-preview-line line { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 5 4; }
+.cv-preview-line .cv-target { fill: none; stroke: var(--accent); stroke-width: 2; }
+
+.cv-toolbar, .cv-zoom, .cv-stylebar, .cv-present-bar { position: absolute; display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); z-index: 5; }
+.cv-toolbar { left: 50%; bottom: 16px; transform: translateX(-50%); }
+.cv-tool { width: 34px; height: 32px; border: 0; border-radius: 7px; background: transparent; color: var(--muted-foreground); display: grid; place-items: center; cursor: pointer; }
+.cv-tool:hover { background: var(--hover); color: var(--foreground); }
+.cv-tool.active { background: var(--accent-soft); color: var(--accent); }
+.cv-sep { width: 1px; height: 20px; background: var(--line); margin: 0 4px; }
+.cv-zoom { right: 16px; bottom: 16px; font-size: 12px; color: var(--muted-foreground); }
+.cv-zoom button { width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--muted-foreground); display: grid; place-items: center; cursor: pointer; }
+.cv-zoom button:hover { background: var(--hover); color: var(--foreground); }
+.cv-zoom-value { min-width: 42px; text-align: center; font-variant-numeric: tabular-nums; }
+.cv-stylebar { transform: translateX(-50%); }
+.cv-colors { display: flex; gap: 3px; padding: 0 2px; }
+.cv-swatch { width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.cv-swatch.active, .cv-swatch:hover { border-color: var(--foreground); }
+.cv-mini { min-width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--muted-foreground); display: grid; place-items: center; cursor: pointer; font-size: 12px; font-weight: 700; }
+.cv-mini:hover { background: var(--hover); color: var(--foreground); }
+.cv-mini.danger:hover { color: var(--danger); }
+.cv-doc-toggle { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted-foreground); font-size: 12px; cursor: pointer; white-space: nowrap; }
+.cv-doc-toggle:hover { background: var(--hover); }
+.cv-doc-toggle.on { color: var(--ok); }
+.cv-present-bar { left: 50%; bottom: 16px; transform: translateX(-50%); gap: 14px; padding: 6px 14px; font-size: 12.5px; color: var(--foreground); }

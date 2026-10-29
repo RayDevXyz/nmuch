@@ -55,6 +55,12 @@ export default function App() {
       } else if (k === '/' && !e.shiftKey) {
         e.preventDefault()
         setState({ help: !s.help })
+      } else if (k === 'e' && e.shiftKey) {
+        const page = s.activeId ? s.pages[s.activeId] : undefined
+        if (page && page.kind !== 'database') {
+          e.preventDefault()
+          setState({ edgeless: { ...s.edgeless, [page.id]: !s.edgeless[page.id] } })
+        }
       } else if (k === 'w') {
         if (s.activeId) {
           e.preventDefault()

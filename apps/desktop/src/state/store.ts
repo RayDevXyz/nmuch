@@ -24,6 +24,8 @@ export interface AppState {
   width: 'normal' | 'wide'
   fontSize: 'small' | 'normal' | 'large'
   spellcheck: boolean
+  /** Pages shown as an edgeless canvas instead of a document. */
+  edgeless: Record<string, boolean>
   save: 'saved' | 'saving' | 'error'
   saveError: string | null
   stats: { words: number; blocks: number }
@@ -43,7 +45,7 @@ export interface AppState {
 const PREFS_KEY = 'brainwaves.prefs.v1'
 /** Preferences saved before the rename to BrainWaves. */
 const OLD_PREFS_KEY = 'nimbus.prefs.v1'
-type Prefs = Pick<AppState, 'view' | 'tabs' | 'activeId' | 'theme' | 'sidebarOpen' | 'rightOpen' | 'expanded' | 'width' | 'fontSize' | 'spellcheck'>
+type Prefs = Pick<AppState, 'view' | 'tabs' | 'activeId' | 'theme' | 'sidebarOpen' | 'rightOpen' | 'expanded' | 'width' | 'fontSize' | 'spellcheck' | 'edgeless'>
 
 function loadPrefs(): Partial<Prefs> {
   try {
@@ -68,6 +70,7 @@ let state: AppState = {
   width: 'normal',
   fontSize: 'normal',
   spellcheck: true,
+  edgeless: {},
   save: 'saved',
   saveError: null,
   stats: { words: 0, blocks: 0 },
@@ -97,9 +100,9 @@ export function setState(patch: Partial<AppState> | ((s: AppState) => Partial<Ap
   listeners.forEach((l) => l())
   clearTimeout(prefsTimer)
   prefsTimer = setTimeout(() => {
-    const { view, tabs, activeId, theme, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck } = state
+    const { view, tabs, activeId, theme, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless } = state
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ view, tabs, activeId, theme, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck }))
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ view, tabs, activeId, theme, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless }))
     } catch {
       /* storage unavailable */
     }

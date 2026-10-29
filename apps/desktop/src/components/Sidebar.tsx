@@ -423,7 +423,8 @@ export function Sidebar() {
   const childMap = useMemo(() => {
     const m = new Map<string | null, Page[]>()
     Object.values(pages).forEach((p) => {
-      if (p.trashedAt != null || p.archived) return
+      // Database rows are listed inside their database, not in the tree.
+      if (p.trashedAt != null || p.archived || p.databaseId) return
       const parent = p.parentId && pages[p.parentId] && pages[p.parentId].trashedAt == null ? p.parentId : null
       if (!m.has(parent)) m.set(parent, [])
       m.get(parent)!.push(p)

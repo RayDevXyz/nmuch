@@ -21,6 +21,8 @@ const GROUPS: [string, [string, string][]][] = [
       ['/', 'Insert or convert a block'],
       ['[[', 'Link to a page'],
       ['((', 'Link to a block'],
+      ['/database', 'Table, board or gallery (rows are pages)'],
+      ['/course', 'Course tracker: courses, lessons, progress'],
       ['Enter / Shift Enter', 'New block / line break'],
       ['Tab / Shift Tab', 'Indent / outdent list item'],
       ['Ctrl Alt 0–3', 'Text / Heading 1–3'],

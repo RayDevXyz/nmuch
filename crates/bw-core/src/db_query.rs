@@ -395,7 +395,7 @@ fn default_view() -> View {
         filters: vec![],
         sorts: vec![],
         group_by: None,
-        visible: None,
+        hidden: vec![],
     }
 }
 

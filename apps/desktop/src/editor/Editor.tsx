@@ -13,7 +13,10 @@ import { db, openExternal } from '../lib/storage'
 import { relativeTime } from '../lib/time'
 import type { Page } from '../lib/types'
 import { createPage, openPage, releasePage, syncPage, titleOf, updatePage, withPage } from '../state/actions'
-import { getState, setState, useApp } from '../state/store'
+import { getState, setState, toast, useApp } from '../state/store'
+import { databaseDef } from '../database/api'
+import { DatabaseView, RowProperties } from '../database/DatabaseView'
+import { createCourseTracker } from '../database/templates'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -232,6 +235,37 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
           const t = title.toLowerCase()
           return Object.values(getState().pages).find((p) => p.trashedAt == null && p.title.toLowerCase() === t)?.id ?? null
         }),
+      // Databases: both kinds start as a sub-page of this page; the inline one is also shown here.
+      createDatabase: async () => {
+        const db = await createPage({ kind: 'database', title: 'Untitled database', parentId: pageId, open: false })
+        const def = await databaseDef(db.id)
+        return { databaseId: db.id, viewId: def.views[0]?.id ?? '' }
+      },
+      DatabaseBlock: ({ databaseId, viewId, editable, onViewChange }) => (
+        <DatabaseView databaseId={databaseId} viewId={viewId} onViewChange={onViewChange} editable={editable} inline />
+      ),
+      slashExtras: [
+        {
+          id: 'course-tracker',
+          label: 'Course tracker',
+          desc: 'Courses + Lessons databases with progress',
+          keywords: 'template course lessons progress module',
+          run: (editor) => {
+            toast('Creating the course tracker…')
+            void createCourseTracker(pageId).then(
+              ({ courses, lessons }) => {
+                editor
+                  .chain()
+                  .focus()
+                  .insertContent([{ type: 'database', attrs: courses }, { type: 'database', attrs: lessons }, { type: 'paragraph' }])
+                  .run()
+                toast('Course tracker ready')
+              },
+              (e) => toast('Could not create the course tracker: ' + String(e)),
+            )
+          },
+        },
+      ],
     }),
     [pageId],
   )
@@ -322,20 +356,25 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
           </button>
         </div>
         <Title page={page} onExit={focusFirst} />
-        <div className="blocks">
-          {error && <div className="editor-error">Could not open this page: {error}</div>}
-          {sync &&
-            notes.map((n) => (
-              <NoteEditor
-                key={n.id}
-                fragment={n.fragment}
-                host={host}
-                spellcheck={spellcheck}
-                onEditor={editorCallback(n.id)}
-              />
-            ))}
-        </div>
-        <div className="editor-tail" onClick={tailClick} />
+        {page.databaseId && <RowProperties rowId={page.id} databaseId={page.databaseId} />}
+        {page.kind === 'database' ? (
+          <DatabaseView databaseId={page.id} />
+        ) : (
+          <div className="blocks">
+            {error && <div className="editor-error">Could not open this page: {error}</div>}
+            {sync &&
+              notes.map((n) => (
+                <NoteEditor
+                  key={n.id}
+                  fragment={n.fragment}
+                  host={host}
+                  spellcheck={spellcheck}
+                  onEditor={editorCallback(n.id)}
+                />
+              ))}
+          </div>
+        )}
+        {page.kind !== 'database' && <div className="editor-tail" onClick={tailClick} />}
       </article>
 
       {picker && (

@@ -159,9 +159,9 @@ pub struct View {
     /// Board: the select column that makes the board's columns.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group_by: Option<String>,
-    /// Columns shown, in order. `None` shows all.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub visible: Option<Vec<String>>,
+    /// Columns this view hides. Columns not listed show, so new columns appear everywhere.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hidden: Vec<String>,
 }
 
 /// A database's definition as read from its Y.Doc.
@@ -304,7 +304,7 @@ impl Core {
                 filters: vec![],
                 sorts: vec![],
                 group_by: None,
-                visible: None,
+                hidden: vec![],
             })
         })?;
         Ok(id.to_string())

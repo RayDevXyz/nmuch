@@ -1,4 +1,4 @@
-import type { JSONContent } from '@tiptap/core'
+import type { Editor, JSONContent } from '@tiptap/core'
 import type { ComponentType } from 'react'
 import type { RefKind } from './schema'
 
@@ -52,6 +52,17 @@ export interface EditorHost {
   createDatabase?(opts: { inline: boolean }): Promise<{ databaseId: string; viewId: string }>
   /** Renders an inline database block (the editor only stores which database and view). */
   DatabaseBlock?: ComponentType<DatabaseBlockProps>
+  /** Extra `/` commands the app adds (templates, module blocks). */
+  slashExtras?: SlashExtra[]
+}
+
+export interface SlashExtra {
+  id: string
+  label: string
+  desc: string
+  keywords?: string
+  /** Runs after the typed `/query` has been removed. */
+  run(editor: Editor): void
 }
 
 export interface DatabaseBlockProps {

@@ -296,7 +296,7 @@ fn views_filter_sort_and_group() {
             desc: true,
         }],
         group_by: None,
-        visible: Some(vec!["title".into(), "order".into()]),
+        hidden: vec!["file".into()],
     };
     core.set_view(&c.lessons, open_by_order_desc).unwrap();
     let r = core
@@ -378,7 +378,7 @@ fn views_filter_sort_and_group() {
         filters: vec![],
         sorts: vec![],
         group_by: Some("status".into()),
-        visible: None,
+        hidden: vec![],
     };
     core.set_view(&c.courses, board).unwrap();
     core.create_row(&c.courses, "c-none", "Unsorted", &BTreeMap::new())

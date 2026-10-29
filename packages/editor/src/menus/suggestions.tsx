@@ -2,8 +2,8 @@ import { Extension, type Editor, type Range } from '@tiptap/core'
 import { PluginKey } from '@tiptap/pm/state'
 import { ReactRenderer } from '@tiptap/react'
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type SuggestionProps } from '@tiptap/suggestion'
-import { FilePlus2, Hash } from 'lucide-react'
-import type { BlockOption, PageOption } from '../host'
+import { FilePlus2, Hash, Sparkles } from 'lucide-react'
+import type { BlockOption, PageOption, SlashExtra } from '../host'
 import { maybeHost } from '../host-extension'
 import { filterSlash, runSlash, type SlashItem } from './items'
 import { SuggestionList, type ListEntry, type SuggestionListHandle, type SuggestionListProps } from './SuggestionList'
@@ -69,19 +69,37 @@ function suggestionExtension<I>(name: string, options: Omit<SuggestionOptions<I,
 
 // ---------------------------------------------------------------- "/" commands
 
-export const SlashCommands = suggestionExtension<SlashItem>('slashCommands', {
+type SlashEntry = SlashItem | (SlashExtra & { extra: true })
+
+export const SlashCommands = suggestionExtension<SlashEntry>('slashCommands', {
   char: '/',
-  items: ({ query }) => filterSlash(query),
-  command: ({ editor, range, props }) => runSlash(editor, props.id, range),
+  items: ({ query, editor }) => {
+    const q = query.trim().toLowerCase()
+    const extras = (maybeHost(editor)?.slashExtras ?? [])
+      .filter((x) => !q || `${x.label} ${x.keywords ?? ''}`.toLowerCase().includes(q))
+      .map((x) => ({ ...x, extra: true as const }))
+    return [...filterSlash(query), ...extras]
+  },
+  command: ({ editor, range, props }) => {
+    if ('extra' in props) {
+      editor.chain().focus().deleteRange(range).run()
+      return props.run(editor)
+    }
+    runSlash(editor, props.id, range)
+  },
   allow: ({ state, range }) => {
     // Not inside code blocks.
     const $from = state.doc.resolve(range.from)
     return $from.parent.type.name !== 'codeBlock'
   },
-  render: popup<SlashItem>((p) => ({
+  render: popup<SlashEntry>((p) => ({
     caption: p.query ? `Blocks matching “${p.query}”` : 'Basic blocks',
     empty: 'No matching blocks',
-    entries: p.items.map((i) => ({ key: i.id, label: i.label, desc: i.desc, hint: i.hint, icon: <i.icon size={16} />, rich: true })),
+    entries: p.items.map((i) =>
+      'extra' in i
+        ? { key: i.id, label: i.label, desc: i.desc, icon: <Sparkles size={16} />, rich: true }
+        : { key: i.id, label: i.label, desc: i.desc, hint: i.hint, icon: <i.icon size={16} />, rich: true },
+    ),
     onPick: (i) => p.command(p.items[i]),
   })),
 })

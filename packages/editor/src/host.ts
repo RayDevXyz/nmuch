@@ -52,8 +52,21 @@ export interface EditorHost {
   createDatabase?(opts: { inline: boolean }): Promise<{ databaseId: string; viewId: string }>
   /** Renders an inline database block (the editor only stores which database and view). */
   DatabaseBlock?: ComponentType<DatabaseBlockProps>
+  /** Renders a widget block (sandboxed by the host; the core checks its data access). */
+  WidgetBlock?: ComponentType<WidgetBlockProps>
   /** Extra `/` commands the app adds (templates, module blocks). */
   slashExtras?: SlashExtra[]
+}
+
+export interface WidgetBlockProps {
+  widgetId: string
+  /** The block's id: with the page id, this is the identity the core checks calls against. */
+  blockId: string
+  bindings: Record<string, unknown>
+  settings: Record<string, unknown>
+  editable: boolean
+  onBindings(bindings: Record<string, unknown>): void
+  onSettings(settings: Record<string, unknown>): void
 }
 
 export interface SlashExtra {

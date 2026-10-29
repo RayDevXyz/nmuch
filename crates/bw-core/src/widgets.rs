@@ -141,6 +141,15 @@ pub struct WidgetResult {
 
 const MAX_HTML: usize = 2 * 1024 * 1024;
 
+/// A JSON-valued block attribute. The editor stores objects as JSON text (an object attribute
+/// would compare unequal to itself on every sync); plain objects are accepted too.
+pub(crate) fn json_attr(attrs: &BTreeMap<String, Value>, key: &str) -> Option<Value> {
+    match attrs.get(key)? {
+        Value::String(s) => serde_json::from_str(s).ok(),
+        v => Some(v.clone()),
+    }
+}
+
 fn valid_key(k: &str) -> bool {
     let mut c = k.chars();
     matches!(c.next(), Some(f) if f.is_ascii_alphabetic())
@@ -290,10 +299,8 @@ impl Core {
             .unwrap_or_default()
             .to_string();
         let manifest = self.widget_def(&def_id)?.manifest;
-        let bindings = block
-            .attrs
-            .get("bindings")
-            .and_then(|b| serde_json::from_value::<BTreeMap<String, Binding>>(b.clone()).ok())
+        let bindings = json_attr(&block.attrs, "bindings")
+            .and_then(|b| serde_json::from_value::<BTreeMap<String, Binding>>(b).ok())
             .unwrap_or_default();
         Ok((manifest, bindings))
     }

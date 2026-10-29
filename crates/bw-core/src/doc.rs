@@ -174,13 +174,13 @@ impl NewBlock {
         bindings: serde_json::Value,
         settings: serde_json::Value,
     ) -> XNode {
-        let any = |v: serde_json::Value| serde_json::from_value::<Any>(v).unwrap_or(Any::Null);
+        // Stored as JSON text, the way the editor stores them (see widgets::json_attr).
         Self::el(
             node::WIDGET,
             vec![
                 ("widget", Any::from(widget_id)),
-                ("bindings", any(bindings)),
-                ("settings", any(settings)),
+                ("bindings", Any::from(bindings.to_string())),
+                ("settings", Any::from(settings.to_string())),
             ],
             vec![],
         )
@@ -1053,7 +1053,9 @@ impl<T: ReadTxn, F: Fn(&str) -> BTreeMap<String, serde_json::Value>> Walk<'_, T,
                 .collect();
             if tag == node::WIDGET {
                 // Link the widget to the databases it is bound to (backlinks: "used by").
-                if let Some(serde_json::Value::Object(b)) = attrs.get("bindings") {
+                if let Some(serde_json::Value::Object(b)) =
+                    crate::widgets::json_attr(&attrs, "bindings")
+                {
                     for binding in b.values() {
                         if let Some(serde_json::Value::String(d)) = binding.get("databaseId") {
                             refs.push((d.clone(), "page".into()));

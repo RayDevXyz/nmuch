@@ -9,6 +9,7 @@ import type { EditorHost } from './host'
 import { HostExtension } from './host-extension'
 import { Callout } from './nodes/callout'
 import { Database } from './nodes/database'
+import { Widget } from './nodes/widget'
 import { Image } from './nodes/image'
 import { PageLink } from './nodes/page-link'
 import { Ref } from './nodes/ref'
@@ -40,6 +41,7 @@ export function schemaExtensions(): Extensions {
     Image,
     PageLink,
     Database,
+    Widget,
     Ref,
     BlockId,
   ]

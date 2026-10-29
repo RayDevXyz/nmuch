@@ -62,7 +62,7 @@ function DatabaseView({ node, editor, updateAttributes, selected }: ReactNodeVie
   const host = maybeHost(editor)
   const Block = host?.DatabaseBlock
   return (
-    <NodeViewWrapper className={`database-block ${selected ? 'selected' : ''}`} data-type="database" contentEditable={false}>
+    <NodeViewWrapper className={`database-block ${selected ? 'selected' : ''}`} data-type="database" data-id={node.attrs.id} contentEditable={false}>
       {Block ? (
         <Block
           databaseId={node.attrs.databaseId}

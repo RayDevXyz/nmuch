@@ -637,3 +637,44 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .db-card-prop > :last-child { min-width: 0; flex: 1; }
 .db-card-label { flex: none; color: var(--faint); font-size: 11px; padding-left: 3px; }
 .db-card-prop .db-number { text-align: left; }
+
+/* ---------- widgets (phase 4) ---------- */
+.widget-block { margin: 10px 0 6px; }
+.widget-block.selected .widget-frame, .widget-block.selected .widget-setup { box-shadow: 0 0 0 2px var(--accent-soft); }
+.widget-frame { position: relative; border-radius: 10px; }
+.widget-bar { display: flex; align-items: center; justify-content: space-between; height: 22px; font-size: 11px; color: var(--faint); opacity: 0; transition: opacity 0.12s; }
+.widget-frame:hover .widget-bar, .widget-block.selected .widget-bar { opacity: 1; }
+.widget-name { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.widget-bar .icon-btn { border: 0; background: transparent; color: var(--muted-foreground); border-radius: 6px; width: 22px; height: 22px; display: grid; place-items: center; cursor: pointer; }
+.widget-bar .icon-btn:hover { background: var(--hover); color: var(--foreground); }
+.widget-iframe { display: block; width: 100%; border: 0; background: transparent; color-scheme: normal; }
+.widget-missing { padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--faint); font-size: 12.5px; }
+.widget-loading { height: 48px; border-radius: 10px; background: var(--panel); }
+.widget-setup { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--foreground); }
+.widget-setup-head { display: flex; gap: 10px; align-items: flex-start; }
+.widget-setup-icon { font-size: 18px; line-height: 1; }
+.widget-setup-title { font-weight: 700; }
+.widget-setup-desc { color: var(--muted-foreground); font-size: 12px; }
+.widget-slot { border-top: 1px solid var(--line-soft); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.widget-slot-head { display: flex; align-items: center; gap: 8px; }
+.widget-slot-name { font-weight: 600; }
+.widget-access { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; padding: 1px 7px; border-radius: 99px; background: var(--panel-2); color: var(--muted-foreground); }
+.widget-access.write { background: var(--accent-soft); color: var(--accent); }
+.widget-field { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.widget-field-label { color: var(--muted-foreground); font-size: 12px; }
+.widget-field-label em { color: var(--faint); font-style: normal; font-size: 11px; }
+.widget-field select { height: 30px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel-2); color: var(--foreground); padding: 0 8px; font: inherit; font-size: 12.5px; min-width: 0; }
+.widget-field .ghost-btn { display: inline-flex; align-items: center; gap: 4px; }
+.widget-field-types { display: inline-flex; gap: 3px; color: var(--faint); }
+.widget-setup .primary-btn:disabled { opacity: 0.5; cursor: default; }
+.widgets-modal { width: min(560px, calc(100% - 40px)); }
+.widgets-modal code { font-family: var(--font-mono); font-size: 11.5px; background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+.widgets-list { display: flex; flex-direction: column; gap: 4px; max-height: 46vh; overflow-y: auto; }
+.widgets-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line-soft); border-radius: 8px; }
+.widgets-icon { width: 22px; text-align: center; font-size: 16px; color: var(--muted-foreground); }
+.widgets-text { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: 12px; color: var(--muted-foreground); }
+.widgets-text strong { color: var(--foreground); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.widgets-tag { font-size: 10px; font-weight: 600; padding: 0 6px; border-radius: 99px; background: var(--panel-2); color: var(--faint); }
+.widgets-item .icon-btn { border: 0; background: transparent; color: var(--faint); border-radius: 6px; width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; }
+.widgets-item .icon-btn:hover { background: var(--hover); color: var(--danger); }
+.import-actions .primary-btn { display: inline-flex; align-items: center; gap: 6px; }

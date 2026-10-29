@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+<script type="application/bw-widget+json">
+{
+  "id": "brainwaves.quick-add",
+  "name": "Quick add",
+  "description": "Add rows to a database from any page, and tick them off.",
+  "version": "2",
+  "icon": "➕",
+  "height": 150,
+  "slots": {
+    "items": {
+      "access": "write",
+      "label": "Add to",
+      "description": "New rows go into this database.",
+      "fields": {
+        "done": { "label": "Done", "types": ["checkbox"], "optional": true }
+      }
+    }
+  }
+}
+</script>
+<style>
+  .add { display: flex; gap: 6px; margin-bottom: 6px; }
+  input[type=text] { flex: 1; min-width: 0; padding: 6px 9px; border-radius: 7px; border: 1px solid var(--bw-line); background: var(--bw-panel); outline: none; }
+  input[type=text]:focus { border-color: var(--bw-accent); }
+  button { padding: 6px 12px; border-radius: 7px; border: 0; background: var(--bw-accent); color: var(--bw-accent-ink, #1b1528); font-weight: 600; cursor: pointer; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 8px; padding: 3px 2px; border-radius: 5px; }
+  li:hover { background: var(--bw-panel-2); }
+  li a { flex: 1; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  li.done a { color: var(--bw-faint); text-decoration: line-through; }
+  input[type=checkbox] { accent-color: var(--bw-accent); margin: 0; }
+  .more, .err { color: var(--bw-faint); font-size: 12px; padding: 2px; }
+  .err { color: var(--bw-danger); }
+</style>
+</head>
+<body>
+<div id="f" class="add"><input id="t" type="text" placeholder="Add an item…" autocomplete="off" /><button id="add">Add</button></div>
+<div id="err" class="err" hidden></div>
+<ul id="list"></ul>
+<div id="more" class="more"></div>
+<script>
+  const SHOW = 8
+  const $ = (id) => document.getElementById(id)
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+  const fail = (e) => { $('err').hidden = false; $('err').textContent = e.message || String(e) }
+  let hasDone = false
+
+  function render(r, error) {
+    if (error) return fail({ message: error })
+    $('err').hidden = true
+    hasDone = r.fields.some((f) => f.key === 'done')
+    // Newest first: rows come in database order, which is creation order.
+    const rows = r.rows.slice().reverse().slice(0, SHOW)
+    $('list').innerHTML = rows
+      .map((x) => `<li class="${x.values.done ? 'done' : ''}" data-id="${esc(x.id)}">${hasDone ? `<input type="checkbox" ${x.values.done ? 'checked' : ''} />` : ''}<a>${esc(x.title || 'Untitled')}</a></li>`)
+      .join('')
+    $('more').textContent = r.total > SHOW ? `${r.total - SHOW} more in ${r.database.title || 'the database'}` : ''
+  }
+
+  $('list').addEventListener('click', (e) => {
+    const li = e.target.closest('li')
+    if (!li) return
+    if (e.target.matches('input')) bw.mutate('items', li.dataset.id, { done: e.target.checked }).catch(fail)
+    else bw.openRow(li.dataset.id)
+  })
+
+  // The sandbox has no allow-forms, so there's no form submission: Enter and the button add.
+  function add() {
+    const title = $('t').value.trim()
+    if (!title) return
+    $('t').value = ''
+    bw.createRow('items', hasDone ? { title, done: false } : { title }).catch(fail)
+  }
+  $('add').addEventListener('click', add)
+  $('t').addEventListener('keydown', (e) => e.key === 'Enter' && add())
+
+  bw.ready.then(() => {
+    if (!bw.editable) $('f').hidden = true
+    bw.subscribe('items', {}, render)
+  })
+</script>
+</body>
+</html>

@@ -79,7 +79,7 @@ function WidgetView({ node, editor, updateAttributes, selected }: ReactNodeViewP
   const host = maybeHost(editor)
   const Block = host?.WidgetBlock
   return (
-    <NodeViewWrapper className={`widget-block ${selected ? 'selected' : ''}`} data-type="widget" contentEditable={false}>
+    <NodeViewWrapper className={`widget-block ${selected ? 'selected' : ''}`} data-type="widget" data-id={node.attrs.id} contentEditable={false}>
       {Block && node.attrs.id ? (
         <Block
           widgetId={node.attrs.widget}

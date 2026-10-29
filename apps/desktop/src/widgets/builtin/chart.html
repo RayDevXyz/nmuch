@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<script type="application/bw-widget+json">
+{
+  "id": "brainwaves.chart",
+  "name": "Chart",
+  "description": "Rows per option of a select column, or the sum of a number per option.",
+  "version": "1",
+  "icon": "📈",
+  "height": 160,
+  "slots": {
+    "items": {
+      "access": "read",
+      "label": "Data",
+      "fields": {
+        "category": { "label": "Category", "types": ["select", "multiSelect", "checkbox"] },
+        "value": { "label": "Sum of", "types": ["number"], "optional": true }
+      }
+    }
+  }
+}
+</script>
+<style>
+  .title { color: var(--bw-muted); font-size: 12px; margin-bottom: 6px; }
+  .bars { display: grid; grid-template-columns: minmax(70px, 28%) 1fr auto; gap: 6px 10px; align-items: center; }
+  .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .track { height: 16px; }
+  .track i { display: block; height: 100%; min-width: 2px; border-radius: 4px; transition: width .3s; }
+  .num { color: var(--bw-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .empty { color: var(--bw-faint); }
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script>
+  const COLORS = { gray: '#9b9a97', brown: '#ba8a6b', orange: '#e59f5a', yellow: '#dfc35a', green: '#7cbf8a', blue: '#6fa8dc', purple: '#b49be6', pink: '#e08fbd', red: '#e57373' }
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+  const fmt = (n) => (Number.isInteger(n) ? n : n.toFixed(1))
+
+  function render(r, error) {
+    const out = document.getElementById('out')
+    if (error) return (out.innerHTML = `<div class="empty">${esc(error)}</div>`)
+    const cat = r.fields.find((f) => f.key === 'category')
+    const val = r.fields.find((f) => f.key === 'value')
+    const buckets = new Map()
+    if (cat.type === 'checkbox') {
+      buckets.set(true, { name: 'Checked', color: 'green', n: 0 })
+      buckets.set(false, { name: 'Unchecked', color: 'gray', n: 0 })
+    } else for (const o of cat.options ?? []) buckets.set(o.id, { name: o.name, color: o.color, n: 0 })
+    const none = { name: 'None', color: 'gray', n: 0 }
+    for (const x of r.rows) {
+      const v = x.values.category
+      const amount = val ? Number(x.values.value) || 0 : 1
+      const keys = cat.type === 'checkbox' ? [v === true] : Array.isArray(v) ? v : v == null ? [] : [v]
+      if (!keys.length) none.n += amount
+      for (const k of keys) (buckets.get(k) ?? none).n += amount
+    }
+    const list = [...buckets.values(), ...(none.n ? [none] : [])]
+    const max = Math.max(1, ...list.map((b) => b.n))
+    out.innerHTML =
+      `<div class="title">${esc(bw.settings.title || `${val ? `${val.name} by` : 'Rows by'} ${cat.name}`)}</div>` +
+      (list.length
+        ? `<div class="bars">${list
+            .map((b) => `<span class="label">${esc(b.name)}</span><div class="track"><i style="width:${(b.n / max) * 100}%;background:${COLORS[b.color] || 'var(--bw-accent)'}"></i></div><span class="num">${fmt(b.n)}</span>`)
+            .join('')}</div>`
+        : '<div class="empty">No options yet.</div>')
+  }
+
+  bw.ready.then(() => bw.subscribe('items', {}, render))
+</script>
+</body>
+</html>

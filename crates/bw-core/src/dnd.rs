@@ -559,9 +559,12 @@ impl Core {
                 ]),
             )?;
         }
+        // The map page's note (for map notes and a legend) sits to the left of where the map goes.
         self.transact(&parts.map, |t| {
             t.set_prop(&parts.map, ROLE, json!("map"))?;
-            t.set_prop(&parts.map, "dnd.campaign", json!(campaign))
+            t.set_prop(&parts.map, "dnd.campaign", json!(campaign))?;
+            let note = t.first_note()?;
+            t.set_note_layout(&note, Some([-800.0, 0.0, 720.0, 80.0]), None)
         })?;
         props.insert(ROLE.into(), json!("campaign"));
         self.module_set_props(MODULE_ID, campaign, &props)?;

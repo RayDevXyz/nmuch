@@ -43,8 +43,21 @@ export interface FrameEl extends Base {
   xywh: XYWH
   fill?: string
 }
-export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl
-export type Boxed = ShapeEl | TextEl | FrameEl
+/** A picture on the canvas, e.g. a world map (`src` is a data URL kept in the page). */
+export interface ImageEl extends Base {
+  type: 'image'
+  xywh: XYWH
+  src: string
+}
+/** A marker that stands for a page (a location, an NPC's home…); `text` is its label. */
+export interface PinEl extends Base {
+  type: 'pin'
+  xywh: XYWH
+  page: string
+  color?: string
+}
+export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl | ImageEl | PinEl
+export type Boxed = ShapeEl | TextEl | FrameEl | ImageEl | PinEl
 /** An element before it has an id and a place in the stacking order. */
 export type NewElement = Element extends infer E ? (E extends Element ? Omit<E, 'id' | 'index'> & { index?: string } : never) : never
 
@@ -89,7 +102,7 @@ export function readElements(doc: Y.Doc): Element[] {
     const el = { ...m.toJSON(), id } as Element
     if (el.type === 'connector') {
       if (el.source && el.target) out.push(el)
-    } else if ((el.type === 'shape' || el.type === 'text' || el.type === 'frame') && isXYWH(el.xywh)) {
+    } else if (['shape', 'text', 'frame', 'image', 'pin'].includes(el.type) && isXYWH((el as Boxed).xywh)) {
       out.push(el)
     }
   })

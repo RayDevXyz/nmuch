@@ -3,6 +3,7 @@ import type { Editor as TiptapEditor } from '@tiptap/core'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type * as Y from 'yjs'
 import type { NoteRef } from '../lib/core/page-sync'
+import { openPage } from '../state/actions'
 import { setState, toast, useApp } from '../state/store'
 import {
   addElement,
@@ -236,6 +237,17 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       setEditing(id)
     } else if (t === 'frame') {
       id = addElement(doc, { type: 'frame', xywh: [r.x, r.y, Math.max(r.w, 160), Math.max(r.h, 120)], text: `Frame ${frames.length + 1}` })
+    } else if (t === 'image') {
+      // Ask for the picture; it's placed where the user clicked.
+      pendingImage.current = { x: r.x, y: r.y }
+      imageInput.current?.click()
+      setTool('select')
+      return
+    } else if (t === 'pin') {
+      const b = root.current!.getBoundingClientRect()
+      setPinPicker({ wx: r.x, wy: r.y, sx: (r.x - vp.x) * vp.z + b.left, sy: (r.y - vp.y) * vp.z + b.top })
+      setTool('select')
+      return
     } else {
       const shape: ShapeKind = t === 'ellipse' ? 'ellipse' : t === 'diamond' ? 'diamond' : 'rect'
       id = addElement(doc, { type: 'shape', shape, xywh: [r.x, r.y, Math.max(r.w, 20), Math.max(r.h, 20)], fill: 'blue', stroke: 'blue', text: '' })
@@ -260,6 +272,33 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     },
     [onEditor],
   )
+  // ---------- images and pins (world maps)
+
+  const imageInput = useRef<HTMLInputElement>(null)
+  const pendingImage = useRef<{ x: number; y: number } | null>(null)
+  const [pinPicker, setPinPicker] = useState<{ wx: number; wy: number; sx: number; sy: number } | null>(null)
+  const addImage = async (file: File) => {
+    const at = pendingImage.current ?? { x: vp.x + 40, y: vp.y + 40 }
+    pendingImage.current = null
+    try {
+      const { src, w, h } = await fitImage(file)
+      const width = Math.min(w, 1600)
+      const id = addElement(doc, { type: 'image', xywh: [Math.round(at.x), Math.round(at.y), width, Math.round((h / w) * width)], src, index: keyBefore() })
+      setSelected([id])
+    } catch (e) {
+      toast(`Could not add the picture: ${String(e)}`)
+    }
+  }
+  /** Pictures go under everything else (a map is a background). */
+  const keyBefore = () => {
+    const first = elements[0]?.index
+    return first ? first.replace(/.$/, (c) => String.fromCharCode(Math.max(48, c.charCodeAt(0) - 1))) + 'V' : 'a0'
+  }
+  const pinPage = (wx: number, wy: number, page: string, title: string) => {
+    const id = addElement(doc, { type: 'pin', xywh: [Math.round(wx - 14), Math.round(wy - 28), 28, 28], page, text: title, color: 'red' })
+    setSelected([id])
+  }
+
   const editorCallbacks = useRef(new Map<string, (e: TiptapEditor | null) => void>())
   const callbackFor = (id: string) => {
     let cb = editorCallbacks.current.get(id)
@@ -436,7 +475,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     const r = rectOfId(end.id)
     if (!r) return toward
     const el = byId.get(end.id)
-    return edgePoint(r, el?.type === 'shape' ? el.shape : 'box', toward)
+    return edgePoint(r, el?.type === 'shape' ? el.shape : el?.type === 'pin' ? 'ellipse' : 'box', toward)
   }
   const connectorLine = (c: ConnectorEl): [[number, number], [number, number]] | null => {
     const anchor = (end: End): [number, number] | null => {
@@ -518,7 +557,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       doc.transact(() => (updateElements(doc, els), setNoteLayout(doc, ns)), CANVAS)
       return
     }
-    const keys: Record<string, Tool> = { v: 'select', h: 'hand', n: 'note', r: 'rect', o: 'ellipse', d: 'diamond', t: 'text', c: 'connector', f: 'frame' }
+    const keys: Record<string, Tool> = { v: 'select', h: 'hand', n: 'note', r: 'rect', o: 'ellipse', d: 'diamond', t: 'text', c: 'connector', f: 'frame', i: 'image', p: 'pin' }
     const k = keys[e.key.toLowerCase()]
     if (k) setTool(k)
     if (e.key === ' ') space.current = true
@@ -569,6 +608,9 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       onDoubleClick={(e) => {
         if (tool !== 'select' || presenting !== null) return
         const hit = itemUnder(e.clientX, e.clientY)
+        const el = hit ? byId.get(hit.id) : undefined
+        if (el?.type === 'pin') return void openPage(el.page, e.ctrlKey || e.metaKey ? 'tab' : 'replace')
+        if (el?.type === 'image') return
         if (hit && (hit.part === 'body' || hit.part === 'title')) {
           if (!isNote(hit.id)) setEditing(hit.id)
           return
@@ -581,6 +623,11 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       data-testid="canvas"
     >
       <div className="cv-world" style={{ transform: `scale(${vp.z}) translate(${-vp.x}px, ${-vp.y}px)` }}>
+        {elements.map((el) =>
+          el.type === 'image' ? (
+            <img key={el.id} className={`cv-image ${selectedSet.has(el.id) ? 'selected' : ''}`} data-cid={el.id} src={el.src} alt="" draggable={false} style={box(rectOf(el.xywh))} />
+          ) : null,
+        )}
         {frames.map((f) => (
           <FrameView key={f.id} el={f} selected={selectedSet.has(f.id)} editing={editing === f.id} onText={(text) => (updateElements(doc, { [f.id]: { text } }), setEditing(null))} />
         ))}
@@ -598,6 +645,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
             />
           ) : null,
         )}
+        {elements.map((el) => (el.type === 'pin' ? <PinView key={el.id} el={el} selected={selectedSet.has(el.id)} /> : null))}
         {placedNotes.map((n) => (
           <NoteView
             key={n.id}
@@ -677,10 +725,34 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           note={singleNote && selected.length === 1 ? singleNote : undefined}
           onStyle={(patch) => updateElements(doc, Object.fromEntries(selected.filter((id) => byId.has(id)).map((id) => [id, patchFor(byId.get(id)!, patch)])))}
           onDisplay={(display) => singleNote && setNoteLayout(doc, { [singleNote.id]: { display } })}
+          onOpenPage={single && singleEl?.type === 'pin' ? () => openPage(singleEl.page, 'replace') : undefined}
           onDelete={() => {
             deleteItems(doc, new Set(selected))
             setSelected([])
           }}
+        />
+      )}
+      <input
+        ref={imageInput}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          e.target.value = ''
+          if (f) void addImage(f)
+        }}
+      />
+      {pinPicker && (
+        <PinPicker
+          at={pinPicker}
+          host={host}
+          onPick={(page, title) => {
+            pinPage(pinPicker.wx, pinPicker.wy, page, title)
+            setPinPicker(null)
+            root.current?.focus()
+          }}
+          onClose={() => setPinPicker(null)}
         />
       )}
       {presenting === null ? (
@@ -701,9 +773,11 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
 
   function patchFor(el: Element, patch: Record<string, unknown>): Record<string, unknown> {
     // One color picker for everything: shapes use it as fill and stroke, the rest as their color.
+    if (el.type === 'image') return {}
     if ('color' in patch) {
       const c = patch.color
       const { color: _, ...rest } = patch
+      if (el.type === 'pin') return { ...rest, color: c }
       if (el.type === 'shape') return { ...rest, fill: c, stroke: c }
       if (el.type === 'text') return { ...rest, color: c }
       if (el.type === 'frame') return { ...rest, fill: c }
@@ -749,6 +823,110 @@ function useNoteLayouts(doc: Y.Doc, refs: NoteRef[]): CanvasNote[] {
 }
 
 // ---------- items
+
+/** A pin: a marker with the marked page's current title (or the label it was given). */
+function PinView({ el, selected }: { el: Extract<Element, { type: 'pin' }>; selected: boolean }) {
+  const page = useApp((s) => s.pages[el.page])
+  const [x, y, w, h] = el.xywh
+  const label = page?.title || el.text || 'Untitled'
+  return (
+    <div className={`cv-pin ${selected ? 'selected' : ''} ${page ? '' : 'gone'}`} data-cid={el.id} style={{ left: x, top: y, width: w, height: h }} title={`${label} (double-click to open)`}>
+      <svg viewBox="0 0 24 24" width={w} height={h} aria-hidden>
+        <path d="M12 2c-4 0-7 3-7 7 0 5.2 7 13 7 13s7-7.8 7-13c0-4-3-7-7-7z" fill={colorOf(el.color, '#c9a45c')} stroke="#1b140c" strokeWidth="1.2" />
+        <circle cx="12" cy="9" r="2.6" fill="#1b140c" />
+      </svg>
+      <span className="cv-pin-label">
+        {page?.icon ? `${page.icon} ` : ''}
+        {label}
+      </span>
+    </div>
+  )
+}
+
+/** Choose (or create) the page a new pin marks. */
+function PinPicker({ at, host, onPick, onClose }: { at: { sx: number; sy: number }; host: EditorHost; onPick: (page: string, title: string) => void; onClose: () => void }) {
+  const [q, setQ] = useState('')
+  const [i, setI] = useState(0)
+  const [results, setResults] = useState<{ id: string; title: string; icon?: string }[]>([])
+  useEffect(() => {
+    let live = true
+    void Promise.resolve(host.searchPages(q)).then((r) => live && setResults(r.slice(0, 8)))
+    return () => {
+      live = false
+    }
+  }, [q, host])
+  const create = async () => {
+    const title = q.trim()
+    if (!title) return
+    const id = await host.createPage(title, { subPageOf: true })
+    onPick(id, title)
+  }
+  const choose = (n: number) => {
+    const r = results[n]
+    if (r) onPick(r.id, r.title || 'Untitled')
+    else void create()
+  }
+  return (
+    <div className="cv-pinpicker" style={{ left: at.sx, top: at.sy }} onPointerDown={(e) => e.stopPropagation()}>
+      <input
+        autoFocus
+        placeholder="Which page does this pin mark?"
+        value={q}
+        onChange={(e) => (setQ(e.target.value), setI(0))}
+        onKeyDown={(e) => {
+          e.stopPropagation()
+          if (e.key === 'Escape') onClose()
+          if (e.key === 'ArrowDown') setI((n) => Math.min(n + 1, results.length))
+          if (e.key === 'ArrowUp') setI((n) => Math.max(n - 1, 0))
+          if (e.key === 'Enter') choose(i)
+        }}
+        onBlur={() => setTimeout(onClose, 150)}
+      />
+      <ul>
+        {results.map((r, n) => (
+          <li key={r.id} className={n === i ? 'active' : ''} onMouseDown={(e) => (e.preventDefault(), choose(n))}>
+            {r.icon ? `${r.icon} ` : ''}
+            {r.title || 'Untitled'}
+          </li>
+        ))}
+        {q.trim() && (
+          <li className={i === results.length ? 'active new' : 'new'} onMouseDown={(e) => (e.preventDefault(), void create())}>
+            + New page “{q.trim()}”
+          </li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
+/** Read a picture, shrinking big ones (a map scan can be huge) so the page stays light. */
+async function fitImage(file: File): Promise<{ src: string; w: number; h: number }> {
+  if (!file.type.startsWith('image/')) throw new Error('that is not a picture')
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await new Promise<HTMLImageElement>((res, rej) => {
+      const i = new Image()
+      i.onload = () => res(i)
+      i.onerror = () => rej(new Error('the picture could not be read'))
+      i.src = url
+    })
+    const max = 4096
+    const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight))
+    const w = Math.round(img.naturalWidth * scale)
+    const h = Math.round(img.naturalHeight * scale)
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+    // PNG keeps transparency for small pictures; large ones become JPEG.
+    let src = canvas.toDataURL('image/png')
+    if (src.length > 3_000_000) src = canvas.toDataURL('image/jpeg', 0.85)
+    if (src.length > 15_000_000) src = canvas.toDataURL('image/jpeg', 0.6)
+    return { src, w, h }
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
 
 function NoteView({
   note,

@@ -5,6 +5,9 @@ import {
   FileText,
   Frame,
   Hand,
+  Image as ImageIcon,
+  MapPin,
+  SquareArrowOutUpRight,
   Maximize,
   Minus,
   MousePointer2,
@@ -17,7 +20,7 @@ import {
 } from 'lucide-react'
 import { COLORS, type CanvasNote, type Element, type Rect, type ShapeKind } from './model'
 
-export type Tool = 'select' | 'hand' | 'note' | 'rect' | 'ellipse' | 'diamond' | 'text' | 'connector' | 'frame'
+export type Tool = 'select' | 'hand' | 'note' | 'rect' | 'ellipse' | 'diamond' | 'text' | 'connector' | 'frame' | 'image' | 'pin'
 
 const TOOLS: { tool: Tool; label: string; key: string; icon: React.ReactNode }[] = [
   { tool: 'select', label: 'Select', key: 'V', icon: <MousePointer2 size={16} /> },
@@ -29,6 +32,8 @@ const TOOLS: { tool: Tool; label: string; key: string; icon: React.ReactNode }[]
   { tool: 'diamond', label: 'Diamond', key: 'D', icon: <Diamond size={16} /> },
   { tool: 'connector', label: 'Connector: drag from one item to another', key: 'C', icon: <ArrowUpRight size={16} /> },
   { tool: 'frame', label: 'Frame', key: 'F', icon: <Frame size={16} /> },
+  { tool: 'image', label: 'Image: a map or picture, click where it goes', key: 'I', icon: <ImageIcon size={16} /> },
+  { tool: 'pin', label: 'Pin: mark a page on the map', key: 'P', icon: <MapPin size={16} /> },
 ]
 
 export function Toolbar({ tool, onTool, frames, onPresent }: { tool: Tool; onTool: (t: Tool) => void; frames: number; onPresent: () => void }) {
@@ -94,10 +99,13 @@ export function StyleBar({
   onStyle,
   onDisplay,
   onDelete,
+  onOpenPage,
 }: {
   at: Rect
   items: Element[]
   note?: CanvasNote
+  /** A single pin is selected: open the page it marks. */
+  onOpenPage?: () => void
   onStyle: (patch: Record<string, unknown>) => void
   onDisplay: (d: 'both' | 'edgeless') => void
   onDelete: () => void
@@ -141,6 +149,11 @@ export function StyleBar({
             </button>
           ))}
         </>
+      )}
+      {onOpenPage && (
+        <button className="cv-doc-toggle on" title="Open the page this pin marks" onClick={onOpenPage}>
+          <SquareArrowOutUpRight size={13} /> Open page
+        </button>
       )}
       {note && (
         <button

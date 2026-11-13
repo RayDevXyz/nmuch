@@ -10,13 +10,17 @@
 //! | `text`      | `xywh`, `text`, `fontSize`, `color`                                      |
 //! | `connector` | `source`, `target` (each `{ id }` of a note or element, or `{ point: [x, y] }`), `text`, `stroke` |
 //! | `frame`     | `xywh`, `text` (the frame's title), `fill`                               |
+//! | `image`     | `xywh`, `src` (a `data:image/…` URL, e.g. a world map)                   |
+//! | `pin`       | `xywh`, `page` (the page it marks), `text` (its label), `icon`           |
 //!
 //! Every element also has `id`, `type` and `index`, a fractional key for the stacking order
 //! (and the order frames are presented in). Fields this version doesn't know are kept as they
 //! are, so a newer client's additions survive an older one.
 //!
 //! The index stores each element as a block with flavour `surface.<type>` and its `text`, so
-//! search finds words written on the canvas.
+//! search finds words written on the canvas. A pin is also a reference to its page, so the page's
+//! backlinks show the maps it is marked on. An image's `src` is left out of the index: it is the
+//! picture itself, often megabytes.
 
 use std::collections::BTreeMap;
 
@@ -27,7 +31,10 @@ use crate::doc::to_json;
 use crate::error::{Error, Result};
 use crate::schema::keys;
 
-pub const TYPES: [&str; 4] = ["shape", "text", "connector", "frame"];
+pub const TYPES: [&str; 6] = ["shape", "text", "connector", "frame", "image", "pin"];
+
+/// Largest image an element may hold (as a data URL).
+pub const MAX_IMAGE: usize = 16 * 1024 * 1024;
 
 /// An element as read back from the doc.
 #[derive(Debug, Clone, PartialEq)]
@@ -91,6 +98,29 @@ pub fn validate(id: &str, element: Value) -> Result<BTreeMap<String, Value>> {
     } else if !fields.get("xywh").is_some_and(is_xywh) {
         return Err(bad(id, "xywh must be [x, y, w, h] with w, h >= 0"));
     }
+    if kind == "image" {
+        let ok = fields
+            .get("src")
+            .and_then(Value::as_str)
+            .is_some_and(|s| s.starts_with("data:image/") && s.len() <= MAX_IMAGE);
+        if !ok {
+            return Err(bad(
+                id,
+                format!(
+                    "src must be a data:image/ URL of at most {} MB",
+                    MAX_IMAGE >> 20
+                ),
+            ));
+        }
+    }
+    if kind == "pin"
+        && !fields
+            .get("page")
+            .and_then(Value::as_str)
+            .is_some_and(|p| !p.is_empty())
+    {
+        return Err(bad(id, "a pin needs the page it marks"));
+    }
     if fields.get(keys::EL_TEXT).is_some_and(|t| !t.is_string()) {
         return Err(bad(id, "text must be a string"));
     }
@@ -114,6 +144,10 @@ pub(crate) fn read_elements<T: ReadTxn>(txn: &T, surface: &MapRef) -> Vec<Elemen
                 match (k, &a) {
                     (keys::ID, _) => {}
                     (keys::EL_TEXT, Any::String(s)) => text = s.to_string(),
+                    // The picture stays in the doc; the index only notes that there is one.
+                    ("src", _) => {
+                        attrs.insert("hasSrc".to_string(), Value::Bool(true));
+                    }
                     _ => {
                         attrs.insert(k.to_string(), to_json(&a));
                     }

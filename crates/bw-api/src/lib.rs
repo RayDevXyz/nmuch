@@ -13,6 +13,7 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+pub mod fivee;
 mod modules_api;
 pub mod nimbus;
 pub mod watch;

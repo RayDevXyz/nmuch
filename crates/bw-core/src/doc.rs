@@ -1051,9 +1051,16 @@ pub fn snapshot(doc: &Doc, page_id: &str) -> Result<PageSnapshot> {
             position: pos as u32,
             depth: 1,
             text: el.text.clone(),
+            // A pin links to the page it marks (so that page's backlinks show the map).
+            refs: match (
+                el.kind.as_str(),
+                el.attrs.get("page").and_then(|p| p.as_str()),
+            ) {
+                ("pin", Some(p)) => vec![(p.to_string(), "page".to_string())],
+                _ => vec![],
+            },
             attrs: el.attrs,
             props: props_of(&el.id),
-            refs: vec![],
         });
     }
     let database =

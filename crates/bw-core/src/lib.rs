@@ -15,6 +15,7 @@ pub mod core;
 pub mod course;
 pub mod database;
 pub mod db_query;
+pub mod dnd;
 pub mod doc;
 pub mod error;
 pub mod events;

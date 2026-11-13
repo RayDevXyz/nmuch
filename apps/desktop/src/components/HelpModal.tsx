@@ -34,6 +34,17 @@ const GROUPS: [string, [string, string][]][] = [
     ],
   ],
   [
+    'D&D',
+    [
+      ['/campaign', 'New campaign: NPCs, locations, factions, sessions, story beats, map'],
+      ['/character', 'New character from your 5etools'],
+      ['Ctrl Shift D', 'Compendium (set your 5etools address in its ⚙)'],
+      ['/spell /monster /item', 'Put a 5e entry in the page as a card'],
+      ['Plan an arc', 'Story beats from a template, on a campaign page'],
+      ['World map: I / P', 'Image (the map) / pin a page on it'],
+    ],
+  ],
+  [
     'Courses',
     [
       ['/course tracker', '1. Create Courses + Lessons'],

@@ -201,6 +201,7 @@ pub(crate) fn dispatch(
             ok(core.dnd_set_sheet(&d.id, d.sheet).map_err(e)?)
         }
         "dndThemedRoots" => ok(core.dnd_themed_roots().map_err(e)?),
+        "dndRoles" => ok(core.dnd_roles().map_err(e)?),
 
         // ---- calls from sandboxed modules
         "moduleCall" => {

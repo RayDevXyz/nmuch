@@ -1,11 +1,14 @@
 import { useState } from 'react'
-import { ArrowUpDown, ChevronDown, Filter as FilterIcon, FolderInput, LayoutGrid, Play, Plus, RefreshCw, Settings2, SquareKanban, Table2 } from 'lucide-react'
+import { ArrowUpDown, ChevronDown, Filter as FilterIcon, FolderInput, LayoutGrid, Play, Plus, RefreshCw, Settings2, Sparkles, SquareKanban, Table2 } from 'lucide-react'
 import { MenuList, Popover } from '../components/Popover'
 import { uid } from '../lib/id'
 import { openPage } from '../state/actions'
 import { createRow, removeView, setValue, setView } from './api'
 import { Cell, FileOpener, PropIcon, visibleProps } from './cells'
 import { useCourseActions } from '../modules/course'
+import { useRoles } from '../dnd/api'
+import { openCharacterWizard } from '../dnd/CharacterWizard'
+import { dndSlashExtras } from '../dnd/slash'
 import { AddPropertyMenu, anchorOf, FilterMenu, PropertyMenu, SortMenu, ViewSettingsMenu, type Anchor } from './menus'
 import { useDatabase } from './useDatabase'
 import type { DatabaseResult, Property, Row, ViewKind } from './types'
@@ -39,6 +42,7 @@ export function DatabaseView({
   const { result, error, refresh } = useDatabase(databaseId, current)
   const [menu, setMenu] = useState<Menu>(null)
   const course = useCourseActions(databaseId)
+  const dndRole = useRoles()[databaseId]
   const close = () => setMenu(null)
   const choose = (id: string) => (onViewChange ? onViewChange(id) : setLocalView(id))
 
@@ -108,6 +112,16 @@ export function DatabaseView({
             <button className="db-tool" aria-label="View settings" onClick={(e) => setMenu({ kind: 'settings', at: anchorOf(e) })}>
               <Settings2 size={13} />
             </button>
+            {dndRole === 'characters' && (
+              <button className="db-tool" title="Create a character from your 5etools races, classes and backgrounds" onClick={() => openCharacterWizard()}>
+                <Sparkles size={13} /> New character
+              </button>
+            )}
+            {dndRole === 'campaigns' && (
+              <button className="db-tool" onClick={() => dndSlashExtras.find((x) => x.id === 'dnd-campaign')!.run(null as never)}>
+                <Sparkles size={13} /> New campaign
+              </button>
+            )}
             {course?.role === 'courses' && (
               <button className="db-tool" title="Turn a folder of videos and documents into a course" onClick={() => void course.importFolder()}>
                 <FolderInput size={13} /> Import folder

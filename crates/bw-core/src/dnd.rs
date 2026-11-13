@@ -712,6 +712,27 @@ impl Core {
             .unwrap_or_else(|| json!({})))
     }
 
+    /// Which pages play a part in D&D (`campaigns`, `characters`, `campaign`, `npcs`, `beats`,
+    /// `map`, …), without creating anything.
+    pub fn dnd_roles(&self) -> Result<BTreeMap<PageId, String>> {
+        let rows: Vec<(String, String)> = self
+            .conn()
+            .prepare(
+                "SELECT p.page_id, p.value FROM props p JOIN page_meta m ON m.id = p.page_id
+                 WHERE p.block_id = p.page_id AND p.key = ?1 AND m.trashed_at IS NULL",
+            )?
+            .query_map([ROLE], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<std::result::Result<_, _>>()?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|(id, v)| {
+                serde_json::from_str::<String>(&v)
+                    .ok()
+                    .map(|role| (id, role))
+            })
+            .collect())
+    }
+
     /// Pages that get the campaign look: the D&D databases and every campaign's and character's
     /// page (the app also themes their sub-pages).
     pub fn dnd_themed_roots(&self) -> Result<Vec<PageId>> {

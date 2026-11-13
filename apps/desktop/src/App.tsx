@@ -13,6 +13,7 @@ import { ImportDialog } from './components/ImportDialog'
 import { WidgetsDialog } from './widgets/WidgetsDialog'
 import { ModulesDialog } from './modules/ModulesDialog'
 import { CompendiumHost, openCompendium } from './dnd/Compendium'
+import { CharacterWizardHost } from './dnd/CharacterWizard'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
@@ -114,6 +115,7 @@ export default function App() {
       {widgetsDialog && <WidgetsDialog />}
       {modulesDialog && <ModulesDialog />}
       <CompendiumHost />
+      <CharacterWizardHost />
       {toast && <div className="toast">{toast}</div>}
     </main>
   )

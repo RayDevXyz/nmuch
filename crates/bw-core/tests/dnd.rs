@@ -130,6 +130,19 @@ fn characters_keep_a_sheet_and_join_a_party() {
     assert!(themed.contains(&id) && themed.contains(&c.id) && themed.contains(&w.characters));
     assert!(!themed.contains(&page));
 
+    let roles = core.dnd_roles().unwrap();
+    assert_eq!(
+        roles.get(&w.characters).map(String::as_str),
+        Some("characters")
+    );
+    assert_eq!(roles.get(&c.id).map(String::as_str), Some("campaign"));
+    assert_eq!(
+        roles
+            .get(&c.parts.as_ref().unwrap().beats)
+            .map(String::as_str),
+        Some("beats")
+    );
+
     // One Campaigns and one Characters database per workspace.
     core.dnd_create_campaign("Second").unwrap();
     assert_eq!(core.dnd_workspace().unwrap(), w);

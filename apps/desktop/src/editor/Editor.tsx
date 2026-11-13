@@ -22,6 +22,9 @@ import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
 import { Canvas } from '../edgeless/Canvas'
 import { dndSlashExtras } from '../dnd/slash'
+import { charactersDb, isThemed, useRoles } from '../dnd/api'
+import { CharacterSheet } from '../dnd/CharacterSheet'
+import { CampaignOverview } from '../dnd/Campaign'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -206,6 +209,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   const [sync, setSync] = useState<PageSync | null>(null)
   const [error, setError] = useState<string | null>(null)
   const allNotes = useNotes(sync)
+  const roles = useRoles()
   const edgeless = useApp((s) => !!s.edgeless[pageId]) && page?.kind !== 'database'
   const notes = useMemo(() => (edgeless ? allNotes : allNotes.filter((n) => n.display !== 'edgeless')), [allNotes, edgeless])
   const editors = useRef(new Map<string, TiptapEditor>())
@@ -395,6 +399,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   // ---------- render ----------
 
   if (!page) return null
+  const themed = isThemed(pageId, roles)
   const readMin = Math.max(1, Math.round(words / 200))
 
   const emojiPicker = picker && (
@@ -416,7 +421,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
 
   if (edgeless) {
     return (
-      <div className="note-scroll edgeless" ref={scrollRef}>
+      <div className={`note-scroll edgeless ${themed ? 'dnd-theme' : ''}`} ref={scrollRef}>
         {error && <div className="editor-error">Could not open this page: {error}</div>}
         {sync && <Canvas pageId={pageId} doc={sync.doc} notes={notes} host={host} spellcheck={spellcheck} onEditor={editorCallback} />}
         {emojiPicker}
@@ -425,7 +430,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   }
 
   return (
-    <div className="note-scroll" ref={scrollRef}>
+    <div className={`note-scroll ${themed ? 'dnd-theme' : ''}`} ref={scrollRef}>
       <article className={`note-canvas ${width === 'wide' ? 'wide' : ''}`}>
         <div className="note-meta">
           <span>Updated {relativeTime(page.updatedAt, now)}</span>
@@ -448,7 +453,13 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
           </button>
         </div>
         <Title page={page} onExit={focusFirst} />
-        {page.databaseId && <RowProperties rowId={page.id} databaseId={page.databaseId} />}
+        {page.databaseId && page.databaseId === charactersDb(roles) ? (
+          <CharacterSheet pageId={page.id} />
+        ) : page.databaseId && roles[page.id] === 'campaign' ? (
+          <CampaignOverview campaignId={page.id} />
+        ) : (
+          page.databaseId && <RowProperties rowId={page.id} databaseId={page.databaseId} />
+        )}
         {page.kind === 'database' ? (
           <DatabaseView databaseId={page.id} />
         ) : (

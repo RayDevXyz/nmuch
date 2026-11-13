@@ -12,6 +12,7 @@ import { HelpModal } from './components/HelpModal'
 import { ImportDialog } from './components/ImportDialog'
 import { WidgetsDialog } from './widgets/WidgetsDialog'
 import { ModulesDialog } from './modules/ModulesDialog'
+import { CompendiumHost, openCompendium } from './dnd/Compendium'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
@@ -57,6 +58,9 @@ export default function App() {
       } else if (k === '/' && !e.shiftKey) {
         e.preventDefault()
         setState({ help: !s.help })
+      } else if (k === 'd' && e.shiftKey) {
+        e.preventDefault()
+        openCompendium()
       } else if (k === 'e' && e.shiftKey) {
         const page = s.activeId ? s.pages[s.activeId] : undefined
         if (page && page.kind !== 'database') {
@@ -109,6 +113,7 @@ export default function App() {
       {importDialog && <ImportDialog />}
       {widgetsDialog && <WidgetsDialog />}
       {modulesDialog && <ModulesDialog />}
+      <CompendiumHost />
       {toast && <div className="toast">{toast}</div>}
     </main>
   )

@@ -6,6 +6,7 @@ import { openPage } from '../state/actions'
 import { useApp } from '../state/store'
 import { BindingSetup } from './BindingSetup'
 import { ModuleBlock } from '../modules/ModuleBlock'
+import { DndBlock } from '../dnd/DndBlock'
 import { buildSrcdoc, themeVars } from './runtime'
 import {
   loadWidget,
@@ -37,6 +38,8 @@ export function bindingsComplete(manifest: Manifest, bindings: Record<string, un
 export function WidgetBlock(props: WidgetBlockProps & { pageId: string }) {
   // A third-party module placed in the page uses the same block, as `module:<id>`.
   if (props.widgetId.startsWith('module:')) return <ModuleBlock {...props} moduleId={props.widgetId.slice(7)} />
+  // First-party D&D blocks (compendium cards, …) use it too, as `dnd:<kind>`.
+  if (props.widgetId.startsWith('dnd:')) return <DndBlock {...props} kind={props.widgetId.slice(4)} />
   return <WidgetInstance {...props} />
 }
 

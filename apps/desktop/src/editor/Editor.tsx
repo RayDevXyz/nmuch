@@ -21,6 +21,7 @@ import { installedWidgets } from '../widgets/api'
 import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
 import { Canvas } from '../edgeless/Canvas'
+import { dndSlashExtras } from '../dnd/slash'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -317,7 +318,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
             keywords: `module ${m.manifest.id}`,
             run: (editor: TiptapEditor) => void editor.chain().focus().insertWidget(`module:${m.manifest.id}`).run(),
           }))
-        return [courseTrackerExtra(pageId), ...modules, ...installedWidgets().map((w) => ({
+        return [courseTrackerExtra(pageId), ...dndSlashExtras, ...modules, ...installedWidgets().map((w) => ({
           id: `widget:${w.manifest.id}`,
           label: w.manifest.name,
           desc: w.manifest.description || 'Widget',

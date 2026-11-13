@@ -1,0 +1,210 @@
+/*
+ * The D&D look: dark umber panels with gold trim, parchment cards with ink and an oxblood
+ * ribbon, Cinzel titles over EB Garamond text. Applied to campaign pages and character sheets
+ * (`.dnd-theme` on the page) and to the compendium; the rest of BrainWaves keeps its own look.
+ */
+
+@import '@fontsource/cinzel/500.css';
+@import '@fontsource/cinzel/700.css';
+@import '@fontsource/eb-garamond/400.css';
+@import '@fontsource/eb-garamond/400-italic.css';
+@import '@fontsource/eb-garamond/600.css';
+
+.dnd-theme {
+  --dnd-bg: #14110d;
+  --dnd-bg-2: #1c1813;
+  --dnd-panel: #221d17;
+  --dnd-panel-2: #2b241c;
+  --dnd-line: #4a3e2d;
+  --dnd-line-soft: rgba(201, 164, 92, 0.18);
+  --dnd-gold: #c9a45c;
+  --dnd-gold-bright: #e3c27a;
+  --dnd-gold-soft: rgba(201, 164, 92, 0.14);
+  --dnd-text: #e9dec6;
+  --dnd-muted: #b3a385;
+  --dnd-faint: #85765c;
+  --dnd-parchment: #e7d8b8;
+  --dnd-parchment-2: #d9c6a0;
+  --dnd-ink: #2b2016;
+  --dnd-ink-soft: #5c4a35;
+  --dnd-red: #8f3a26;
+  --dnd-red-bright: #c0573a;
+  --dnd-green: #7f9a5c;
+  --dnd-blue: #6d8fae;
+  --dnd-title: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  --dnd-body: 'EB Garamond', Garamond, Georgia, serif;
+}
+
+/* ---------- a themed page: the app's own variables, re-skinned ---------- */
+
+.note-scroll.dnd-theme {
+  --editor-bg: var(--dnd-bg);
+  --panel: var(--dnd-panel);
+  --panel-2: var(--dnd-panel-2);
+  --hover: #352c22;
+  --line: var(--dnd-line);
+  --line-soft: var(--dnd-line-soft);
+  --foreground: var(--dnd-text);
+  --muted-foreground: var(--dnd-muted);
+  --faint: var(--dnd-faint);
+  --accent: var(--dnd-gold);
+  --accent-strong: var(--dnd-gold-bright);
+  --accent-soft: var(--dnd-gold-soft);
+  --accent-ink: #1d160d;
+  --select: rgba(201, 164, 92, 0.2);
+  background:
+    radial-gradient(1200px 500px at 50% -120px, rgba(201, 164, 92, 0.1), transparent 70%),
+    radial-gradient(900px 600px at 50% 120%, rgba(143, 58, 38, 0.12), transparent 70%),
+    var(--dnd-bg);
+  color: var(--dnd-text);
+  font-family: var(--dnd-body);
+}
+.note-scroll.dnd-theme .note-canvas { font-family: var(--dnd-body); font-size: 17px; }
+.note-scroll.dnd-theme .bw-prose { font-family: var(--dnd-body); font-size: 17px; line-height: 1.6; }
+.note-scroll.dnd-theme .note-title,
+.note-scroll.dnd-theme .bw-prose h1,
+.note-scroll.dnd-theme .bw-prose h2,
+.note-scroll.dnd-theme .bw-prose h3 {
+  font-family: var(--dnd-title);
+  letter-spacing: 0.04em;
+  color: var(--dnd-gold-bright);
+  font-weight: 500;
+}
+.note-scroll.dnd-theme .note-title { text-shadow: 0 1px 0 #000, 0 0 24px rgba(201, 164, 92, 0.18); }
+.note-scroll.dnd-theme .bw-prose h2 { border-bottom: 1px solid var(--dnd-line); padding-bottom: 4px; }
+.note-scroll.dnd-theme .bw-prose h2::after { content: ''; display: block; height: 1px; margin-top: 3px; background: linear-gradient(90deg, var(--dnd-gold), transparent 60%); }
+.note-scroll.dnd-theme .note-meta { font-family: var(--dnd-title); letter-spacing: 0.12em; text-transform: uppercase; font-size: 10px; color: var(--dnd-faint); }
+.note-scroll.dnd-theme .db-heading,
+.note-scroll.dnd-theme .db-tab { font-family: var(--dnd-title); letter-spacing: 0.05em; }
+.note-scroll.dnd-theme .db-table th { font-family: var(--dnd-title); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dnd-gold); }
+.note-scroll.dnd-theme .db-table td,
+.note-scroll.dnd-theme .db-table th { border-color: var(--dnd-line); }
+.note-scroll.dnd-theme .callout { background: var(--dnd-panel); border: 1px solid var(--dnd-line); border-left: 3px solid var(--dnd-gold); }
+.note-scroll.dnd-theme .primary-btn,
+.note-scroll.dnd-theme .db-new { background: linear-gradient(180deg, #d8b46a, #b48a43); color: #1d160d; border: 1px solid #f0d58f55; }
+
+/* ---------- shared pieces ---------- */
+
+.dnd-theme .fv-btn,
+.fv-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px;
+  border: 1px solid #6a5636; border-radius: 3px; cursor: pointer;
+  background: linear-gradient(180deg, #3a2f22, #2a2219); color: #e9dec6;
+  font-family: 'Cinzel', Georgia, serif; font-size: 12px; letter-spacing: 0.06em;
+}
+.fv-btn:hover { border-color: #c9a45c; color: #f3e2b5; }
+.fv-btn.gold { background: linear-gradient(180deg, #d8b46a, #b48a43); color: #1d160d; border-color: #f0d58f; }
+.fv-btn.ghost { background: transparent; border-color: transparent; color: #b3a385; }
+.fv-btn:disabled { opacity: 0.5; cursor: default; }
+.fv-icon { width: 28px; height: 28px; border: 0; border-radius: 4px; background: transparent; color: #b3a385; display: grid; place-items: center; cursor: pointer; }
+.fv-icon:hover { color: #e3c27a; background: rgba(201, 164, 92, 0.12); }
+.fv-grow { flex: 1; }
+.fv-error { color: #e08a6f; font-size: 13px; padding: 6px 2px; font-family: 'EB Garamond', Georgia, serif; }
+.fv-ok { color: #a7c47f; font-size: 13px; padding: 6px 2px; font-family: 'EB Garamond', Georgia, serif; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* a gold rule with a diamond, under titles */
+.fv-rule { height: 1px; margin: 6px 0 10px; background: linear-gradient(90deg, transparent, #c9a45c 15%, #c9a45c 85%, transparent); position: relative; }
+.fv-rule::after { content: ''; position: absolute; left: 50%; top: -3px; width: 6px; height: 6px; margin-left: -3px; background: #c9a45c; transform: rotate(45deg); }
+
+/* ---------- compendium window ---------- */
+
+.fv-compendium {
+  width: min(1080px, calc(100% - 40px)); height: min(78vh, 760px); display: flex; flex-direction: column;
+  background: radial-gradient(800px 300px at 50% -80px, rgba(201, 164, 92, 0.12), transparent 70%), #17130f;
+  border: 1px solid #5a4a32; outline: 1px solid #000; outline-offset: -4px;
+  box-shadow: 0 0 0 1px #000, 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 0 60px rgba(0, 0, 0, 0.5);
+  color: var(--dnd-text); font-family: var(--dnd-body); border-radius: 4px;
+}
+.fv-comp-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px 10px; color: var(--dnd-gold); border-bottom: 1px solid var(--dnd-line); }
+.fv-comp-title { flex: 1; font-family: var(--dnd-title); font-size: 17px; letter-spacing: 0.12em; color: var(--dnd-gold-bright); text-transform: uppercase; }
+.fv-comp-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(260px, 340px) 1fr; }
+.fv-comp-list { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--dnd-line); padding: 10px; gap: 8px; }
+.fv-search { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border: 1px solid var(--dnd-line); background: #0f0c09; color: var(--dnd-faint); border-radius: 3px; }
+.fv-search:focus-within { border-color: var(--dnd-gold); }
+.fv-search input { flex: 1; border: 0; outline: 0; background: transparent; color: var(--dnd-text); font-family: var(--dnd-body); font-size: 15px; }
+.fv-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.fv-chip { border: 1px solid var(--dnd-line); background: transparent; color: var(--dnd-faint); padding: 2px 8px; border-radius: 2px; font-family: var(--dnd-title); font-size: 10.5px; letter-spacing: 0.05em; cursor: pointer; }
+.fv-chip.on { color: var(--dnd-gold-bright); border-color: #8a7140; background: var(--dnd-gold-soft); }
+.fv-results { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+.fv-results li { display: grid; grid-template-columns: 18px 1fr auto auto; gap: 8px; align-items: center; padding: 5px 8px; border-bottom: 1px solid rgba(74, 62, 45, 0.5); cursor: pointer; font-size: 15px; }
+.fv-results li:hover { background: rgba(201, 164, 92, 0.07); }
+.fv-results li.active { background: linear-gradient(90deg, rgba(201, 164, 92, 0.18), rgba(201, 164, 92, 0.04)); box-shadow: inset 2px 0 0 var(--dnd-gold); }
+.fv-res-icon { color: var(--dnd-gold); text-align: center; }
+.fv-res-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fv-res-meta { color: var(--dnd-faint); font-size: 12.5px; font-style: italic; }
+.fv-res-src { color: var(--dnd-faint); font-family: var(--dnd-title); font-size: 9.5px; letter-spacing: 0.06em; }
+.fv-results .fv-empty { display: block; color: var(--dnd-faint); font-style: italic; cursor: default; }
+.fv-comp-detail { min-height: 0; overflow-y: auto; padding: 14px 18px 24px; }
+.fv-detail-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.fv-detail-empty { height: 100%; display: grid; place-items: center; color: var(--dnd-faint); font-style: italic; }
+.fv-settings { margin: 12px 14px; padding: 12px 14px; border: 1px solid var(--dnd-line); background: var(--dnd-panel); border-radius: 3px; }
+.fv-settings p { margin: 0 0 10px; color: var(--dnd-muted); font-size: 15px; line-height: 1.5; }
+.fv-settings code { font-family: var(--font-mono); font-size: 12px; color: var(--dnd-gold-bright); }
+.fv-settings-row { display: flex; gap: 8px; }
+.fv-settings-row input { flex: 1; height: 32px; padding: 0 10px; border: 1px solid var(--dnd-line); background: #0f0c09; color: var(--dnd-text); font-family: var(--font-mono); font-size: 12.5px; border-radius: 3px; outline: 0; }
+.fv-settings-row input:focus { border-color: var(--dnd-gold); }
+
+/* ---------- a 5e entry: parchment card ---------- */
+
+.fv-card {
+  --ink: #2b2016;
+  position: relative; color: var(--ink); font-family: 'EB Garamond', Georgia, serif; font-size: 15.5px; line-height: 1.45;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.35), transparent 40%),
+    radial-gradient(circle at 80% 90%, rgba(120, 80, 30, 0.18), transparent 50%),
+    linear-gradient(180deg, #ecdfc2, #ddc9a3);
+  border: 1px solid #a88a58; border-radius: 2px; padding: 14px 18px 16px;
+  box-shadow: 0 0 0 3px #1b1510, 0 0 0 4px #6d5734, 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 0 40px rgba(110, 70, 20, 0.22);
+}
+.fv-card::before { content: ''; position: absolute; top: -4px; right: 18px; width: 22px; height: 34px; background: linear-gradient(180deg, #a7452c, #7b2d1c); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4); }
+.fv-card-head { padding-right: 36px; }
+.fv-card-title { font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 21px; letter-spacing: 0.03em; color: #5a1f12; line-height: 1.15; }
+.fv-card-sub { display: flex; align-items: baseline; gap: 10px; font-style: italic; color: #5c4a35; font-size: 14.5px; margin-top: 2px; padding-bottom: 8px; border-bottom: 2px solid #8f3a26; }
+.fv-card-source { margin-left: auto; font-style: normal; font-family: 'Cinzel', Georgia, serif; font-size: 10px; letter-spacing: 0.08em; color: #7b664a; }
+.fv-card-body { padding-top: 8px; }
+.fv-card.compact { font-size: 14.5px; }
+.fv-card.compact .fv-card-title { font-size: 18px; }
+.fv-props { margin: 6px 0 8px; padding: 0 0 6px; border-bottom: 1px solid rgba(143, 58, 38, 0.45); }
+.fv-prop { display: flex; gap: 6px; margin: 1px 0; }
+.fv-prop dt { font-weight: 600; color: #5a1f12; margin: 0; }
+.fv-prop dd { margin: 0; }
+.fv-p { margin: 0 0 6px; }
+.fv-center { text-align: center; }
+.fv-h { font-family: 'Cinzel', Georgia, serif; font-size: 14px; font-weight: 700; color: #5a1f12; margin: 10px 0 3px; letter-spacing: 0.02em; }
+.fv-section { margin: 4px 0; }
+.fv-list { margin: 2px 0 8px; padding-left: 20px; }
+.fv-list.list-hang-notitle { list-style: none; padding-left: 0; }
+.fv-item-name { color: #3d2a1a; }
+.fv-link { color: #7a2a16; text-decoration: none; border-bottom: 1px dotted #a65a3a; cursor: pointer; font-style: italic; }
+.fv-link:hover { color: #a7452c; }
+.fv-roll { font-weight: 600; color: #3d2a1a; }
+.fv-note { font-style: italic; color: #5c4a35; }
+.fv-inset { margin: 8px 0; padding: 8px 12px; background: rgba(110, 80, 40, 0.12); border: 1px solid rgba(110, 80, 40, 0.3); }
+.fv-inset.readaloud { background: rgba(60, 80, 100, 0.12); border-color: rgba(60, 80, 100, 0.35); font-style: italic; }
+.fv-inset-title { font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+.fv-quote { margin: 8px 0; padding-left: 12px; border-left: 2px solid #a88a58; font-style: italic; }
+.fv-table { width: 100%; border-collapse: collapse; margin: 6px 0 10px; font-size: 14px; }
+.fv-table caption { font-family: 'Cinzel', Georgia, serif; font-weight: 700; text-align: left; padding: 2px 0 4px; }
+.fv-table th { text-align: left; border-bottom: 1px solid #8f3a26; padding: 2px 6px; }
+.fv-table td { padding: 2px 6px; }
+.fv-table tr:nth-child(even) td { background: rgba(110, 80, 40, 0.1); }
+.fv-classes { margin: 8px 0 0; font-size: 13px; font-style: italic; color: #5c4a35; }
+.fv-abilities { display: grid; grid-template-columns: repeat(6, 1fr); text-align: center; padding: 6px 0; margin-bottom: 6px; border-bottom: 1px solid rgba(143, 58, 38, 0.45); }
+.fv-abilities span { display: block; font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 11.5px; color: #5a1f12; }
+.fv-abilities strong { font-size: 15px; }
+.fv-abilities em { font-style: normal; color: #5c4a35; margin-left: 3px; font-size: 13px; }
+.fv-mon-section { margin-top: 6px; }
+.fv-mon-h { font-family: 'Cinzel', Georgia, serif; font-size: 15px; color: #5a1f12; margin: 10px 0 4px; padding-bottom: 2px; border-bottom: 1px solid #8f3a26; font-weight: 500; letter-spacing: 0.04em; }
+.fv-mon-trait { margin: 3px 0 5px; }
+.fv-mon-trait .fv-p { display: inline; }
+.fv-features .fv-h { display: flex; align-items: center; gap: 8px; }
+.fv-level { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 50%; background: #5a1f12; color: #f0e2c4; font-size: 11px; }
+
+/* a card in a page */
+.dnd-card-block { margin: 10px 0 14px; }
+.dnd-card-bar { display: flex; align-items: center; gap: 4px; height: 26px; opacity: 0.55; transition: opacity 0.12s; }
+.dnd-card-block:hover .dnd-card-bar { opacity: 1; }
+.dnd-card-label { flex: 1; font-family: 'Cinzel', Georgia, serif; font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); }
+.dnd-card-block .fv-card { margin: 4px 4px 0; }

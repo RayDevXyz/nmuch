@@ -51,6 +51,12 @@ const LAYOUT = 'layout' // origin of automatic placement: not undoable
 /** Viewports survive switching modes and tabs (for this session). */
 const viewports = new Map<string, Viewport>()
 
+/** Show a page's whole canvas: now if it's open, else the next time it opens. */
+export function fitCanvas(pageId: string) {
+  viewports.delete(pageId)
+  window.dispatchEvent(new CustomEvent('bw-canvas-fit', { detail: pageId }))
+}
+
 type Gesture =
   | { kind: 'pan'; sx: number; sy: number; vp: Viewport }
   | { kind: 'move'; wx: number; wy: number; orig: Map<string, XYWH>; moved: boolean }
@@ -145,6 +151,15 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     zoomToFit()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notes, heights])
+
+  // Someone (an import) asks to show the whole canvas again.
+  useEffect(() => {
+    const onFit = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === pageId) requestAnimationFrame(() => zoomToFit())
+    }
+    window.addEventListener('bw-canvas-fit', onFit)
+    return () => window.removeEventListener('bw-canvas-fit', onFit)
+  })
 
   // A search hit on this page's canvas: zoom to it and select it.
   const reveal = useApp((s) => s.reveal)
@@ -592,11 +607,13 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   const singleNote = single ? notes.find((n) => n.id === single) : undefined
   const singleEl = single ? byId.get(single) : undefined
   const grid = 24 * vp.z
+  // A map with many pins shows only the major labels (capitals) until zoomed in.
+  const crowded = elements.reduce((n, e) => n + (e.type === 'pin' ? 1 : 0), 0) > 40
 
   return (
     <div
       ref={root}
-      className={`cv-root tool-${tool} ${presenting !== null ? 'presenting' : ''}`}
+      className={`cv-root tool-${tool} ${presenting !== null ? 'presenting' : ''} ${crowded && vp.z < 1.6 ? 'labels-few' : ''}`}
       tabIndex={0}
       style={{ backgroundSize: `${grid}px ${grid}px`, backgroundPosition: `${-vp.x * vp.z}px ${-vp.y * vp.z}px` }}
       onPointerDown={onPointerDown}
@@ -830,7 +847,7 @@ function PinView({ el, selected }: { el: Extract<Element, { type: 'pin' }>; sele
   const [x, y, w, h] = el.xywh
   const label = page?.title || el.text || 'Untitled'
   return (
-    <div className={`cv-pin ${selected ? 'selected' : ''} ${page ? '' : 'gone'}`} data-cid={el.id} style={{ left: x, top: y, width: w, height: h }} title={`${label} (double-click to open)`}>
+    <div className={`cv-pin ${selected ? 'selected' : ''} ${page ? '' : 'gone'} ${el.color === 'yellow' ? 'major' : ''}`} data-cid={el.id} style={{ left: x, top: y, width: w, height: h }} title={`${label} (double-click to open)`}>
       <svg viewBox="0 0 24 24" width={w} height={h} aria-hidden>
         <path d="M12 2c-4 0-7 3-7 7 0 5.2 7 13 7 13s7-7.8 7-13c0-4-3-7-7-7z" fill={colorOf(el.color, '#c9a45c')} stroke="#1b140c" strokeWidth="1.2" />
         <circle cx="12" cy="9" r="2.6" fill="#1b140c" />
@@ -900,7 +917,7 @@ function PinPicker({ at, host, onPick, onClose }: { at: { sx: number; sy: number
 }
 
 /** Read a picture, shrinking big ones (a map scan can be huge) so the page stays light. */
-async function fitImage(file: File): Promise<{ src: string; w: number; h: number }> {
+export async function fitImage(file: File): Promise<{ src: string; w: number; h: number }> {
   if (!file.type.startsWith('image/')) throw new Error('that is not a picture')
   const url = URL.createObjectURL(file)
   try {

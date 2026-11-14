@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { showsCanvas, useRoles } from '../dnd/api'
 import { Archive, ArchiveRestore, ChevronRight, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, Plus, Shapes, Star, Trash2, X } from 'lucide-react'
 import { ancestors, closeTab, createPage, duplicatePage, openPage, setArchived, toggleFavorite, trashPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
@@ -108,7 +109,9 @@ export function EditorPanel() {
   const activeId = useApp((s) => s.activeId)
   const page = useApp((s) => (s.activeId ? s.pages[s.activeId] : undefined))
   const width = useApp((s) => s.width)
-  const edgeless = useApp((s) => (s.activeId ? !!s.edgeless[s.activeId] : false))
+  const choice = useApp((s) => s.edgeless)
+  const roles = useRoles()
+  const edgeless = activeId ? showsCanvas(activeId, choice, roles) : false
   const [more, setMore] = useState<{ x: number; y: number } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 

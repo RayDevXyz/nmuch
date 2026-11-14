@@ -820,3 +820,6 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .cv-pinpicker li { padding: 5px 8px; border-radius: 5px; cursor: pointer; font-size: 13px; color: var(--foreground); }
 .cv-pinpicker li.active, .cv-pinpicker li:hover { background: var(--hover); }
 .cv-pinpicker li.new { color: var(--accent); }
+.cv-root.labels-few .cv-pin:not(.major):not(.selected):not(:hover) .cv-pin-label { display: none; }
+.cv-pin.major .cv-pin-label { font-size: 13px; color: #fff3cf; border-color: #e3b341; }
+.cv-pin:hover { z-index: 3; }

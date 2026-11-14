@@ -14,6 +14,8 @@ import { WidgetsDialog } from './widgets/WidgetsDialog'
 import { ModulesDialog } from './modules/ModulesDialog'
 import { CompendiumHost, openCompendium } from './dnd/Compendium'
 import { CharacterWizardHost } from './dnd/CharacterWizard'
+import { getRoles, showsCanvas } from './dnd/api'
+import { AzgaarImportHost } from './dnd/AzgaarImport'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
@@ -66,7 +68,7 @@ export default function App() {
         const page = s.activeId ? s.pages[s.activeId] : undefined
         if (page && page.kind !== 'database') {
           e.preventDefault()
-          setState({ edgeless: { ...s.edgeless, [page.id]: !s.edgeless[page.id] } })
+          setState({ edgeless: { ...s.edgeless, [page.id]: !showsCanvas(page.id, s.edgeless, getRoles()) } })
         }
       } else if (k === 'w') {
         if (s.activeId) {
@@ -116,6 +118,7 @@ export default function App() {
       {modulesDialog && <ModulesDialog />}
       <CompendiumHost />
       <CharacterWizardHost />
+      <AzgaarImportHost />
       {toast && <div className="toast">{toast}</div>}
     </main>
   )

@@ -216,3 +216,114 @@ fn map_pins_link_pages_and_images_stay_out_of_the_index() {
     });
     assert!(matches!(bad, Err(Error::Invalid(_))));
 }
+
+#[test]
+fn an_azgaar_world_becomes_locations_factions_and_pins_and_reimports_in_place() {
+    use bw_core::azgaar::{AzFaction, AzPlace, AzgaarWorld};
+    let mut core = Core::open_in_memory().unwrap();
+    let c = core.dnd_create_campaign("Azgaar").unwrap();
+    let parts = c.parts.clone().unwrap();
+    let place =
+        |key: &str, title: &str, kind: &str, x: Option<f64>, region: Option<&str>| AzPlace {
+            key: key.into(),
+            title: title.into(),
+            kind: kind.into(),
+            x,
+            y: x.map(|v| v / 2.0),
+            region: region.map(String::from),
+            text: vec![format!("{title} text")],
+            color: None,
+        };
+    let mut world = AzgaarWorld {
+        name: "Ernagold".into(),
+        width: 1920.0,
+        height: 1080.0,
+        image: Some(format!("data:image/png;base64,{}", "Q".repeat(200))),
+        regions: vec![place("state:1", "Kingdom of Ardel", "region", None, None)],
+        places: vec![
+            place("burg:1", "Ardelhold", "city", Some(400.0), Some("state:1")),
+            place("burg:2", "Fenwick", "village", Some(900.0), Some("state:1")),
+            place("marker:3", "Dragon's Tooth", "landmark", Some(1500.0), None),
+            place("burg:9", "Off the map", "city", Some(99999.0), None),
+        ],
+        factions: vec![AzFaction {
+            key: "religion:1".into(),
+            title: "Church of the Dawn".into(),
+            goal: "Organized religion".into(),
+            text: vec![],
+        }],
+    };
+    let r = core.dnd_import_azgaar(&c.id, &world).unwrap();
+    assert_eq!(
+        (r.created, r.updated, r.factions, r.pins),
+        (5, 0, 1, 3),
+        "a pin outside the map is skipped"
+    );
+
+    let locs = core
+        .query_database(&parts.locations, None, None)
+        .unwrap()
+        .rows;
+    let city = locs.iter().find(|l| l.title == "Ardelhold").unwrap();
+    assert_eq!(city.values["kind"], json!("city"));
+    let region = locs.iter().find(|l| l.title == "Kingdom of Ardel").unwrap();
+    // The city's page links its region; the pin links the city.
+    let back: Vec<_> = core
+        .backlinks(&region.id)
+        .unwrap()
+        .into_iter()
+        .map(|b| b.page_id)
+        .collect();
+    assert!(back.contains(&city.id));
+    assert_eq!(core.backlinks(&city.id).unwrap()[0].page_id, parts.map);
+    let snap = core.snapshot(&parts.map).unwrap();
+    let pin = snap.get("azgaar-pin-burg-1").unwrap();
+    assert_eq!(pin.attrs["xywh"], json!([389, 178, 22, 22]));
+    assert!(snap.get("azgaar-map").is_some());
+
+    // Written notes survive a re-import; renamed things update; a removed city loses its pin.
+    core.transact(&city.id, |t| {
+        let note = t.first_note()?;
+        t.insert(&note, None, bw_core::NewBlock::paragraph("My own notes"))
+    })
+    .unwrap();
+    world.image = None;
+    world.places.retain(|p| p.key != "burg:2");
+    world.places[0].title = "Ardelhold Keep".into();
+    world.places[0].x = Some(500.0);
+    let r = core.dnd_import_azgaar(&c.id, &world).unwrap();
+    assert_eq!((r.created, r.updated, r.removed_pins), (0, 5, 1));
+    let locs = core
+        .query_database(&parts.locations, None, None)
+        .unwrap()
+        .rows;
+    assert_eq!(
+        locs.len(),
+        5,
+        "nothing duplicated (Fenwick's page stays, only its pin goes)"
+    );
+    assert!(locs
+        .iter()
+        .any(|l| l.id == city.id && l.title == "Ardelhold Keep"));
+    let text: String = core
+        .snapshot(&city.id)
+        .unwrap()
+        .blocks
+        .iter()
+        .map(|b| b.text.clone())
+        .collect();
+    assert!(text.contains("My own notes"));
+    let snap = core.snapshot(&parts.map).unwrap();
+    assert!(snap.get("azgaar-pin-burg-2").is_none());
+    assert_eq!(
+        snap.get("azgaar-pin-burg-1").unwrap().attrs["xywh"],
+        json!([489, 178, 22, 22])
+    );
+    assert!(
+        snap.get("azgaar-map").is_some(),
+        "no new picture keeps the old one"
+    );
+
+    world.width = 0.0;
+    assert!(core.dnd_import_azgaar(&c.id, &world).is_err());
+}

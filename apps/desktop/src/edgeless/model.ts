@@ -120,7 +120,8 @@ export function readNotes(notes: NoteRef[], doc: Y.Doc): CanvasNote[] {
 
 /** The surface's elements, re-read on every change to them. */
 export function useElements(doc: Y.Doc | null): Element[] {
-  const [els, setEls] = useState<Element[]>([])
+  // Read at once, so the first render (and the first zoom-to-fit) already has them.
+  const [els, setEls] = useState<Element[]>(() => (doc ? readElements(doc) : []))
   useEffect(() => {
     if (!doc) return
     const s = surfaceOf(doc)

@@ -1,7 +1,7 @@
 import { NoteEditor, outlineOf, statsOf, toMarkdown, type EditorHost, type RefKind, type SlashExtra } from '@brainwaves/editor'
 import type { Editor as TiptapEditor } from '@tiptap/core'
 import { Selection } from '@tiptap/pm/state'
-import { Smile } from 'lucide-react'
+import { Globe, Smile } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as Y from 'yjs'
 import { EmojiPicker } from '../components/EmojiPicker'
@@ -22,9 +22,10 @@ import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
 import { Canvas } from '../edgeless/Canvas'
 import { dndSlashExtras } from '../dnd/slash'
-import { charactersDb, isThemed, useRoles } from '../dnd/api'
+import { charactersDb, isThemed, showsCanvas, useRoles } from '../dnd/api'
 import { CharacterSheet } from '../dnd/CharacterSheet'
 import { CampaignOverview } from '../dnd/Campaign'
+import { openAzgaarImport } from '../dnd/AzgaarImport'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -210,7 +211,8 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   const [error, setError] = useState<string | null>(null)
   const allNotes = useNotes(sync)
   const roles = useRoles()
-  const edgeless = useApp((s) => !!s.edgeless[pageId]) && page?.kind !== 'database'
+  const choice = useApp((s) => s.edgeless)
+  const edgeless = showsCanvas(pageId, choice, roles) && page?.kind !== 'database'
   const notes = useMemo(() => (edgeless ? allNotes : allNotes.filter((n) => n.display !== 'edgeless')), [allNotes, edgeless])
   const editors = useRef(new Map<string, TiptapEditor>())
   const [editorCount, setEditorCount] = useState(0)
@@ -424,6 +426,11 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
       <div className={`note-scroll edgeless ${themed ? 'dnd-theme' : ''}`} ref={scrollRef}>
         {error && <div className="editor-error">Could not open this page: {error}</div>}
         {sync && <Canvas pageId={pageId} doc={sync.doc} notes={notes} host={host} spellcheck={spellcheck} onEditor={editorCallback} />}
+        {roles[pageId] === 'map' && page.parentId && (
+          <button className="az-canvas-btn" title="Bring in a world from Azgaar's Fantasy Map Generator" onClick={() => openAzgaarImport(page.parentId!)}>
+            <Globe size={14} /> Import Azgaar world
+          </button>
+        )}
         {emojiPicker}
       </div>
     )

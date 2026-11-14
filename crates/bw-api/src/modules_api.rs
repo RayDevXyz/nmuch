@@ -202,6 +202,15 @@ pub(crate) fn dispatch(
         }
         "dndThemedRoots" => ok(core.dnd_themed_roots().map_err(e)?),
         "dndRoles" => ok(core.dnd_roles().map_err(e)?),
+        "dndImportAzgaar" => {
+            #[derive(Deserialize)]
+            struct A {
+                id: String,
+                world: bw_core::azgaar::AzgaarWorld,
+            }
+            let A { id, world } = args(a)?;
+            ok(core.dnd_import_azgaar(&id, &world).map_err(e)?)
+        }
 
         // ---- calls from sandboxed modules
         "moduleCall" => {

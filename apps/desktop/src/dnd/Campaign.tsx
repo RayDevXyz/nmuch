@@ -1,4 +1,4 @@
-import { BookOpen, Compass, Flag, Map as MapIcon, Plus, ScrollText, Shield, Users } from 'lucide-react'
+import { BookOpen, Compass, Flag, Globe, Map as MapIcon, Plus, ScrollText, Shield, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { setValue, createRow } from '../database/api'
 import { RowProperties } from '../database/DatabaseView'
@@ -10,6 +10,7 @@ import { getState, setState, toast } from '../state/store'
 import { addBeats, dndCampaign, dndWorkspace, TEMPLATES, type Campaign, type Workspace } from './api'
 import { openCharacterWizard } from './CharacterWizard'
 import { openCompendium } from './Compendium'
+import { openAzgaarImport } from './AzgaarImport'
 
 const STATUS: { id: string; label: string }[] = [
   { id: 'planned', label: 'Planned' },
@@ -55,6 +56,9 @@ export function CampaignOverview({ campaignId }: { campaignId: string }) {
             </button>
             <button className="cp-link" onClick={() => openSoon(parts.sessions)}>
               <ScrollText size={15} /> Sessions
+            </button>
+            <button className="cp-link" title="Bring in a world from Azgaar's Fantasy Map Generator" onClick={() => openAzgaarImport(campaignId)}>
+              <Globe size={15} /> Import Azgaar world
             </button>
             <button className="cp-link" onClick={() => openCompendium()}>
               <BookOpen size={15} /> Compendium

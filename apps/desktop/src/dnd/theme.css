@@ -411,3 +411,26 @@ input.cs-stat-value:focus { outline: 1px solid var(--dnd-gold); }
 .fv-card em, .bw-prose .fv-card em { color: inherit; }
 .bw-prose .fv-card p, .bw-prose .fv-card li, .bw-prose .fv-card td { color: #2b2016; }
 .bw-prose .fv-card a.fv-link { color: #7a2a16; }
+
+/* ---------- Azgaar import ---------- */
+.fv-compendium.az { width: min(760px, calc(100% - 40px)); height: auto; max-height: 88vh; }
+.az-p { margin: 0 0 10px; color: var(--dnd-muted); font-size: 15.5px; line-height: 1.5; }
+.az-p.small { font-size: 14px; color: var(--dnd-faint); margin-top: 10px; }
+.az-p strong { color: #efe2c3; font-weight: 600; }
+.az-files { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.az-file { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 10px; text-align: center; cursor: pointer; border: 1px dashed #5a4a32; background: #17130e; color: var(--dnd-muted); font-family: var(--dnd-body); }
+.az-file:hover { border-color: var(--dnd-gold); color: var(--dnd-text); }
+.az-file.ok { border-style: solid; border-color: #6a8a4a; color: var(--dnd-text); }
+.az-file strong { font-family: var(--dnd-title); font-weight: 500; font-size: 13px; letter-spacing: 0.04em; }
+.az-file span { font-size: 13px; color: var(--dnd-faint); word-break: break-all; }
+.az-file img { max-width: 100%; max-height: 90px; object-fit: contain; border: 1px solid #3a3022; }
+.az-options { display: flex; flex-direction: column; gap: 8px; }
+.az-options label { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--dnd-text); }
+.az-options label > span { width: 110px; font-family: var(--dnd-title); font-size: 12px; letter-spacing: 0.06em; color: var(--dnd-gold); }
+.az-options select { flex: 1; height: 32px; background: #0e0b08; border: 1px solid var(--dnd-line); color: var(--dnd-text); font-family: var(--dnd-body); font-size: 15px; padding: 0 6px; }
+.az-check input { accent-color: #c9a45c; width: 15px; height: 15px; }
+.az-canvas-btn {
+  position: absolute; left: 14px; top: 12px; z-index: 6; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  border: 1px solid #6a5636; background: linear-gradient(180deg, #2a2219, #1d1812); color: #e9dec6; font-family: 'Cinzel', Georgia, serif; font-size: 12px; letter-spacing: 0.05em; cursor: pointer; box-shadow: var(--shadow);
+}
+.az-canvas-btn:hover { border-color: #c9a45c; color: #f3e2b5; }

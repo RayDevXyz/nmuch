@@ -113,6 +113,51 @@ Open **World map** from the campaign page (it opens as a canvas). Then:
 **Pins always show the page's current title.** A pinned page lists the map in its **backlinks**,
 and the map shows up in the **graph view** too.
 
+### A whole world from Azgaar's Fantasy Map Generator
+
+[Azgaar's Fantasy Map Generator](https://azgaar.github.io/Fantasy-Map-Generator/) builds entire
+worlds: continents, realms, cities, religions and landmarks with their own stories. BrainWaves can
+turn one into your campaign.
+
+**1. Make and export your world.** Shape it in the generator (the **Open the generator** button in
+the import window takes you there). Then, in its **Export** menu, save two files:
+- the map picture, **.png** (or .svg);
+- the world data, **JSON → Full** (Minimal works too).
+
+**2. Import it.** On the campaign page, or on the World map itself, press **Import Azgaar world**.
+Choose the JSON and the picture, choose which settlements to bring in, and press **Import world**.
+
+![Importing a world](images/dnd-azgaar-import.png)
+
+| In Azgaar | Becomes in the campaign |
+|---|---|
+| Realms (states) | **Locations** of kind *region*, with their form, capital, settlements and culture |
+| Settlements | **Locations** of kind *city* or *village*, with a **pin**. Capitals get gold pins. A city's page records its population, province, culture, religion and features (walls, citadel, temple, port), and links its region. |
+| Landmarks (markers) | **Locations** of kind *landmark*, with a purple pin and the generator's note as their text |
+| Religions | **Factions**, with their form and deity |
+| The picture | The World map's background, at the map's own size, with every pin at its exact spot |
+
+A big world has hundreds of settlements. **"Capitals, ports and the 60 largest"** keeps the
+Locations list useful; **All** brings in every hamlet.
+
+**3. Play.**
+- When zoomed out, only capital names show; zoom in for all of them.
+- Double-click any pin to open its page. Add NPCs there, link story beats, write about it: it's
+  an ordinary page.
+
+![The imported world](images/dnd-azgaar-map.png)
+
+**4. Change the world and import again.** Rename a city, move a border, add a landmark in Azgaar,
+then import again:
+- names, pin positions and the picture update in place;
+- new places are added;
+- pins of places you dropped are removed (their pages stay);
+- **nothing is duplicated, and nothing you wrote on those pages is touched.**
+
+The real test: I generated a world in the generator ("Bonyland": 23 realms, 730 settlements, 78
+landmarks, 27 religions), exported it, and imported it through the app. It produced 239
+locations, 216 pins and 27 factions in about two seconds. A second import changed nothing.
+
 ---
 
 ## 4. For players: characters
@@ -174,6 +219,15 @@ BrainWaves' module system (phase 6) runs the D&D module as a first-party module,
   party panel can show them.
 - **The 5etools address** is checked before it's saved: it must be http(s).
 
+**Azgaar import (`crates/bw-core/src/azgaar.rs`, `apps/desktop/src/dnd/azgaar.ts`)**
+- **The app reads the export.** It can be tens of megabytes of terrain, so the app keeps only the
+  states, settlements, markers and religions it needs. It handles both the newer format (marker
+  notes on the marker, terrain cells as a list) and the older one.
+- **The core creates or updates the rows.** Each one remembers its Azgaar id (`dnd.azgaar`,
+  e.g. `burg:12`). The core places the picture and pins with fixed element ids, so re-imports
+  replace rather than duplicate.
+- **Generated text only goes onto new pages.**
+
 **Canvas (`crates/bw-core/src/surface.rs`)**
 - **`image` elements** keep their picture in the page. The search index records only that there
   is one.
@@ -213,6 +267,7 @@ BrainWaves' module system (phase 6) runs the D&D module as a first-party module,
 | Templates add a planned arc | An unknown template is refused. |
 | Characters keep a sheet and join a party | Headline values are copied into the columns and follow damage. Only character pages take a sheet. Theming finds campaigns and characters. There is one Campaigns/Characters pair per workspace. |
 | The 5etools address is checked | `file:` and `javascript:` addresses are refused. |
+| An Azgaar world becomes locations, factions and pins, and re-imports in place | Regions are linked from their cities, pins are placed at their map spot, and points off the map are skipped. On re-import, notes you wrote survive, renamed places update, and a dropped place loses its pin. A map without a size is refused. |
 | Map pins and images | Pins make backlinks and are searchable. The picture stays out of the index. Bad images and pins without a page are refused. |
 
 **Browser (scripted, against a small 5etools-format site I built from the free SRD content)**
@@ -233,6 +288,8 @@ BrainWaves' module system (phase 6) runs the D&D module as a first-party module,
   Tradition* appears.
 - **World map:** picture, two pins (an existing page and a new one), a route between them,
   backlinks, opening a pin.
+- **A real Azgaar export** (generated and exported from the live generator): import, a re-import,
+  labels when zoomed out and in.
 - **A monster card** in a campaign page; adding a spell from the compendium.
 - **Persistence:** everything is still there after a reload.
 - **No console errors.**

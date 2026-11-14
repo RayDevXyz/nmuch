@@ -327,3 +327,77 @@ fn an_azgaar_world_becomes_locations_factions_and_pins_and_reimports_in_place() 
     world.width = 0.0;
     assert!(core.dnd_import_azgaar(&c.id, &world).is_err());
 }
+
+#[test]
+fn scenes_hold_grid_and_fog_and_tokens_link_their_creatures() {
+    let mut core = Core::open_in_memory().unwrap();
+    let c = core.dnd_create_campaign("Table").unwrap();
+    let scene = core.dnd_create_scene(&c.id, "Goblin ambush").unwrap();
+    assert_eq!(core.dnd_scenes(&c.id).unwrap(), vec![scene.clone()]);
+    let s = core.dnd_scene(&scene).unwrap();
+    assert_eq!(
+        (s["grid"]["size"].clone(), s["fog"].clone()),
+        (json!(70), json!(true))
+    );
+    let s = core
+        .dnd_set_scene(
+            &scene,
+            json!({ "grid": { "size": 50, "show": true }, "room": "ABCD1234" }),
+        )
+        .unwrap();
+    assert_eq!(
+        (
+            s["grid"]["size"].clone(),
+            s["room"].clone(),
+            s["fog"].clone()
+        ),
+        (json!(50), json!("ABCD1234"), json!(true))
+    );
+    assert!(core
+        .dnd_set_scene(&scene, json!({ "grid": { "size": 2 } }))
+        .is_err());
+    assert!(core.dnd_scene(&c.id).is_err(), "a campaign is not a scene");
+
+    let hero = core
+        .dnd_create_character(
+            "Maho",
+            json!({ "hp": { "current": 7, "max": 7 } }),
+            Some(&c.id),
+        )
+        .unwrap();
+    core.transact(&scene, |t| {
+        t.set_element("tok", json!({ "type": "token", "xywh": [70, 70, 70, 70], "text": "Maho", "page": hero, "hidden": false }))?;
+        t.set_element("gob", json!({ "type": "token", "xywh": [210, 70, 70, 70], "text": "Goblin", "hidden": true }))?;
+        t.set_element("fog1", json!({ "type": "reveal", "xywh": [0, 0, 350, 280], "points": [[0, 0], [350, 0], [350, 280]] }))
+    })
+    .unwrap();
+    assert_eq!(
+        core.backlinks(&hero).unwrap()[0].page_id,
+        scene,
+        "a token links its character"
+    );
+    assert!(core
+        .transact(&scene, |t| t.set_element(
+            "x",
+            json!({ "type": "reveal", "xywh": [0, 0, 1, 1], "points": [[0, 0]] })
+        ))
+        .is_err());
+    assert!(core
+        .transact(&scene, |t| t.set_element(
+            "y",
+            json!({ "type": "token", "xywh": [0, 0, 1, 1], "hidden": "yes" })
+        ))
+        .is_err());
+
+    assert_eq!(core.dnd_table().unwrap(), None);
+    assert!(core.dnd_set_table("ftp://x", "longenoughkey").is_err());
+    assert!(core
+        .dnd_set_table("http://192.168.1.10:8090", "short")
+        .is_err());
+    core.dnd_set_table("http://192.168.1.10:8090/", "my-secret-dm-key")
+        .unwrap();
+    assert_eq!(
+        core.dnd_table().unwrap().unwrap()["server"],
+        json!("http://192.168.1.10:8090")
+    );
+}

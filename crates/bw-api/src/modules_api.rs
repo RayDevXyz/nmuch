@@ -87,6 +87,7 @@ struct DndArgs {
     template: String,
     arc: String,
     sheet: Value,
+    key: String,
 }
 
 /// Open a file in its default app. Failing to (no desktop, say) isn't an error for the caller:
@@ -202,6 +203,27 @@ pub(crate) fn dispatch(
         }
         "dndThemedRoots" => ok(core.dnd_themed_roots().map_err(e)?),
         "dndRoles" => ok(core.dnd_roles().map_err(e)?),
+        "dndCreateScene" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_create_scene(&d.id, &d.title).map_err(e)?)
+        }
+        "dndScene" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_scene(&d.id).map_err(e)?)
+        }
+        "dndSetScene" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_set_scene(&d.id, d.sheet).map_err(e)?)
+        }
+        "dndScenes" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_scenes(&d.id).map_err(e)?)
+        }
+        "dndTable" => ok(core.dnd_table().map_err(e)?),
+        "dndSetTable" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_set_table(&d.url, &d.key).map_err(e)?)
+        }
         "dndImportAzgaar" => {
             #[derive(Deserialize)]
             struct A {

@@ -30,6 +30,11 @@ pub const MODULE_ID: &str = "brainwaves.dnd";
 const ROLE: &str = "dnd.role";
 const SHEET: &str = "dnd.sheet";
 const PARTS: &str = "dnd.parts";
+const SCENE: &str = "dnd.scene";
+
+fn default_scene() -> Value {
+    json!({ "grid": { "size": 70, "offsetX": 0, "offsetY": 0, "show": true, "color": "#000000", "opacity": 0.35, "feet": 5 }, "fog": true, "room": null })
+}
 
 pub fn manifest() -> ModuleManifest {
     ModuleManifest {
@@ -734,6 +739,127 @@ impl Core {
                     .map(|role| (id, role))
             })
             .collect())
+    }
+
+    // ---- battle maps (scenes) and the table server
+
+    /// A battle map: a page under the campaign shown as a canvas, with grid and fog settings.
+    pub fn dnd_create_scene(&mut self, campaign: &str, title: &str) -> Result<PageId> {
+        self.dnd_campaign(campaign)?;
+        let title = if title.trim().is_empty() {
+            "New scene"
+        } else {
+            title.trim()
+        };
+        let id = self.create_page(PageMeta {
+            title: title.into(),
+            icon: "⚔️".into(),
+            parent_id: Some(campaign.to_string()),
+            ..Default::default()
+        })?;
+        self.module_set_props(
+            MODULE_ID,
+            &id,
+            &BTreeMap::from([
+                (ROLE.to_string(), json!("scene")),
+                ("dnd.campaign".to_string(), json!(campaign)),
+                (SCENE.to_string(), default_scene()),
+            ]),
+        )?;
+        self.transact(&id, |t| {
+            let note = t.first_note()?;
+            t.set_note_layout(&note, Some([-800.0, 0.0, 720.0, 80.0]), None)
+        })?;
+        Ok(id)
+    }
+
+    /// A scene's settings (grid, fog, the live room).
+    pub fn dnd_scene(&mut self, id: &str) -> Result<Value> {
+        let props = self.module_props(MODULE_ID, id)?;
+        if props.get(ROLE).and_then(|v| v.as_str()) != Some("scene") {
+            return Err(Error::Invalid(format!("{id} is not a scene")));
+        }
+        let mut s = default_scene();
+        if let (Some(obj), Some(Value::Object(stored))) = (s.as_object_mut(), props.get(SCENE)) {
+            for (k, v) in stored {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+        Ok(s)
+    }
+
+    pub fn dnd_set_scene(&mut self, id: &str, settings: Value) -> Result<Value> {
+        let mut s = self.dnd_scene(id)?;
+        let Value::Object(patch) = settings else {
+            return Err(Error::Invalid("scene settings are a JSON object".into()));
+        };
+        if let Some(g) = patch
+            .get("grid")
+            .and_then(|g| g.get("size"))
+            .and_then(|v| v.as_f64())
+        {
+            if !(8.0..=500.0).contains(&g) {
+                return Err(Error::Invalid("grid size must be 8–500".into()));
+            }
+        }
+        if let Some(obj) = s.as_object_mut() {
+            for (k, v) in patch {
+                obj.insert(k, v);
+            }
+        }
+        self.module_set_props(
+            MODULE_ID,
+            id,
+            &BTreeMap::from([(SCENE.to_string(), s.clone())]),
+        )?;
+        Ok(s)
+    }
+
+    /// The scenes of a campaign.
+    pub fn dnd_scenes(&self, campaign: &str) -> Result<Vec<PageId>> {
+        let scenes = self.pages_with_prop(ROLE, &json!("scene"))?;
+        let mine: std::collections::BTreeSet<PageId> = self
+            .pages_with_prop("dnd.campaign", &json!(campaign))?
+            .into_iter()
+            .collect();
+        Ok(scenes.into_iter().filter(|s| mine.contains(s)).collect())
+    }
+
+    /// Where the table server runs and the DM key for it (kept in this workspace only).
+    pub fn dnd_set_table(&mut self, server: &str, key: &str) -> Result<()> {
+        let server = server.trim().trim_end_matches('/');
+        if !(server.starts_with("http://") || server.starts_with("https://"))
+            || server.contains(char::is_whitespace)
+        {
+            return Err(Error::Invalid(format!(
+                "{server:?} is not an http(s) address"
+            )));
+        }
+        if key.trim().len() < 8 {
+            return Err(Error::Invalid("the DM key is at least 8 characters".into()));
+        }
+        self.conn().execute(
+            "DELETE FROM module_grants WHERE module_id = ?1 AND kind = 'table'",
+            [MODULE_ID],
+        )?;
+        self.conn().execute(
+            "INSERT INTO module_grants(module_id, kind, value, granted_at) VALUES (?1, 'table', ?2, ?3)",
+            rusqlite::params![MODULE_ID, json!({ "server": server, "key": key.trim() }).to_string(), crate::store::now_millis()],
+        )?;
+        Ok(())
+    }
+
+    pub fn dnd_table(&self) -> Result<Option<Value>> {
+        use rusqlite::OptionalExtension;
+        let v: Option<String> = self
+            .conn()
+            .query_row(
+                "SELECT value FROM module_grants WHERE module_id = ?1 AND kind = 'table'",
+                [MODULE_ID],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(v.and_then(|s| serde_json::from_str(&s).ok()))
     }
 
     /// Pages that get the campaign look: the D&D databases and every campaign's and character's

@@ -12,6 +12,8 @@
 //! | `frame`     | `xywh`, `text` (the frame's title), `fill`                               |
 //! | `image`     | `xywh`, `src` (a `data:image/…` URL, e.g. a world map)                   |
 //! | `pin`       | `xywh`, `page` (the page it marks), `text` (its label), `icon`           |
+//! | `token`     | `xywh`, `text` (name), `page` (character/NPC/monster page), `hidden` (DM only), `hp`, `maxHp`, `ac`, `color`, `owner` |
+//! | `reveal`    | `xywh` (its bounds), optional `points` (a polygon): an area cleared of fog |
 //!
 //! Every element also has `id`, `type` and `index`, a fractional key for the stacking order
 //! (and the order frames are presented in). Fields this version doesn't know are kept as they
@@ -31,7 +33,16 @@ use crate::doc::to_json;
 use crate::error::{Error, Result};
 use crate::schema::keys;
 
-pub const TYPES: [&str; 6] = ["shape", "text", "connector", "frame", "image", "pin"];
+pub const TYPES: [&str; 8] = [
+    "shape",
+    "text",
+    "connector",
+    "frame",
+    "image",
+    "pin",
+    "token",
+    "reveal",
+];
 
 /// Largest image an element may hold (as a data URL).
 pub const MAX_IMAGE: usize = 16 * 1024 * 1024;
@@ -120,6 +131,21 @@ pub fn validate(id: &str, element: Value) -> Result<BTreeMap<String, Value>> {
             .is_some_and(|p| !p.is_empty())
     {
         return Err(bad(id, "a pin needs the page it marks"));
+    }
+    if kind == "token" && fields.get("hidden").is_some_and(|h| !h.is_boolean()) {
+        return Err(bad(id, "a token's hidden is true or false"));
+    }
+    if kind == "reveal" {
+        if let Some(points) = fields.get("points") {
+            let ok = matches!(points, Value::Array(p) if p.len() >= 3 && p.len() <= 4000
+                && p.iter().all(|pt| matches!(pt, Value::Array(xy) if xy.len() == 2 && xy.iter().all(|n| n.as_f64().is_some_and(f64::is_finite)))));
+            if !ok {
+                return Err(bad(
+                    id,
+                    "a revealed area's points are 3 to 4000 [x, y] pairs",
+                ));
+            }
+        }
     }
     if fields.get(keys::EL_TEXT).is_some_and(|t| !t.is_string()) {
         return Err(bad(id, "text must be a string"));

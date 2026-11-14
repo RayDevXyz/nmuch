@@ -35,6 +35,16 @@ docker compose up -d --build
 docker compose logs table                             # shows the address and the DM key
 ```
 
+On Windows (PowerShell), make the `.env` file this way instead: PowerShell's `>` saves it as
+UTF-16, which Docker Compose can't read (`unexpected character "�" in variable name`).
+
+```powershell
+cd deploy\table
+$key = -join ((1..32) | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) })
+[IO.File]::WriteAllText("$PWD\.env", "BW_TABLE_DM_KEY=$key`n")
+docker compose up -d --build
+```
+
 The table listens on port **8090**. Rooms and map pictures live in the `table-data` Docker
 volume, so they survive restarts and upgrades. To upgrade, `git pull` and run
 `docker compose up -d --build` again.

@@ -1,0 +1,8 @@
+target
+**/node_modules
+.git
+apps/desktop/dist
+**/*.db
+**/*.db-wal
+**/*.db-shm
+deploy/table/table-data

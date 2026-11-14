@@ -36,8 +36,12 @@
     <button data-tool="move" title="Drag your character to where they should go; the DM accepts or declines">➜<span>Move</span></button>
   </nav>
   <aside class="side">
+    <section class="panel" id="chars-panel">
+      <h2>Characters</h2>
+      <div id="chars"></div>
+    </section>
     <section class="panel">
-      <h2>Your character</h2>
+      <h2>On the map</h2>
       <div id="claim"></div>
       <p id="pending" class="pending" hidden></p>
     </section>
@@ -59,6 +63,13 @@
   </aside>
   <div id="toast" class="toast" hidden></div>
 </section>
+<div id="modal" class="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true">
+    <button id="modal-close" class="modal-close" aria-label="Close">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
 <script src="/assets/table.js"></script>
+<script src="/assets/characters.js"></script>
 </body>
 </html>

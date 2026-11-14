@@ -219,3 +219,64 @@ async fn pictures_are_stored_and_rooms_survive_a_restart() {
     assert!(body.contains("Join the table"));
     assert_eq!(http(&addr2, "GET", "/assets/table.js", None, "").await.0, 200);
 }
+
+#[tokio::test]
+async fn players_submit_characters_the_dm_approves_or_sends_back() {
+    let data = temp();
+    let (addr, state) = start(&data).await;
+    let code = room(&addr).await;
+    let mut dm = join(&addr, &code, &format!("key={KEY}")).await;
+    assert!(next(&mut dm, "welcome").await.is_some());
+    send(&mut dm, json!({ "t": "rules", "rules": { "level": 1, "races": [{ "name": "Dwarf", "source": "PHB" }] } })).await;
+
+    let pid = "AbCdEfGhIjKlMnOpQr12";
+    let mut p = join(&addr, &code, &format!("name=Mira&pid={pid}")).await;
+    let w = next(&mut p, "welcome").await.unwrap();
+    assert_eq!(w["rules"]["races"][0]["name"], "Dwarf", "players get the rules");
+    assert_eq!(w["submissions"], json!([]));
+
+    // Without a name it's refused; with one, the DM gets it (without the player's browser id).
+    send(&mut p, json!({ "t": "submit", "character": { "race": "Dwarf" } })).await;
+    assert!(next(&mut p, "error").await.unwrap()["message"].as_str().unwrap().contains("name"));
+    send(&mut p, json!({ "t": "submit", "character": { "name": "Thorin", "race": "Dwarf", "class": "Fighter" } })).await;
+    let sub = next(&mut dm, "submission").await.unwrap()["submission"].clone();
+    assert_eq!(sub["player"], "Mira");
+    assert_eq!(sub["status"], "pending");
+    assert!(sub.get("pid").is_none(), "player ids stay on the server");
+    let sid = sub["id"].as_str().unwrap().to_string();
+    let mine = next_where(&mut p, "submissions", |v| v["submissions"][0]["status"] == "pending").await.unwrap();
+    assert_eq!(mine["submissions"].as_array().unwrap().len(), 1);
+
+    // Sent back with a note; the player edits and resubmits the same one.
+    send(&mut dm, json!({ "t": "review", "id": sid, "approve": false, "note": "No dwarves in the elven court" })).await;
+    let back = next_where(&mut p, "submissions", |v| v["submissions"][0]["status"] == "returned").await.unwrap();
+    assert_eq!(back["submissions"][0]["note"], "No dwarves in the elven court");
+    send(&mut p, json!({ "t": "submit", "id": sid, "character": { "name": "Thorin", "race": "Elf", "class": "Fighter" } })).await;
+    let again = next(&mut dm, "submission").await.unwrap()["submission"].clone();
+    assert_eq!(again["id"], json!(sid), "a resubmission replaces the old one");
+
+    // A stranger can't touch it.
+    let mut other = join(&addr, &code, "name=Eve&pid=ZZZZZZZZZZZZZZZZZZZZ").await;
+    send(&mut other, json!({ "t": "withdraw", "id": sid })).await;
+    let w2 = next(&mut other, "welcome").await.unwrap();
+    assert_eq!(w2["submissions"], json!([]), "others don't see it");
+
+    // Approved: the DM made the character; it's the player's in the party.
+    send(&mut dm, json!({ "t": "review", "id": sid, "approve": true, "characterId": "char-1" })).await;
+    send(&mut dm, json!({ "t": "party", "party": [{ "id": "char-1", "name": "Thorin", "sheet": { "level": 1 } }, { "id": "char-2", "name": "Elara" }] })).await;
+    let party = next_where(&mut p, "party", |v| v["party"].as_array().is_some_and(|a| a.len() == 2)).await.unwrap();
+    assert_eq!(party["party"][0]["mine"], true);
+    assert_eq!(party["party"][1]["mine"], false);
+    let theirs = next_where(&mut other, "party", |v| v["party"].as_array().is_some_and(|a| a.len() == 2)).await.unwrap();
+    assert_eq!(theirs["party"][0]["mine"], false);
+
+    // It survives a restart, and the player finds their character again by their browser id.
+    state.save();
+    let (addr2, _) = start(&data).await;
+    let mut p2 = join(&addr2, &code, &format!("name=Mira&pid={pid}")).await;
+    let w3 = next(&mut p2, "welcome").await.unwrap();
+    assert_eq!(w3["party"][0]["mine"], true);
+    assert_eq!(w3["submissions"][0]["status"], "approved");
+    assert_eq!(w3["submissions"][0]["characterId"], "char-1");
+    std::fs::remove_dir_all(&data).ok();
+}

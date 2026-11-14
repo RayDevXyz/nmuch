@@ -44,6 +44,8 @@ export interface Sheet {
   currency: { cp: number; sp: number; ep: number; gp: number; pp: number }
   /** Short status lines, like "Well rested". */
   status: string[]
+  /** Who they are, in the player's words (from the table site, say). */
+  backstory?: string
 }
 
 export type Progression = 'full' | '1/2' | '1/3' | 'pact' | 'artificer'

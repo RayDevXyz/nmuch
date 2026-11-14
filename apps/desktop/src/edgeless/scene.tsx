@@ -1,9 +1,10 @@
-import { Check, Copy, Dices, Eye, EyeOff, Radio, Search, Skull, Swords, Unplug, User, X } from 'lucide-react'
+import { Check, Dices, Eye, EyeOff, Radio, Search, Skull, Swords, User, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
 import { charactersDb, getRoles, getSheet } from '../dnd/api'
 import { search, type Entry } from '../dnd/fivee'
-import { getScene, getTable, setScene, setTable, useLive, type Initiative, type Live, type MoveRequest, type SceneSettings } from '../dnd/live'
+import { LiveSection, SubmissionsSection } from '../dnd/TablePanel'
+import { getScene, setScene, useLive, type Initiative, type Live, type MoveRequest, type SceneSettings } from '../dnd/live'
 import { toast, useApp } from '../state/store'
 import { addElement, COLORS, deleteItems, updateElements, type Element, type Rect, type TokenEl, type XYWH } from './model'
 
@@ -115,8 +116,10 @@ export function SceneUnder({ elements, settings, selected }: { elements: Element
 }
 
 /** Tokens, and what's happening at the table: pings, drawings, move requests. */
-export function SceneOver({ elements, live, selected }: { elements: Element[]; live: Live | null; selected: Set<string> }) {
-  const state = useLive(live)
+export function SceneOver({ elements, live, selected, pageId }: { elements: Element[]; live: Live | null; selected: Set<string>; pageId: string }) {
+  const liveState = useLive(live)
+  // Pings, drawings and requests belong to the map players see.
+  const state = liveState.showing === pageId ? liveState : { ...liveState, requests: [], pings: [], drawings: [] }
   const tokens = elements.filter((e): e is TokenEl => e.type === 'token')
   const byId = new Map(tokens.map((t) => [t.id, t]))
   return (
@@ -326,8 +329,10 @@ export function ScenePanel({
   selected,
   onSelect,
   live,
+  onShow,
 }: {
   pageId: string
+  onShow: () => void
   doc: Y.Doc
   elements: Element[]
   settings: SceneSettings
@@ -337,10 +342,12 @@ export function ScenePanel({
   live: Live
 }) {
   const [open, setOpen] = useState(true)
-  const state = useLive(live)
+  const liveState = useLive(live)
+  const state = liveState.showing === pageId ? liveState : { ...liveState, requests: [] }
   const tokens = elements.filter((e): e is TokenEl => e.type === 'token')
   const picked = tokens.filter((t) => selected.includes(t.id))
   const title = useApp((s) => s.pages[pageId]?.title) || 'Battle map'
+  const campaignTitle = useApp((s) => s.pages[live.campaignId]?.title)
 
   if (!open)
     return (
@@ -367,7 +374,8 @@ export function ScenePanel({
           <X size={14} />
         </button>
       </header>
-      <LiveSection live={live} title={title} />
+      <LiveSection live={live} title={campaignTitle || title} sceneId={pageId} onShow={onShow} />
+      <SubmissionsSection live={live} campaignId={live.campaignId} />
       {state.requests.length > 0 && (
         <section className="sc-sec">
           <h3>Move requests</h3>
@@ -395,96 +403,6 @@ export function ScenePanel({
       <DiceSection live={live} />
       <MapSection doc={doc} elements={elements} settings={settings} onSettings={onSettings} />
     </aside>
-  )
-}
-
-function LiveSection({ live, title }: { live: Live; title: string }) {
-  const state = useLive(live)
-  const [table, setTableState] = useState<{ server: string; key: string } | null | undefined>(undefined)
-  const [editing, setEditing] = useState(false)
-  const [server, setServer] = useState('')
-  const [key, setKey] = useState('')
-  useEffect(() => {
-    void getTable().then(
-      (t) => (setTableState(t), setServer(t?.server ?? 'http://'), setKey(t?.key ?? '')),
-      () => setTableState(null),
-    )
-  }, [])
-  const save = async () => {
-    try {
-      await setTable(server, key)
-      setTableState({ server: server.trim().replace(/\/+$/, ''), key })
-      setEditing(false)
-    } catch (e) {
-      toast(String(e).replace(/^Error:\s*/, ''))
-    }
-  }
-  if (table === undefined) return null
-  if (!table || editing)
-    return (
-      <section className="sc-sec">
-        <h3>Table server</h3>
-        <p className="sc-hint">Where your table runs (see the Docker setup in docs/table.md) and its DM key.</p>
-        <input className="sc-input" placeholder="http://192.168.1.20:8090" value={server} onChange={(e) => setServer(e.target.value)} />
-        <input className="sc-input" type="password" placeholder="DM key" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} />
-        <div className="sc-row">
-          <button className="sc-btn gold" onClick={() => void save()}>
-            Save
-          </button>
-          {table && (
-            <button className="sc-btn" onClick={() => setEditing(false)}>
-              Cancel
-            </button>
-          )}
-        </div>
-      </section>
-    )
-  const on = state.status === 'live' || state.status === 'connecting'
-  return (
-    <section className="sc-sec">
-      <div className="sc-live-row">
-        <span className={`sc-dot ${state.status}`} />
-        <span className="sc-live-label">{state.status === 'live' ? 'Live' : state.status === 'connecting' ? 'Connecting…' : state.status === 'error' ? 'Not connected' : 'Not live'}</span>
-        {on ? (
-          <button className="sc-btn" onClick={() => live.end()}>
-            <Unplug size={13} /> End
-          </button>
-        ) : (
-          <button className="sc-btn gold" onClick={() => void live.start(table, title).catch(() => {})}>
-            <Radio size={13} /> Go live
-          </button>
-        )}
-      </div>
-      {state.error && <p className="sc-error">{state.error}</p>}
-      {state.joinUrl && (
-        <div className="sc-join">
-          <code>{state.joinUrl}</code>
-          <button
-            className="sc-icon"
-            title="Copy the link for your players"
-            onClick={() => void navigator.clipboard.writeText(state.joinUrl!).then(() => toast('Join link copied'), () => toast(state.joinUrl!))}
-          >
-            <Copy size={13} />
-          </button>
-        </div>
-      )}
-      {state.status === 'live' && (
-        <p className="sc-players">
-          {state.players.length === 0 ? (
-            <span className="muted-text">No players yet: send them the link.</span>
-          ) : (
-            state.players.map((p) => (
-              <span key={p.id} className="sc-player">
-                <i style={{ background: p.color }} /> {p.name}
-              </span>
-            ))
-          )}
-        </p>
-      )}
-      <button className="sc-link" onClick={() => setEditing(true)}>
-        Table server: {table.server}
-      </button>
-    </section>
   )
 }
 

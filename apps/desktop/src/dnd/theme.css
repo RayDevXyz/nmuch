@@ -532,3 +532,34 @@ input.cs-stat-value:focus { outline: 1px solid var(--dnd-gold); }
 .sc-rolls small { display: block; color: #85765c; font-size: 12px; }
 .sc-rolls em { color: #85765c; }
 .cv-root.tool-token, .cv-root.tool-reveal { cursor: crosshair; }
+
+/* ---- the players' table: characters to review, rules */
+.cp-table .sc-sec { padding: 8px 0; border-bottom: 1px solid #3a3022; color: var(--dnd-text); font-family: var(--dnd-body); font-size: 14.5px; }
+.cp-table .sc-sec:last-child { border-bottom: 0; }
+.sc-showing { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: #b3a385; font-size: 13.5px; }
+.sc-showing span { flex: 1; }
+.sc-sub { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 8px; border: 1px solid #4a3e2d; background: rgba(201, 164, 92, 0.08); color: #e9dec6; text-align: left; font: inherit; cursor: pointer; }
+.sc-sub:hover { border-color: #c9a45c; }
+.sc-sub b { font-family: var(--dnd-title, serif); font-weight: 500; letter-spacing: 0.04em; color: #e3c27a; }
+.sc-sub span { font-size: 13px; color: #b3a385; }
+.sc-sources { display: flex; flex-wrap: wrap; gap: 4px; }
+.sc-chip { height: 24px; padding: 0 8px; border: 1px solid #4a3e2d; background: transparent; color: #85765c; font-family: var(--dnd-title, serif); font-size: 11px; letter-spacing: 0.05em; cursor: pointer; }
+.sc-chip.on { border-color: #c9a45c; color: #e3c27a; background: rgba(201, 164, 92, 0.12); }
+.sc-note { height: auto; padding: 6px 8px; resize: vertical; font-family: var(--dnd-body, serif); }
+.sc-modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 16px; background: rgba(8, 6, 4, 0.7); }
+.sc-modal-card { position: relative; width: min(560px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; padding: 20px 22px; background: linear-gradient(180deg, #221c15, #17130e); border: 1px solid #4a3e2d; box-shadow: inset 0 0 0 4px #17130e, inset 0 0 0 5px #3d3324, 0 30px 80px rgba(0, 0, 0, 0.6); color: #e9dec6; font-family: var(--dnd-body, serif); font-size: 15px; display: flex; flex-direction: column; gap: 8px; }
+.sc-modal-card h2 { margin: 0; font-family: var(--dnd-title, serif); font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: #e3c27a; font-size: 20px; }
+.sc-modal-x { position: absolute; right: 10px; top: 10px; }
+.sc-review-line { margin: 0; }
+.sc-issues { padding: 6px 10px; border-left: 2px solid #c0573a; background: rgba(192, 87, 58, 0.1); }
+.sc-issues p { margin: 2px 0; display: flex; gap: 6px; align-items: baseline; color: #e9a58f; font-size: 14px; }
+.sc-ok { margin: 0; display: flex; gap: 6px; align-items: center; color: #8fb06a; }
+.sc-review-abs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.sc-review-abs div { display: flex; flex-direction: column; align-items: center; padding: 5px 2px; border: 1px solid #3a3022; background: #1b1611; }
+.sc-review-abs small { font-family: var(--dnd-title, serif); font-size: 10px; letter-spacing: 0.08em; color: #c9a45c; text-transform: uppercase; }
+.sc-review-abs b { font-family: var(--dnd-title, serif); font-size: 18px; color: #e3c27a; }
+.sc-review-abs span { font-size: 12.5px; color: #b3a385; }
+.sc-backstory { margin: 0; padding: 6px 12px; border-left: 2px solid #c9a45c; color: #d6c9ad; font-style: italic; white-space: pre-wrap; }
+.sc-review-actions { justify-content: flex-end; }
+.cs-backstory { margin-top: 12px; }
+.cs-backstory p { margin: 4px 0 0; white-space: pre-wrap; }

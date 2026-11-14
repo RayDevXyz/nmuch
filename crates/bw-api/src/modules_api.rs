@@ -220,6 +220,14 @@ pub(crate) fn dispatch(
             ok(core.dnd_scenes(&d.id).map_err(e)?)
         }
         "dndTable" => ok(core.dnd_table().map_err(e)?),
+        "dndCampaignTable" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_campaign_table(&d.id).map_err(e)?)
+        }
+        "dndSetCampaignTable" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_set_campaign_table(&d.id, d.sheet).map_err(e)?)
+        }
         "dndSetTable" => {
             let d: DndArgs = args(a)?;
             ok(core.dnd_set_table(&d.url, &d.key).map_err(e)?)

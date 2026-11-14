@@ -1,4 +1,4 @@
-import { BookOpen, Compass, Flag, Globe, Map as MapIcon, Plus, ScrollText, Shield, Swords, Users } from 'lucide-react'
+import { BookOpen, Compass, Flag, Globe, Map as MapIcon, Plus, Radio, ScrollText, Shield, Swords, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { setValue, createRow } from '../database/api'
 import { RowProperties } from '../database/DatabaseView'
@@ -7,7 +7,8 @@ import type { Row } from '../database/types'
 import { uid } from '../lib/id'
 import { openPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
-import { createScene, listScenes } from './live'
+import { createScene, listScenes, liveFor } from './live'
+import { LiveSection, RulesSection, SubmissionsSection } from './TablePanel'
 import { addBeats, dndCampaign, dndWorkspace, TEMPLATES, type Campaign, type Workspace } from './api'
 import { openCharacterWizard } from './CharacterWizard'
 import { openCompendium } from './Compendium'
@@ -70,6 +71,7 @@ export function CampaignOverview({ campaignId }: { campaignId: string }) {
             <Story campaignId={campaignId} beatsDb={parts.beats} />
             <Sessions db={parts.sessions} />
             <BattleMaps campaignId={campaignId} />
+            <PlayersTable campaignId={campaignId} title={c.title} />
           </div>
         </>
       )}
@@ -294,6 +296,21 @@ function BattleMaps({ campaignId }: { campaignId: string }) {
           </li>
         ))}
       </ul>
+    </Panel>
+  )
+}
+
+/** The campaign's table: one link for the players, the characters they submit, the rules. */
+function PlayersTable({ campaignId, title }: { campaignId: string; title: string }) {
+  const live = liveFor(campaignId)
+  return (
+    <Panel title="Players' table" icon={<Radio size={14} />}>
+      <p className="cp-empty">Players join with one link for the whole campaign. They build characters there for you to approve, and see the battle map you show.</p>
+      <div className="cp-table">
+        <LiveSection live={live} title={title} />
+        <SubmissionsSection live={live} campaignId={campaignId} />
+        <RulesSection live={live} campaignId={campaignId} />
+      </div>
     </Panel>
   )
 }

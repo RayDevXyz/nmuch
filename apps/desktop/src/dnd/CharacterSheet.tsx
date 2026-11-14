@@ -206,6 +206,12 @@ export function CharacterSheet({ pageId, editable = true }: { pageId: string; ed
             {tab === 'inventory' && <Inventory sheet={s} update={update} editable={editable} />}
           </div>
         </div>
+        {s.backstory && (
+          <div className="cs-parchment cs-backstory">
+            <div className="cs-parch-title">✦ Backstory</div>
+            <p>{s.backstory}</p>
+          </div>
+        )}
       </div>
     </OpenRef.Provider>
   )

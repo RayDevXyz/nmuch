@@ -30,6 +30,7 @@ pub const MODULE_ID: &str = "brainwaves.dnd";
 const ROLE: &str = "dnd.role";
 const SHEET: &str = "dnd.sheet";
 const PARTS: &str = "dnd.parts";
+const CAMPAIGN_TABLE: &str = "dnd.table";
 const SCENE: &str = "dnd.scene";
 
 fn default_scene() -> Value {
@@ -786,6 +787,45 @@ impl Core {
             }
         }
         Ok(s)
+    }
+
+    /// A campaign's table: its room on the table server (one link for the whole campaign) and
+    /// the rules players build characters by.
+    pub fn dnd_campaign_table(&mut self, id: &str) -> Result<Value> {
+        let w = self.dnd_workspace()?;
+        if self.snapshot(id)?.meta.database_id.as_deref() != Some(w.campaigns.as_str()) {
+            return Err(Error::Invalid(format!("{id} is not a campaign")));
+        }
+        let props = self.module_props(MODULE_ID, id)?;
+        let mut t = json!({
+            "room": null,
+            "rules": { "level": 1, "method": "any", "sources": null, "note": "", "open": true },
+        });
+        if let (Some(obj), Some(Value::Object(stored))) = (t.as_object_mut(), props.get(CAMPAIGN_TABLE)) {
+            for (k, v) in stored {
+                obj.insert(k.clone(), v.clone());
+            }
+        }
+        Ok(t)
+    }
+
+    pub fn dnd_set_campaign_table(&mut self, id: &str, patch: Value) -> Result<Value> {
+        let mut t = self.dnd_campaign_table(id)?;
+        let Value::Object(patch) = patch else {
+            return Err(Error::Invalid("table settings are a JSON object".into()));
+        };
+        if let Some(level) = patch.get("rules").and_then(|r| r.get("level")) {
+            if !level.as_u64().is_some_and(|l| (1..=20).contains(&l)) {
+                return Err(Error::Invalid("the starting level is 1–20".into()));
+            }
+        }
+        if let Some(obj) = t.as_object_mut() {
+            for (k, v) in patch {
+                obj.insert(k, v);
+            }
+        }
+        self.module_set_props(MODULE_ID, id, &BTreeMap::from([(CAMPAIGN_TABLE.to_string(), t.clone())]))?;
+        Ok(t)
     }
 
     pub fn dnd_set_scene(&mut self, id: &str, settings: Value) -> Result<Value> {

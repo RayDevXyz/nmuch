@@ -5,7 +5,7 @@ import type * as Y from 'yjs'
 import type { NoteRef } from '../lib/core/page-sync'
 import { openPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
-import { liveFor } from '../dnd/live'
+import { campaignOf, liveFor, type Shown } from '../dnd/live'
 import { DEFAULT_SCENE, placeToken, sceneBounds, ScenePanel, SceneOver, SceneUnder, snapToken, TokenPicker, useSceneSettings } from './scene'
 import {
   addElement,
@@ -117,11 +117,17 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   const [sceneSettings, setSceneSettings] = useSceneSettings(pageId, scene)
   const settingsRef = useRef(sceneSettings)
   settingsRef.current = sceneSettings
-  const live = useMemo(
-    () => (scene ? liveFor(pageId, doc, () => settingsRef.current ?? DEFAULT_SCENE, () => getState().pages[pageId]?.title || 'Battle map') : null),
-    [scene, pageId, doc],
+  // A battle map goes live on its campaign's table (one room, one link per campaign).
+  const campaign = useApp((s) => (scene ? campaignOf(pageId) : null))
+  const live = useMemo(() => (scene && campaign ? liveFor(campaign) : null), [scene, campaign])
+  const shown = useCallback(
+    (): Shown => ({ sceneId: pageId, doc, getSettings: () => settingsRef.current ?? DEFAULT_SCENE, getTitle: () => getState().pages[pageId]?.title || 'Battle map' }),
+    [pageId, doc],
   )
-  useEffect(() => live?.schedule(), [live, sceneSettings])
+  useEffect(() => live?.rebind(shown()), [live, shown])
+  useEffect(() => {
+    if (live?.state.showing === pageId) live.schedule()
+  }, [live, sceneSettings, pageId])
   const [tokenPicker, setTokenPicker] = useState<{ wx: number; wy: number; sx: number; sy: number } | null>(null)
   const gridOf = () => (settingsRef.current ?? DEFAULT_SCENE).grid
 
@@ -363,7 +369,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     const middle = e.button === 1
     if (e.button !== 0 && !middle) return
     // Alt-click on a live battle map: ping it for everyone.
-    if (scene && e.altKey && !middle && live?.state.status === 'live') {
+    if (scene && e.altKey && !middle && live?.state.status === 'live' && live.state.showing === pageId) {
       live.ping(Math.round(wx), Math.round(wy))
       return
     }
@@ -718,7 +724,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           ) : null,
         )}
         {elements.map((el) => (el.type === 'pin' ? <PinView key={el.id} el={el} selected={selectedSet.has(el.id)} /> : null))}
-        {scene && <SceneOver elements={elements} live={live} selected={selectedSet} />}
+        {scene && <SceneOver elements={elements} live={live} selected={selectedSet} pageId={pageId} />}
         {placedNotes.map((n) => (
           <NoteView
             key={n.id}
@@ -829,7 +835,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         />
       )}
       {scene && sceneSettings && live && presenting === null && (
-        <ScenePanel pageId={pageId} doc={doc} elements={elements} settings={sceneSettings} onSettings={setSceneSettings} selected={selected} onSelect={setSelected} live={live} />
+        <ScenePanel pageId={pageId} onShow={() => live.show(shown())} doc={doc} elements={elements} settings={sceneSettings} onSettings={setSceneSettings} selected={selected} onSelect={setSelected} live={live} />
       )}
       {pinPicker && (
         <PinPicker

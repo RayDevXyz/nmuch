@@ -401,3 +401,20 @@ fn scenes_hold_grid_and_fog_and_tokens_link_their_creatures() {
         json!("http://192.168.1.10:8090")
     );
 }
+
+#[test]
+fn a_campaign_keeps_its_table_room_and_character_rules() {
+    let mut core = Core::open_in_memory().unwrap();
+    let c = core.dnd_create_campaign("Table").unwrap();
+    let t = core.dnd_campaign_table(&c.id).unwrap();
+    assert_eq!((t["room"].clone(), t["rules"]["level"].clone()), (json!(null), json!(1)));
+    core.dnd_set_campaign_table(&c.id, json!({ "room": "Room123456" })).unwrap();
+    let t = core
+        .dnd_set_campaign_table(&c.id, json!({ "rules": { "level": 3, "method": "pointbuy", "sources": ["PHB"], "note": "", "open": true } }))
+        .unwrap();
+    assert_eq!(t["room"], "Room123456", "a patch keeps the rest");
+    assert_eq!(core.dnd_campaign_table(&c.id).unwrap()["rules"]["method"], "pointbuy");
+    assert!(core.dnd_set_campaign_table(&c.id, json!({ "rules": { "level": 0 } })).is_err());
+    let scene = core.dnd_create_scene(&c.id, "Map").unwrap();
+    assert!(core.dnd_campaign_table(&scene).is_err(), "only campaigns have a table");
+}

@@ -18,6 +18,8 @@ What players can do at the table:
   You accept it (the token moves, snapped to the grid) or decline it.
 - **Roll dice**: d4 to d100, or anything like `2d6+3`, `d20 adv`, `4d6kh3`. Everyone sees
   the rolls.
+- **Build characters** for the campaign, which you approve or send back, and see their
+  sheets.
 - See their character's hit points, the initiative order, and who else is at the table.
 
 They can't see hidden tokens, creatures standing in the fog, monsters' hit points (only
@@ -96,9 +98,15 @@ whether it's a player character or a creature.
 The first time, the panel asks for your table server: its address (for example
 `http://192.168.1.20:8090`) and the DM key. BrainWaves keeps them in this workspace.
 
-Click **Go live**. BrainWaves makes a room for this battle map, and the panel shows its join
-link. Copy it (⧉) and send it to your players. They type a name, take a seat, and click their
-character under **Your character**.
+Click **Go live**. BrainWaves opens the campaign's room and shows this map in it, and the panel
+shows the join link. Copy it (⧉) and send it to your players. They type a name, take a seat,
+and click their character under **On the map** (their own character is picked for them).
+
+**One link per campaign.** The room belongs to the campaign, not to one map, so players keep
+the same link from session to session. On another battle map, **Show this map** switches what
+players see; **Hide** shows them no map. You can also go live from the campaign page (the
+**Players' table** panel) before there's any map, for example so players can build their
+characters.
 
 While you're live:
 
@@ -119,7 +127,51 @@ While you're live:
 **End** closes your connection; the room stays, so **Go live** later re-opens the same room with
 the same link. Players who stay connected see "DM away" in the meantime.
 
-## 4. Reaching the table from outside your home
+## 4. Players build their characters
+
+Under **Characters** on the table site, players click **Create a character** and fill in a
+short form: a name, race, class, background and alignment, their ability scores, the class's
+skills, and a backstory if they like. The options come from your 5etools, limited by the
+campaign's rules. Nothing joins the campaign until you approve it.
+
+![Building a character on the table site](images/table-character-new.png)
+
+**The rules** are in the campaign's **Players' table** panel, under **Character rules**:
+
+- whether players may submit characters now;
+- the starting level (the character gets average hit points for each level above 1);
+- how ability scores are made: standard array, point buy, rolled (players enter what they
+  rolled), or the player's choice;
+- which books races, classes and backgrounds may come from;
+- a note shown above the form (house rules, what fits the setting).
+
+**Reviewing.** Submissions wait under **Characters to review**, on the campaign page and on
+battle maps, while you're live, and they wait on the server while you're not. Click one to see
+the character: its scores and the sheet it will get, its backstory, and any problems BrainWaves
+finds against your rules (a race from a book you don't allow, a point buy over 27 points, too
+many skills, and so on).
+
+- **Approve** makes the character in your Characters database, linked to the campaign, with
+  the same rules as BrainWaves' own **New character**. It joins **The party** on the campaign
+  page, and the player sees it under **Characters**.
+- **Send back** needs a note telling the player what to change. They see the note, edit the
+  character and resend it.
+
+![Reviewing a submitted character](images/table-character-review.png)
+
+**Seeing their character.** Players click their character to see the sheet: scores, saves and
+skills with their bonuses, hit points, AC, spells, equipment and backstory. The sheet stays in
+BrainWaves, and players see your changes (damage, a level up) within a few seconds. They can
+also open the other party members' sheets. When you put their character's token on the map
+you're showing, their page picks that token for them.
+
+![A player's character sheet on the table site](images/table-character-sheet.png)
+
+Players are known by their browser: the table site keeps a random id there, so their
+characters are waiting when they come back. A player who switches to another browser or device
+starts afresh there (you can still give them a character from BrainWaves).
+
+## 5. Reaching the table from outside your home
 
 On your home network, players use your server's LAN address. For players elsewhere, put the
 table behind something that gives it a public **https** address:
@@ -136,7 +188,7 @@ Then use the https address in BrainWaves too. The links and the live connection 
 > is open on the server's firewall, and the DM key. A wrong key shows "The table server refused
 > the DM key."
 
-## 5. How it's built
+## 6. How it's built
 
 ```
 BrainWaves (the DM)                          bw-table (your home server)            players' browsers
@@ -144,23 +196,33 @@ BrainWaves (the DM)                          bw-table (your home server)        
 battle map page (a canvas)                   POST /api/rooms  (Bearer DM key)
   tokens, reveals, image  ── projection ──▶  /ws/<code>?key=…  ── scene ──────────▶  /join/<code>
   dnd.scene: grid, fog,      (only what                         ◀─ ping, draw,       canvas page
-  room, initiative            players may see)                     move, roll, claim
-                          ◀── requests, pings, rolls, players ──
+  initiative                  players may see)                     move, roll, claim,
+campaign page             ── rules, party sheets ──────────────────────────────▶     submit
+  dnd.table: room, rules  ◀── requests, pings, rolls, players, submissions ──
 ```
 
 - **The battle map** is an ordinary BrainWaves page with the D&D role `scene`, under its
   campaign. Tokens (`token`) and cleared areas (`reveal`) are canvas elements in the page,
   with the map picture (`image`), so they sync, undo and back up like everything else
-  (`crates/bw-core/src/surface.rs`). The grid, fog switch, room code and initiative are the
-  page's `dnd.scene` property (`crates/bw-core/src/dnd.rs`).
+  (`crates/bw-core/src/surface.rs`). The grid, fog switch and initiative are the page's
+  `dnd.scene` property; the campaign's room code and character rules are the campaign's
+  `dnd.table` property (`crates/bw-core/src/dnd.rs`).
 - **What players see** is computed in BrainWaves (`apps/desktop/src/dnd/live.ts`, `project`).
   It includes the largest picture, the grid, the cleared areas, and tokens that aren't hidden.
   Player characters are always included; other tokens only when their center is in a cleared
   area. Hit points are sent for player characters only, and monsters get a status instead. The
   initiative leaves out tokens players can't see. The picture is sent once (by its SHA-256);
   the rest is re-sent shortly after each change.
+- **Characters** (`apps/desktop/src/dnd/tableCharacters.ts`): BrainWaves sends players the
+  options the rules allow (just what the form needs: names, sources, ability bonuses, hit die,
+  skill choices). Players send back their choices, not a sheet. On approval, BrainWaves looks
+  the choices up in your 5etools again and builds the sheet itself. The sheet follows your
+  books, not the player's page, and anything outside your rules (a made-up race, scores no
+  method allows) is flagged before you approve.
 - **The server** (`crates/bw-table`, Rust: axum and tokio) relays and remembers. It keeps
-  each room's last scene, its pictures (the last 6) and its last 60 rolls on disk, and it rolls
+  each room's last scene, its pictures (the last 6), its last 60 rolls, the rules, the party
+  and the submissions on disk. Players' browser ids never leave the server, and players see
+  only their own submissions. It rolls
   the dice itself so nobody can fake a roll. Only someone with the DM key can open rooms, send
   scenes and answer move requests. Players can only claim and request moves for player
   characters, and the server limits each connection to 20 messages a second.
@@ -170,30 +232,38 @@ battle map page (a canvas)                   POST /api/rooms  (Bearer DM key)
 
 ### The protocol
 
-JSON messages over the WebSocket `/ws/<code>?key=<DM key or empty>&name=<name>`.
+JSON messages over the WebSocket `/ws/<code>?key=<DM key or empty>&name=<name>&pid=<browser id>`.
 
 | From | Message | |
 | --- | --- | --- |
 | DM | `{t:"scene", scene}` | The player-safe scene (stored, sent to players). |
 | DM | `{t:"image", hash, data}` | A map picture as a data URL; players fetch `/api/rooms/<code>/image/<hash>`. |
 | DM | `{t:"decide", id, accept}` | Answer a move request. |
+| DM | `{t:"rules", rules}` | The character rules, with the options players choose from. |
+| DM | `{t:"party", party}` | The campaign's characters and their sheets; each player sees which are theirs (`mine`). |
+| DM | `{t:"review", id, approve, note, characterId?}` | Approve a submission (BrainWaves made `characterId`) or send it back. |
+| player | `{t:"submit", id?, character}` | Submit a character, or resubmit one that's waiting or was sent back. |
+| player | `{t:"withdraw", id}` | Take back a submission that isn't approved yet. |
 | player | `{t:"claim", token}` | "This one's me" (player characters only). |
 | player | `{t:"move", token, x, y}` | Ask to move their character (x, y: the token's new center). |
 | anyone | `{t:"ping", x, y}` / `{t:"draw", points}` | A ping, or a drawing that fades after 8 seconds. |
 | anyone | `{t:"roll", expr, label?, private?}` | Roll dice (`private` only for the DM). |
-| server | `welcome`, `scene`, `players`, `dm`, `ping`, `draw`, `roll`, `request` (DM only), `pending`, `decided`, `error` | |
+| server | `welcome`, `scene`, `players`, `dm`, `ping`, `draw`, `roll`, `request` (DM only), `pending`, `decided`, `rules`, `party`, `submissions` (a player's own), `submission` / `reviewed` / `withdrawn` (DM only), `error` | |
 
 ### Tests
 
 - `cargo test -p bw-table`: the dice roller; a DM and players over real WebSockets (claims,
   move requests, decisions, pings, rolls, the DM key); pictures and persistence
-  across a restart.
+  across a restart; characters submitted, sent back, resubmitted and approved, ownership, and
+  a player finding their character again after a restart.
 - `cargo test -p bw-core --test dnd`: battle map pages, scene settings, token and reveal
-  validation.
+  validation; a campaign's room and character rules.
 - End to end (Playwright, a DM in BrainWaves and a player in a second browser) for a battle map,
   tokens from the party and the compendium, fog, going live, a move request accepted, pings and
   drawings, hit points, initiative and dice. It also checks that a hidden creature never reaches
-  the server.
+  the server. A second run covers characters: rules set in BrainWaves, a player building a
+  character, the DM sending it back with a note, the player fixing it, approval into the party,
+  the player's sheet, and their token picked for them on the map.
 
 ### Limits and next steps
 
@@ -201,5 +271,6 @@ JSON messages over the WebSocket `/ws/<code>?key=<DM key or empty>&name=<name>`.
 - Cleared areas are rectangles (the format also takes polygons, for a future freehand tool).
 - No dynamic lighting, line of sight or walls, measurement, or area templates yet.
 - Players can't move NPCs or monsters; the DM moves everything else.
+- Players can't edit an approved character (level ups, equipment): the DM does it in BrainWaves.
 - Hit point changes on a player character's token aren't written back to the character
   sheet.

@@ -14,8 +14,15 @@
 //!   connects to `/ws/<room>?key=<DM key>`.
 //! - Players: `/join/<room>` is the player page; it connects to `/ws/<room>?name=…`.
 //!
-//! Rooms, their latest scene, the map pictures and recent rolls are saved under the data folder,
-//! so a restart doesn't lose the game.
+//! A room is a campaign's table: one link for the whole campaign. Besides the map, players
+//! **build characters** there from the options the DM allows (BrainWaves sends them as the
+//! room's *rules*) and submit them; the DM approves them in BrainWaves (which makes the
+//! character) or sends them back with a note. Players then see their approved characters'
+//! sheets (BrainWaves sends the *party*). A player is known by a random id their browser keeps
+//! (`pid`), so their characters follow them from visit to visit without accounts.
+//!
+//! Rooms, their latest scene, the map pictures, recent rolls, the rules, the party and the
+//! character submissions are saved under the data folder, so a restart doesn't lose the game.
 
 pub mod dice;
 
@@ -45,6 +52,12 @@ const MAX_PLAYER_MSG: usize = 64 << 10;
 const DRAWING_SECONDS: u64 = 8;
 const KEEP_ROLLS: usize = 60;
 const KEEP_IMAGES: usize = 6;
+const MAX_RULES: usize = 1 << 20;
+const MAX_PARTY: usize = 2 << 20;
+const MAX_CHARACTER: usize = 32 << 10;
+/// Open (not yet approved) submissions one player may have at once.
+const MAX_OPEN_SUBMISSIONS: usize = 8;
+const KEEP_SUBMISSIONS: usize = 200;
 
 pub struct Config {
     pub data: PathBuf,
@@ -62,12 +75,21 @@ struct Inner {
 }
 
 #[derive(Default, Serialize, Deserialize)]
+#[serde(default)]
 struct Saved {
     name: String,
     scene: Value,
     rolls: VecDeque<Value>,
     /// Picture hash → content type, in the order they arrived.
     images: Vec<(String, String)>,
+    /// What players may build characters from (races, classes, … the DM allows), from BrainWaves.
+    rules: Value,
+    /// The campaign's characters: `[{ id, name, player, sheet }]`, from BrainWaves.
+    party: Vec<Value>,
+    /// Characters players submitted: `{ id, pid, player, character, status, note, at, characterId }`.
+    submissions: Vec<Value>,
+    /// Character id → the player (pid) it belongs to (set when the DM approves a submission).
+    owners: BTreeMap<String, String>,
 }
 
 struct Room {
@@ -79,6 +101,8 @@ struct Room {
 
 struct Conn {
     dm: bool,
+    /// The player's browser id (players only; none for an old page).
+    pid: Option<String>,
     name: String,
     claim: Option<String>,
     color: String,
@@ -89,6 +113,10 @@ struct Conn {
 
 fn now_ms() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+fn valid_pid(pid: &str) -> bool {
+    (16..=64).contains(&pid.len()) && pid.chars().all(|c| c.is_ascii_alphanumeric())
 }
 
 fn valid_code(code: &str) -> bool {
@@ -181,6 +209,7 @@ async fn page() -> Html<&'static str> {
 async fn asset(Path(file): Path<String>) -> Response {
     let (body, mime): (&'static [u8], &str) = match file.as_str() {
         "table.js" => (include_bytes!("../../../apps/table/table.js"), "text/javascript; charset=utf-8"),
+        "characters.js" => (include_bytes!("../../../apps/table/characters.js"), "text/javascript; charset=utf-8"),
         "table.css" => (include_bytes!("../../../apps/table/table.css"), "text/css; charset=utf-8"),
         "cinzel-500.woff2" => (include_bytes!("../../../apps/table/fonts/cinzel-latin-500-normal.woff2"), "font/woff2"),
         "cinzel-700.woff2" => (include_bytes!("../../../apps/table/fonts/cinzel-latin-700-normal.woff2"), "font/woff2"),
@@ -259,6 +288,7 @@ async fn image(State(s): State<AppState>, Path((code, hash)): Path<(String, Stri
 struct Join {
     key: String,
     name: String,
+    pid: String,
 }
 
 async fn ws(State(s): State<AppState>, Path(code): Path<String>, Query(q): Query<Join>, up: WebSocketUpgrade) -> Response {
@@ -271,11 +301,12 @@ async fn ws(State(s): State<AppState>, Path(code): Path<String>, Query(q): Query
     }
     let name: String = if dm { "Dungeon Master".into() } else { q.name.trim().chars().take(40).collect() };
     let name = if name.is_empty() { "Adventurer".to_string() } else { name };
-    up.max_message_size(if dm { MAX_IMAGE + (1 << 20) } else { MAX_PLAYER_MSG })
-        .on_upgrade(move |socket| session(s, code, dm, name, socket))
+    let pid = (!dm && valid_pid(&q.pid)).then(|| q.pid.clone());
+    up.max_message_size(if dm { MAX_IMAGE + (4 << 20) } else { MAX_PLAYER_MSG })
+        .on_upgrade(move |socket| session(s, code, dm, pid, name, socket))
 }
 
-async fn session(s: AppState, code: String, dm: bool, name: String, socket: WebSocket) {
+async fn session(s: AppState, code: String, dm: bool, pid: Option<String>, name: String, socket: WebSocket) {
     let id = s.0.next_conn.fetch_add(1, Ordering::Relaxed);
     let (mut sink, mut stream) = socket.split();
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
@@ -291,7 +322,7 @@ async fn session(s: AppState, code: String, dm: bool, name: String, socket: WebS
         let mut rooms = s.0.rooms.lock().unwrap();
         let Some(room) = rooms.get_mut(&code) else { return };
         let color = COLORS[(id as usize) % COLORS.len()].to_string();
-        room.conns.insert(id, Conn { dm, name: name.clone(), claim: None, color: color.clone(), tx: tx.clone(), window: (0, 0) });
+        room.conns.insert(id, Conn { dm, pid: pid.clone(), name: name.clone(), claim: None, color: color.clone(), tx: tx.clone(), window: (0, 0) });
         let welcome = json!({
             "t": "welcome",
             "you": { "id": id, "dm": dm, "name": name, "color": color },
@@ -300,6 +331,9 @@ async fn session(s: AppState, code: String, dm: bool, name: String, socket: WebS
             "rolls": room.saved.rolls,
             "requests": if dm { room.requests.values().cloned().collect::<Vec<_>>() } else { vec![] },
             "dmOnline": room.conns.values().any(|c| c.dm),
+            "rules": room.saved.rules,
+            "party": party_for(room, pid.as_deref()),
+            "submissions": if dm { open_submissions(room) } else { mine(room, pid.as_deref()) },
         });
         let _ = tx.send(welcome.to_string());
         broadcast_players(room);
@@ -350,6 +384,54 @@ fn broadcast_players(room: &Room) {
         .map(|(id, c)| json!({ "id": id, "name": c.name, "claim": c.claim, "color": c.color }))
         .collect();
     send_all(room, &json!({ "t": "players", "players": players }), |_| true);
+}
+
+/// The party as one player sees it: each character marked `mine` if it's theirs (pids stay here).
+fn party_for(room: &Room, pid: Option<&str>) -> Vec<Value> {
+    room.saved
+        .party
+        .iter()
+        .map(|c| {
+            let mut c = c.clone();
+            let owner = c["id"].as_str().and_then(|id| room.saved.owners.get(id));
+            c["mine"] = json!(pid.is_some() && owner.map(String::as_str) == pid);
+            c
+        })
+        .collect()
+}
+
+fn send_party(room: &Room) {
+    for c in room.conns.values() {
+        let msg = json!({ "t": "party", "party": party_for(room, if c.dm { None } else { c.pid.as_deref() }) });
+        let _ = c.tx.send(msg.to_string());
+    }
+}
+
+/// A submission without the player's browser id.
+fn public(sub: &Value) -> Value {
+    let mut s = sub.clone();
+    if let Some(o) = s.as_object_mut() {
+        o.remove("pid");
+    }
+    s
+}
+
+/// One player's submissions.
+fn mine(room: &Room, pid: Option<&str>) -> Vec<Value> {
+    let Some(pid) = pid else { return vec![] };
+    room.saved.submissions.iter().filter(|s| s["pid"] == json!(pid)).map(public).collect()
+}
+
+/// What waits for the DM.
+fn open_submissions(room: &Room) -> Vec<Value> {
+    room.saved.submissions.iter().filter(|s| s["status"] == json!("pending")).map(public).collect()
+}
+
+fn send_mine(room: &Room, pid: &str) {
+    let msg = json!({ "t": "submissions", "submissions": mine(room, Some(pid)) }).to_string();
+    for c in room.conns.values().filter(|c| c.pid.as_deref() == Some(pid)) {
+        let _ = c.tx.send(msg.clone());
+    }
 }
 
 /// Tokens players may claim and move: visible ones the DM marked as player characters.
@@ -432,6 +514,47 @@ fn handle(s: &AppState, code: &str, id: u64, v: Value) {
             room.dirty = true;
             reply(room, json!({ "t": "imageStored", "hash": hash }));
         }
+        (true, "rules") => {
+            let rules = v["rules"].clone();
+            if !(rules.is_object() || rules.is_null()) || rules.to_string().len() > MAX_RULES {
+                return reply(room, json!({ "t": "error", "message": "rules too large or not an object" }));
+            }
+            room.saved.rules = rules.clone();
+            room.dirty = true;
+            send_all(room, &json!({ "t": "rules", "rules": rules }), |c| !c.dm);
+        }
+        (true, "party") => {
+            let Some(party) = v["party"].as_array() else { return };
+            if v["party"].to_string().len() > MAX_PARTY {
+                return reply(room, json!({ "t": "error", "message": "party too large" }));
+            }
+            room.saved.party = party.iter().filter(|c| c["id"].is_string()).take(100).cloned().collect();
+            room.dirty = true;
+            send_party(room);
+        }
+        (true, "review") => {
+            let Some(sid) = v["id"].as_str() else { return };
+            let approve = v["approve"] == json!(true);
+            let note: String = v["note"].as_str().unwrap_or_default().chars().take(2000).collect();
+            let character = v["characterId"].as_str().map(String::from);
+            let Some(sub) = room.saved.submissions.iter_mut().find(|s| s["id"] == json!(sid)) else { return };
+            sub["status"] = json!(if approve { "approved" } else { "returned" });
+            sub["note"] = json!(note);
+            if let Some(ch) = &character {
+                sub["characterId"] = json!(ch);
+            }
+            let pid = sub["pid"].as_str().unwrap_or_default().to_string();
+            let reviewed = public(sub);
+            if approve {
+                if let Some(ch) = character {
+                    room.saved.owners.insert(ch, pid.clone());
+                }
+            }
+            room.dirty = true;
+            send_mine(room, &pid);
+            send_all(room, &json!({ "t": "reviewed", "submission": reviewed }), |c| c.dm);
+            send_party(room);
+        }
         (true, "decide") => {
             let Some(rid) = v["id"].as_str() else { return };
             if let Some(req) = room.requests.remove(rid) {
@@ -480,6 +603,54 @@ fn handle(s: &AppState, code: &str, id: u64, v: Value) {
             }
         }
         // ---- players
+        (false, "submit") => {
+            let Some(pid) = room.conns.get(&id).and_then(|c| c.pid.clone()) else {
+                return reply(room, json!({ "t": "error", "message": "Reload the page to build characters." }));
+            };
+            let character = v["character"].clone();
+            if !character.is_object() || character.to_string().len() > MAX_CHARACTER {
+                return reply(room, json!({ "t": "error", "message": "That character is too large." }));
+            }
+            let name = character["name"].as_str().unwrap_or_default().trim().to_string();
+            if name.is_empty() {
+                return reply(room, json!({ "t": "error", "message": "Give your character a name." }));
+            }
+            // Editing a submission that was sent back (or still waits) replaces it.
+            let existing = v["id"].as_str().and_then(|sid| {
+                room.saved.submissions.iter().position(|s| s["id"] == json!(sid) && s["pid"] == json!(pid) && s["status"] != json!("approved"))
+            });
+            let open = room.saved.submissions.iter().filter(|s| s["pid"] == json!(pid) && s["status"] != json!("approved")).count();
+            if existing.is_none() && open >= MAX_OPEN_SUBMISSIONS {
+                return reply(room, json!({ "t": "error", "message": "You have several characters waiting already; wait for the DM." }));
+            }
+            let sid = match existing {
+                Some(i) => room.saved.submissions[i]["id"].as_str().unwrap_or_default().to_string(),
+                None => format!("c{}{}", now_ms(), rand::thread_rng().gen_range(100..999)),
+            };
+            let sub = json!({ "id": sid, "pid": pid, "player": name_of(room, id), "character": character, "status": "pending", "note": "", "at": now_ms() });
+            match existing {
+                Some(i) => room.saved.submissions[i] = sub.clone(),
+                None => room.saved.submissions.push(sub.clone()),
+            }
+            while room.saved.submissions.len() > KEEP_SUBMISSIONS {
+                // Forget the oldest settled ones first.
+                let Some(i) = room.saved.submissions.iter().position(|s| s["status"] != json!("pending")) else { break };
+                room.saved.submissions.remove(i);
+            }
+            room.dirty = true;
+            send_mine(room, &pid);
+            send_all(room, &json!({ "t": "submission", "submission": public(&sub) }), |c| c.dm);
+        }
+        (false, "withdraw") => {
+            let (Some(pid), Some(sid)) = (room.conns.get(&id).and_then(|c| c.pid.clone()), v["id"].as_str()) else { return };
+            let before = room.saved.submissions.len();
+            room.saved.submissions.retain(|s| !(s["id"] == json!(sid) && s["pid"] == json!(pid) && s["status"] != json!("approved")));
+            if room.saved.submissions.len() != before {
+                room.dirty = true;
+                send_mine(room, &pid);
+                send_all(room, &json!({ "t": "withdrawn", "id": sid }), |c| c.dm);
+            }
+        }
         (false, "claim") => {
             let token = v["token"].as_str().map(String::from);
             if token.as_ref().is_some_and(|t| !player_tokens(&room.saved.scene).contains(t)) {
@@ -513,6 +684,10 @@ fn handle(s: &AppState, code: &str, id: u64, v: Value) {
         }
         _ => {}
     }
+}
+
+fn name_of(room: &Room, id: u64) -> String {
+    room.conns.get(&id).map(|c| c.name.clone()).unwrap_or_default()
 }
 
 /// Save changed rooms every two seconds, for as long as the server runs.

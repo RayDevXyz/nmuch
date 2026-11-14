@@ -38,9 +38,21 @@
   let fitted = false
   let tool = 'pan'
 
+  // This browser's player id: it's how the table knows your characters on your next visit.
+  function playerId() {
+    let pid = ''
+    try { pid = localStorage.getItem('bw-table-pid') || '' } catch {}
+    if (!/^[A-Za-z0-9]{16,64}$/.test(pid)) {
+      const abc = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+      pid = Array.from(crypto.getRandomValues(new Uint8Array(24)), (n) => abc[n % abc.length]).join('')
+      try { localStorage.setItem('bw-table-pid', pid) } catch {}
+    }
+    return pid
+  }
+
   function connect(code, name) {
     const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-    ws = new WebSocket(`${proto}://${location.host}/ws/${code}?name=${encodeURIComponent(name)}`)
+    ws = new WebSocket(`${proto}://${location.host}/ws/${code}?name=${encodeURIComponent(name)}&pid=${playerId()}`)
     ws.onopen = () => {
       $('join').hidden = true
       $('table').hidden = false
@@ -57,8 +69,11 @@
     }
   }
   const send = (m) => ws && ws.readyState === 1 && ws.send(JSON.stringify(m))
+  window.bwTable = { send: (m) => send(m), toast: (m) => toast(m) }
 
   function onMessage(m) {
+    window.bwCharacters?.onMessage(m)
+    if (m.t === 'party' || m.t === 'welcome') setTimeout(autoClaim)
     switch (m.t) {
       case 'welcome':
         me = m.you
@@ -76,6 +91,7 @@
         players = m.players
         renderPlayers()
         renderClaim()
+        autoClaim()
         break
       case 'dm':
         setDm(m.online)
@@ -124,6 +140,7 @@
     if (!fitted && (img || (scene.tokens || []).length)) fit()
     renderClaim()
     renderInitiative()
+    autoClaim()
   }
 
   // ---------- panels
@@ -147,6 +164,13 @@
       })
       .join('')
     for (const b of $('claim').querySelectorAll('button')) b.onclick = () => send({ t: 'claim', token: b.dataset.token === claimed ? null : b.dataset.token })
+  }
+  /** Take your own character's token on the map, when it's there and nobody holds it. */
+  function autoClaim() {
+    if (!me || mine()) return
+    const ids = window.bwCharacters?.mineIds() || []
+    const t = (scene.tokens || []).find((x) => x.player && x.page && ids.includes(x.page) && !players.some((p) => p.claim === x.id))
+    if (t) send({ t: 'claim', token: t.id })
   }
   function renderInitiative() {
     const ini = scene.initiative

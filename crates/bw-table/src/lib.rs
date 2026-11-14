@@ -161,6 +161,14 @@ pub fn router(state: AppState) -> Router {
         .route("/api/rooms/{code}/image/{hash}", get(image))
         .route("/ws/{code}", get(ws))
         .layer(DefaultBodyLimit::max(64 << 10))
+        // BrainWaves (another origin: the desktop app, or its dev page) makes rooms here. Every
+        // DM call needs the DM key anyway, so any origin may ask.
+        .layer(
+            tower_http::cors::CorsLayer::new()
+                .allow_origin(tower_http::cors::Any)
+                .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
+                .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE]),
+        )
         .with_state(state)
 }
 

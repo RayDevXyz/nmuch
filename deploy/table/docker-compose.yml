@@ -15,4 +15,8 @@ services:
       # to this one: BW_TABLE_DM_KEY=... If empty, one is generated and shown in the logs.
       BW_TABLE_DM_KEY: ${BW_TABLE_DM_KEY:-}
     volumes:
-      - ./table-data:/data
+      # Rooms and map pictures. A named volume, so the server (not root) can write to it.
+      - table-data:/data
+
+volumes:
+  table-data:

@@ -160,6 +160,12 @@ locations, 216 pins and 27 factions in about two seconds. A second import change
 
 ---
 
+### Battle maps at the table
+
+Run fights on a battle map your players join from their own screens: tokens, fog of war, move
+requests you accept, pings, drawings, dice and initiative. The table server runs on your home
+server (Docker). See [the table](table.md).
+
 ## 4. For players: characters
 
 Type **`/character`** in any page (or press **New character** on the Characters database, or

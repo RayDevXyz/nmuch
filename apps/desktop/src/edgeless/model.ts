@@ -56,8 +56,26 @@ export interface PinEl extends Base {
   page: string
   color?: string
 }
-export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl | ImageEl | PinEl
-export type Boxed = ShapeEl | TextEl | FrameEl | ImageEl | PinEl
+/** A creature on a battle map; `text` is its name. `hidden` ones are seen by the DM only. */
+export interface TokenEl extends Base {
+  type: 'token'
+  xywh: XYWH
+  page?: string
+  hidden?: boolean
+  player?: boolean
+  hp?: number
+  maxHp?: number
+  ac?: number
+  color?: string
+}
+/** An area of a battle map cleared of fog: its bounds, or a polygon within them. */
+export interface RevealEl extends Base {
+  type: 'reveal'
+  xywh: XYWH
+  points?: [number, number][]
+}
+export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl
+export type Boxed = ShapeEl | TextEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl
 /** An element before it has an id and a place in the stacking order. */
 export type NewElement = Element extends infer E ? (E extends Element ? Omit<E, 'id' | 'index'> & { index?: string } : never) : never
 
@@ -102,7 +120,7 @@ export function readElements(doc: Y.Doc): Element[] {
     const el = { ...m.toJSON(), id } as Element
     if (el.type === 'connector') {
       if (el.source && el.target) out.push(el)
-    } else if (['shape', 'text', 'frame', 'image', 'pin'].includes(el.type) && isXYWH((el as Boxed).xywh)) {
+    } else if (['shape', 'text', 'frame', 'image', 'pin', 'token', 'reveal'].includes(el.type) && isXYWH((el as Boxed).xywh)) {
       out.push(el)
     }
   })

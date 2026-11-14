@@ -1,4 +1,4 @@
-import { BookOpen, Compass, Flag, Globe, Map as MapIcon, Plus, ScrollText, Shield, Users } from 'lucide-react'
+import { BookOpen, Compass, Flag, Globe, Map as MapIcon, Plus, ScrollText, Shield, Swords, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { setValue, createRow } from '../database/api'
 import { RowProperties } from '../database/DatabaseView'
@@ -6,7 +6,8 @@ import { ALL_ROWS, useDatabase } from '../database/useDatabase'
 import type { Row } from '../database/types'
 import { uid } from '../lib/id'
 import { openPage } from '../state/actions'
-import { getState, setState, toast } from '../state/store'
+import { getState, setState, toast, useApp } from '../state/store'
+import { createScene, listScenes } from './live'
 import { addBeats, dndCampaign, dndWorkspace, TEMPLATES, type Campaign, type Workspace } from './api'
 import { openCharacterWizard } from './CharacterWizard'
 import { openCompendium } from './Compendium'
@@ -68,6 +69,7 @@ export function CampaignOverview({ campaignId }: { campaignId: string }) {
             <Party campaignId={campaignId} w={w} />
             <Story campaignId={campaignId} beatsDb={parts.beats} />
             <Sessions db={parts.sessions} />
+            <BattleMaps campaignId={campaignId} />
           </div>
         </>
       )}
@@ -247,6 +249,47 @@ function Sessions({ db }: { db: string }) {
               <span className="cp-session-n">{String(r.values.number ?? '—')}</span>
               <span className="cp-session-title">{r.title}</span>
               <span className="cp-session-date">{r.values.date ? new Date(String(r.values.date) + 'T00:00:00').toLocaleDateString() : ''}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  )
+}
+
+/** The campaign's battle maps: scenes the party plays on, live at the table. */
+function BattleMaps({ campaignId }: { campaignId: string }) {
+  const [ids, setIds] = useState<string[]>([])
+  const pages = useApp((s) => s.pages)
+  useEffect(() => {
+    void listScenes(campaignId).then(setIds, () => setIds([]))
+  }, [campaignId, pages])
+  const scenes = ids.map((id) => pages[id]).filter((p): p is NonNullable<typeof p> => !!p && !p.trashedAt)
+  const add = async () => {
+    try {
+      const id = await createScene(campaignId, `Battle map ${scenes.length + 1}`)
+      openSoon(id, true)
+    } catch (e) {
+      toast(String(e))
+    }
+  }
+  return (
+    <Panel
+      title="Battle maps"
+      icon={<Swords size={14} />}
+      action={
+        <button className="fv-btn" onClick={() => void add()}>
+          <Plus size={12} /> Battle map
+        </button>
+      }
+    >
+      {scenes.length === 0 && <p className="cp-empty">No battle maps yet. Make one, drop a dungeon picture on it, place tokens, and go live: your players join from their own screens.</p>}
+      <ul className="cp-sessions">
+        {scenes.map((p) => (
+          <li key={p.id}>
+            <button onClick={() => openSoon(p.id, true)}>
+              <span className="cp-session-n">⚔</span>
+              <span className="cp-session-title">{p.title || 'Untitled map'}</span>
             </button>
           </li>
         ))}

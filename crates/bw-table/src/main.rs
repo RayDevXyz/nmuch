@@ -37,7 +37,7 @@ async fn main() {
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
     println!("BrainWaves table server on http://{addr}");
     println!("  data:   {}", data.display());
-    println!("  DM key: {key}   (enter it in BrainWaves → a scene → Go live)");
+    println!("  DM key: {key}   (enter it in BrainWaves → a battle map → The table)");
     let listener = tokio::net::TcpListener::bind(addr).await.expect("bind");
     let shutdown = async {
         let _ = tokio::signal::ctrl_c().await;

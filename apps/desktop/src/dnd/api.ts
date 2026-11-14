@@ -93,8 +93,8 @@ export const refreshRoles = refresh
 /** The roles as last loaded (outside React). */
 export const getRoles = () => roles
 
-/** Whether a page shows as a canvas: the user's choice, else canvas for world maps. */
-export const showsCanvas = (pageId: string, choice: Record<string, boolean>, r: Record<string, string>) => choice[pageId] ?? r[pageId] === 'map'
+/** Whether a page shows as a canvas: the user's choice, else canvas for world and battle maps. */
+export const showsCanvas = (pageId: string, choice: Record<string, boolean>, r: Record<string, string>) => choice[pageId] ?? (r[pageId] === 'map' || r[pageId] === 'scene')
 
 /** The Characters database's id, if the workspace has one. */
 export const charactersDb = (r: Record<string, string>) => Object.keys(r).find((id) => r[id] === 'characters') ?? null

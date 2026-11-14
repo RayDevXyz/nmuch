@@ -42,6 +42,8 @@ const GROUPS: [string, [string, string][]][] = [
       ['/spell /monster /item', 'Put a 5e entry in the page as a card'],
       ['Plan an arc', 'Story beats from a template, on a campaign page'],
       ['World map: I / P', 'Image (the map) / pin a page on it'],
+      ['Battle map: K / E', 'Token / reveal an area through the fog'],
+      ['Battle map: Alt-click', 'Ping the spot for everyone at the table'],
     ],
   ],
   [

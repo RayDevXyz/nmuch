@@ -17,10 +17,12 @@ import {
   StickyNote,
   Trash2,
   Type,
+  CircleUserRound,
+  CloudFog,
 } from 'lucide-react'
 import { COLORS, type CanvasNote, type Element, type Rect, type ShapeKind } from './model'
 
-export type Tool = 'select' | 'hand' | 'note' | 'rect' | 'ellipse' | 'diamond' | 'text' | 'connector' | 'frame' | 'image' | 'pin'
+export type Tool = 'select' | 'hand' | 'note' | 'rect' | 'ellipse' | 'diamond' | 'text' | 'connector' | 'frame' | 'image' | 'pin' | 'token' | 'reveal'
 
 const TOOLS: { tool: Tool; label: string; key: string; icon: React.ReactNode }[] = [
   { tool: 'select', label: 'Select', key: 'V', icon: <MousePointer2 size={16} /> },
@@ -35,11 +37,15 @@ const TOOLS: { tool: Tool; label: string; key: string; icon: React.ReactNode }[]
   { tool: 'image', label: 'Image: a map or picture, click where it goes', key: 'I', icon: <ImageIcon size={16} /> },
   { tool: 'pin', label: 'Pin: mark a page on the map', key: 'P', icon: <MapPin size={16} /> },
 ]
+const SCENE_TOOLS: typeof TOOLS = [
+  { tool: 'token', label: 'Token: a character or monster, click where it stands', key: 'K', icon: <CircleUserRound size={16} /> },
+  { tool: 'reveal', label: 'Reveal: drag over an area to clear its fog', key: 'E', icon: <CloudFog size={16} /> },
+]
 
-export function Toolbar({ tool, onTool, frames, onPresent }: { tool: Tool; onTool: (t: Tool) => void; frames: number; onPresent: () => void }) {
+export function Toolbar({ tool, onTool, frames, onPresent, scene = false }: { tool: Tool; onTool: (t: Tool) => void; frames: number; onPresent: () => void; scene?: boolean }) {
   return (
     <div className="cv-toolbar" role="toolbar" aria-label="Canvas tools">
-      {TOOLS.map((t) => (
+      {(scene ? [...TOOLS.slice(0, 2), ...SCENE_TOOLS, ...TOOLS.slice(2)] : TOOLS).map((t) => (
         <button
           key={t.tool}
           className={`cv-tool ${tool === t.tool ? 'active' : ''}`}

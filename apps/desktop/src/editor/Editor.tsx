@@ -425,7 +425,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
     return (
       <div className={`note-scroll edgeless ${themed ? 'dnd-theme' : ''}`} ref={scrollRef}>
         {error && <div className="editor-error">Could not open this page: {error}</div>}
-        {sync && <Canvas pageId={pageId} doc={sync.doc} notes={notes} host={host} spellcheck={spellcheck} onEditor={editorCallback} />}
+        {sync && <Canvas pageId={pageId} doc={sync.doc} notes={notes} host={host} spellcheck={spellcheck} onEditor={editorCallback} scene={roles[pageId] === 'scene'} />}
         {roles[pageId] === 'map' && page.parentId && (
           <button className="az-canvas-btn" title="Bring in a world from Azgaar's Fantasy Map Generator" onClick={() => openAzgaarImport(page.parentId!)}>
             <Globe size={14} /> Import Azgaar world

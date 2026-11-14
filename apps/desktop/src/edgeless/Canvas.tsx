@@ -4,7 +4,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type * as Y from 'yjs'
 import type { NoteRef } from '../lib/core/page-sync'
 import { openPage } from '../state/actions'
-import { setState, toast, useApp } from '../state/store'
+import { getState, setState, toast, useApp } from '../state/store'
+import { liveFor } from '../dnd/live'
+import { DEFAULT_SCENE, placeToken, sceneBounds, ScenePanel, SceneOver, SceneUnder, snapToken, TokenPicker, useSceneSettings } from './scene'
 import {
   addElement,
   addNote,
@@ -77,9 +79,11 @@ export interface CanvasProps {
   host: EditorHost
   spellcheck: boolean
   onEditor: (noteId: string) => (e: TiptapEditor | null) => void
+  /** A D&D battle map: grid, fog, tokens and the live table. */
+  scene?: boolean
 }
 
-export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEditor }: CanvasProps) {
+export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEditor, scene = false }: CanvasProps) {
   const root = useRef<HTMLDivElement>(null)
   const elements = useElements(doc)
   const notes = useNoteLayouts(doc, noteRefs)
@@ -108,6 +112,18 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     return () => m.destroy()
   }, [doc])
   useEffect(() => void viewports.set(pageId, vp), [pageId, vp])
+
+  // ---------- battle maps
+  const [sceneSettings, setSceneSettings] = useSceneSettings(pageId, scene)
+  const settingsRef = useRef(sceneSettings)
+  settingsRef.current = sceneSettings
+  const live = useMemo(
+    () => (scene ? liveFor(pageId, doc, () => settingsRef.current ?? DEFAULT_SCENE, () => getState().pages[pageId]?.title || 'Battle map') : null),
+    [scene, pageId, doc],
+  )
+  useEffect(() => live?.schedule(), [live, sceneSettings])
+  const [tokenPicker, setTokenPicker] = useState<{ wx: number; wy: number; sx: number; sy: number } | null>(null)
+  const gridOf = () => (settingsRef.current ?? DEFAULT_SCENE).grid
 
   // ---------- geometry of everything on the canvas
 
@@ -185,15 +201,19 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   )
   const toScreen = (r: Rect): Rect => ({ x: (r.x - vp.x) * vp.z, y: (r.y - vp.y) * vp.z, w: r.w * vp.z, h: r.h * vp.z })
 
-  const fit = (r: Rect | null, pad = 60, maxZ = 1) => {
+  /** Show `r` whole; `right` is room kept free on the right (for the battle map's panel). */
+  const fit = (r: Rect | null, pad = 60, maxZ = 1, right = 0) => {
     const b = root.current?.getBoundingClientRect()
     if (!r || !b) return
-    const z = Math.max(MIN_Z, Math.min(maxZ, (b.width - pad * 2) / (r.w || 1), (b.height - pad * 2) / (r.h || 1)))
-    setVp({ z, x: r.x + r.w / 2 - b.width / 2 / z, y: r.y + r.h / 2 - b.height / 2 / z })
+    const width = b.width - right
+    const z = Math.max(MIN_Z, Math.min(maxZ, (width - pad * 2) / (r.w || 1), (b.height - pad * 2) / (r.h || 1)))
+    setVp({ z, x: r.x + r.w / 2 - width / 2 / z, y: r.y + r.h / 2 - b.height / 2 / z })
   }
   const allBounds = () =>
     union([...placedNotes.map(noteRect), ...elements.flatMap((e) => (e.type === 'connector' ? [] : [rectOf(e.xywh)]))])
   function zoomToFit() {
+    // A battle map fits its picture, beside the table panel.
+    if (scene && elements.some((e) => e.type === 'image')) return fit(sceneBounds(elements), 40, 2, 320)
     fit(allBounds())
   }
   const zoomBy = (factor: number, at?: [number, number]) => {
@@ -258,6 +278,16 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       imageInput.current?.click()
       setTool('select')
       return
+    } else if (t === 'token') {
+      const b = root.current!.getBoundingClientRect()
+      setTokenPicker({ wx: r.x, wy: r.y, sx: (r.x - vp.x) * vp.z + b.left, sy: (r.y - vp.y) * vp.z + b.top })
+      setTool('select')
+      return
+    } else if (t === 'reveal') {
+      if (r.w < 8 || r.h < 8) return
+      id = addElement(doc, { type: 'reveal', xywh: [r.x, r.y, r.w, r.h] })
+      setSelected([id])
+      return
     } else if (t === 'pin') {
       const b = root.current!.getBoundingClientRect()
       setPinPicker({ wx: r.x, wy: r.y, sx: (r.x - vp.x) * vp.z + b.left, sy: (r.y - vp.y) * vp.z + b.top })
@@ -297,8 +327,11 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     pendingImage.current = null
     try {
       const { src, w, h } = await fitImage(file)
-      const width = Math.min(w, 1600)
-      const id = addElement(doc, { type: 'image', xywh: [Math.round(at.x), Math.round(at.y), width, Math.round((h / w) * width)], src, index: keyBefore() })
+      // A battle map keeps its own size (its squares match the grid) and sits on the grid.
+      const width = scene ? w : Math.min(w, 1600)
+      const g = gridOf()
+      const [x, y] = scene ? [Math.round((at.x - g.offsetX) / g.size) * g.size + g.offsetX, Math.round((at.y - g.offsetY) / g.size) * g.size + g.offsetY] : [Math.round(at.x), Math.round(at.y)]
+      const id = addElement(doc, { type: 'image', xywh: [x, y, width, Math.round((h / w) * width)], src, index: keyBefore() })
       setSelected([id])
     } catch (e) {
       toast(`Could not add the picture: ${String(e)}`)
@@ -329,6 +362,11 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     const hit = itemAt(e.target)
     const middle = e.button === 1
     if (e.button !== 0 && !middle) return
+    // Alt-click on a live battle map: ping it for everyone.
+    if (scene && e.altKey && !middle && live?.state.status === 'live') {
+      live.ping(Math.round(wx), Math.round(wy))
+      return
+    }
 
     // Inside a note's text or a text box being edited: leave it to the editor.
     if (hit && hit.part === 'note-body' && tool === 'select' && !middle && !space.current) {
@@ -438,7 +476,9 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         const r = normRect(g.wx, g.wy, wx, wy)
         setPreview({ kind: 'rect', r, tool: 'marquee' })
         const inside = [
-          ...elements.filter((el) => el.type !== 'connector' && el.type !== 'frame' && intersects(r, rectOf(el.xywh))).map((el) => el.id),
+          ...elements
+            .filter((el) => el.type !== 'connector' && el.type !== 'frame' && (scene && el.type === 'image' ? contains(r, rectOf(el.xywh)) : intersects(r, rectOf(el.xywh))))
+            .map((el) => el.id),
           ...frames.filter((f) => contains(r, rectOf(f.xywh))).map((f) => f.id),
           ...placedNotes.filter((n) => intersects(r, noteRect(n))).map((n) => n.id),
         ]
@@ -468,7 +508,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       const clicked = r.w * vp.z < 6 && r.h * vp.z < 6
       const defaults: Partial<Record<Tool, [number, number]>> = { note: [NOTE_W / 2, 80], text: [200, 32], frame: [640, 400], rect: [160, 100], ellipse: [160, 100], diamond: [160, 120] }
       const [dw, dh] = defaults[g.tool] ?? [160, 100]
-      create(g.tool, clicked ? { x: g.wx, y: g.wy, w: dw, h: dh } : r)
+      create(g.tool, clicked ? { x: g.wx, y: g.wy, w: g.tool === 'reveal' ? 0 : dw, h: g.tool === 'reveal' ? 0 : dh } : r)
     } else if (g.kind === 'connect') {
       const target = itemAtPoint(e.clientX, e.clientY)
       const end: End = target && !('id' in g.source && g.source.id === target) ? { id: target } : { point: [wx, wy] }
@@ -476,6 +516,18 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       const id = addElement(doc, { type: 'connector', source: g.source, target: end, stroke: 'gray', text: '' })
       setSelected([id])
       setTool('select')
+    } else if (g.kind === 'move' && g.moved && scene) {
+      // Tokens land on the grid.
+      const snapped: Record<string, Record<string, unknown>> = {}
+      g.orig.forEach((_, id) => {
+        const el = byId.get(id)
+        if (el?.type !== 'token') return
+        const cur = (doc.getMap('surface').get(id) as Y.Map<unknown> | undefined)?.get('xywh') as XYWH | undefined
+        if (!cur) return
+        const [x, y] = snapToken(cur[0], cur[1], cur[2], cur[3], gridOf())
+        snapped[id] = { xywh: [x, y, cur[2], cur[3]] }
+      })
+      if (Object.keys(snapped).length) doc.transact(() => updateElements(doc, snapped), CANVAS)
     } else if (g.kind === 'move' && !g.moved) {
       // A plain click on an already selected item narrows the selection to it.
       const hit = itemUnder(e.clientX, e.clientY)
@@ -572,7 +624,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       doc.transact(() => (updateElements(doc, els), setNoteLayout(doc, ns)), CANVAS)
       return
     }
-    const keys: Record<string, Tool> = { v: 'select', h: 'hand', n: 'note', r: 'rect', o: 'ellipse', d: 'diamond', t: 'text', c: 'connector', f: 'frame', i: 'image', p: 'pin' }
+    const keys: Record<string, Tool> = { v: 'select', h: 'hand', n: 'note', r: 'rect', o: 'ellipse', d: 'diamond', t: 'text', c: 'connector', f: 'frame', i: 'image', p: 'pin', ...(scene ? ({ k: 'token', e: 'reveal' } as const) : {}) }
     const k = keys[e.key.toLowerCase()]
     if (k) setTool(k)
     if (e.key === ' ') space.current = true
@@ -627,6 +679,8 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         const hit = itemUnder(e.clientX, e.clientY)
         const el = hit ? byId.get(hit.id) : undefined
         if (el?.type === 'pin') return void openPage(el.page, e.ctrlKey || e.metaKey ? 'tab' : 'replace')
+        if (el?.type === 'token') return void (el.page && openPage(el.page, 'tab'))
+        if (el?.type === 'reveal') return
         if (el?.type === 'image') return
         if (hit && (hit.part === 'body' || hit.part === 'title')) {
           if (!isNote(hit.id)) setEditing(hit.id)
@@ -642,9 +696,10 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       <div className="cv-world" style={{ transform: `scale(${vp.z}) translate(${-vp.x}px, ${-vp.y}px)` }}>
         {elements.map((el) =>
           el.type === 'image' ? (
-            <img key={el.id} className={`cv-image ${selectedSet.has(el.id) ? 'selected' : ''}`} data-cid={el.id} src={el.src} alt="" draggable={false} style={box(rectOf(el.xywh))} />
+            <img key={el.id} className={`cv-image ${selectedSet.has(el.id) ? 'selected' : ''} ${scene ? 'locked' : ''}`} data-cid={el.id} src={el.src} alt="" draggable={false} style={box(rectOf(el.xywh))} />
           ) : null,
         )}
+        {scene && sceneSettings && <SceneUnder elements={elements} settings={sceneSettings} selected={selectedSet} />}
         {frames.map((f) => (
           <FrameView key={f.id} el={f} selected={selectedSet.has(f.id)} editing={editing === f.id} onText={(text) => (updateElements(doc, { [f.id]: { text } }), setEditing(null))} />
         ))}
@@ -663,6 +718,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           ) : null,
         )}
         {elements.map((el) => (el.type === 'pin' ? <PinView key={el.id} el={el} selected={selectedSet.has(el.id)} /> : null))}
+        {scene && <SceneOver elements={elements} live={live} selected={selectedSet} />}
         {placedNotes.map((n) => (
           <NoteView
             key={n.id}
@@ -760,6 +816,21 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           if (f) void addImage(f)
         }}
       />
+      {tokenPicker && sceneSettings && (
+        <TokenPicker
+          at={tokenPicker}
+          onPick={(p) => {
+            const id = placeToken(doc, p, tokenPicker.wx, tokenPicker.wy, sceneSettings.grid)
+            setTokenPicker(null)
+            setSelected([id])
+            root.current?.focus()
+          }}
+          onClose={() => setTokenPicker(null)}
+        />
+      )}
+      {scene && sceneSettings && live && presenting === null && (
+        <ScenePanel pageId={pageId} doc={doc} elements={elements} settings={sceneSettings} onSettings={setSceneSettings} selected={selected} onSelect={setSelected} live={live} />
+      )}
       {pinPicker && (
         <PinPicker
           at={pinPicker}
@@ -774,7 +845,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       )}
       {presenting === null ? (
         <>
-          <Toolbar tool={tool} onTool={setTool} frames={frames.length} onPresent={() => present(0)} />
+          <Toolbar tool={tool} onTool={setTool} frames={frames.length} onPresent={() => present(0)} scene={scene} />
           <ZoomControls z={vp.z} onZoom={zoomBy} onFit={zoomToFit} />
         </>
       ) : (
@@ -790,11 +861,11 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
 
   function patchFor(el: Element, patch: Record<string, unknown>): Record<string, unknown> {
     // One color picker for everything: shapes use it as fill and stroke, the rest as their color.
-    if (el.type === 'image') return {}
+    if (el.type === 'image' || el.type === 'reveal') return {}
     if ('color' in patch) {
       const c = patch.color
       const { color: _, ...rest } = patch
-      if (el.type === 'pin') return { ...rest, color: c }
+      if (el.type === 'pin' || el.type === 'token') return { ...rest, color: c }
       if (el.type === 'shape') return { ...rest, fill: c, stroke: c }
       if (el.type === 'text') return { ...rest, color: c }
       if (el.type === 'frame') return { ...rest, fill: c }

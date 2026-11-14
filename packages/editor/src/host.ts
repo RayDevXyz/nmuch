@@ -74,6 +74,8 @@ export interface SlashExtra {
   label: string
   desc: string
   keywords?: string
+  /** The `/` menu tab it's listed under (e.g. "D&D", "Courses"); default "More". */
+  group?: string
   /** Runs after the typed `/query` has been removed. */
   run(editor: Editor): void
 }

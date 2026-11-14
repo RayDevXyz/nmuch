@@ -168,6 +168,7 @@ function courseTrackerExtra(pageId: string): SlashExtra {
     label: 'Course tracker',
     desc: 'Start here: Courses + Lessons; import folders of videos as courses',
     keywords: 'template course lessons progress module import folder',
+    group: 'Courses',
     run: (editor) => {
       toast('Creating the course tracker…')
       void createCourseTracker(pageId).then(
@@ -322,6 +323,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
             label: m.manifest.name,
             desc: m.manifest.description || 'Module',
             keywords: `module ${m.manifest.id}`,
+            group: 'Modules',
             run: (editor: TiptapEditor) => void editor.chain().focus().insertWidget(`module:${m.manifest.id}`).run(),
           }))
         return [courseTrackerExtra(pageId), ...dndSlashExtras, ...modules, ...installedWidgets().map((w) => ({
@@ -329,6 +331,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
           label: w.manifest.name,
           desc: w.manifest.description || 'Widget',
           keywords: `widget ${w.manifest.id}`,
+          group: w.manifest.id.includes('course') ? 'Courses' : 'Widgets',
           run: (editor: TiptapEditor) => void editor.chain().focus().insertWidget(w.manifest.id).run(),
         }))]
       },

@@ -25,6 +25,7 @@ export const dndSlashExtras: SlashExtra[] = [
     label: 'New campaign',
     desc: 'D&D campaign: NPCs, locations, factions, sessions, story beats, world map',
     keywords: 'dnd campaign dungeon master dm world building story',
+    group: 'D&D',
     run: () => {
       const title = window.prompt('Name of the campaign', 'New campaign')
       if (title === null) return
@@ -38,9 +39,9 @@ export const dndSlashExtras: SlashExtra[] = [
       )
     },
   },
-  { id: 'dnd-character', label: 'New character', desc: 'D&D character sheet from your 5etools races, classes, backgrounds', keywords: 'dnd character sheet player pc hero', run: () => openCharacterWizard() },
-  { id: 'dnd-compendium', label: 'Compendium entry', desc: '5e spell, monster, item, race, class… as a card', keywords: 'dnd 5e 5etools compendium srd', run: pick(undefined, 'Insert from the compendium') },
-  { id: 'dnd-spell', label: 'Spell', desc: 'A 5e spell card from your 5etools', keywords: 'dnd 5e magic', run: pick(['spell'], 'Insert a spell') },
-  { id: 'dnd-monster', label: 'Monster', desc: 'A stat block from your 5etools bestiary', keywords: 'dnd 5e creature statblock bestiary npc', run: pick(['monster'], 'Insert a stat block') },
-  { id: 'dnd-item', label: 'Magic item', desc: 'An item card from your 5etools', keywords: 'dnd 5e item weapon armor loot treasure', run: pick(['item'], 'Insert an item') },
+  { id: 'dnd-character', group: 'D&D', label: 'New character', desc: 'D&D character sheet from your 5etools races, classes, backgrounds', keywords: 'dnd character sheet player pc hero', run: () => openCharacterWizard() },
+  { id: 'dnd-compendium', group: 'D&D', label: 'Compendium entry', desc: '5e spell, monster, item, race, class… as a card', keywords: 'dnd 5e 5etools compendium srd', run: pick(undefined, 'Insert from the compendium') },
+  { id: 'dnd-spell', group: 'D&D', label: 'Spell', desc: 'A 5e spell card from your 5etools', keywords: 'dnd 5e magic', run: pick(['spell'], 'Insert a spell') },
+  { id: 'dnd-monster', group: 'D&D', label: 'Monster', desc: 'A stat block from your 5etools bestiary', keywords: 'dnd 5e creature statblock bestiary npc', run: pick(['monster'], 'Insert a stat block') },
+  { id: 'dnd-item', group: 'D&D', label: 'Magic item', desc: 'An item card from your 5etools', keywords: 'dnd 5e item weapon armor loot treasure', run: pick(['item'], 'Insert an item') },
 ]

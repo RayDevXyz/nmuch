@@ -18,7 +18,7 @@ const GROUPS: [string, [string, string][]][] = [
   [
     'Blocks',
     [
-      ['/', 'Insert or convert a block'],
+      ['/', 'Insert or convert a block (← → switch tabs: Basic, D&D, Courses…)'],
       ['[[', 'Link to a page'],
       ['((', 'Link to a block'],
       ['/database', 'Table, board or gallery (rows are pages)'],

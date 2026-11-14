@@ -2,7 +2,7 @@ import { Extension, type Editor, type Range } from '@tiptap/core'
 import { PluginKey } from '@tiptap/pm/state'
 import { ReactRenderer } from '@tiptap/react'
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionOptions, type SuggestionProps } from '@tiptap/suggestion'
-import { FilePlus2, Hash, Sparkles } from 'lucide-react'
+import { FilePlus2, GraduationCap, Hash, LayoutGrid, Puzzle, Sparkles, Swords, type LucideIcon } from 'lucide-react'
 import type { BlockOption, PageOption, SlashExtra } from '../host'
 import { maybeHost } from '../host-extension'
 import { filterSlash, runSlash, type SlashItem } from './items'
@@ -70,6 +70,11 @@ function suggestionExtension<I>(name: string, options: Omit<SuggestionOptions<I,
 // ---------------------------------------------------------------- "/" commands
 
 type SlashEntry = SlashItem | (SlashExtra & { extra: true })
+const GROUP_ICON: Record<string, LucideIcon> = { 'D&D': Swords, Courses: GraduationCap, Widgets: LayoutGrid, Modules: Puzzle }
+const iconFor = (group?: string) => {
+  const Icon = (group && GROUP_ICON[group]) || Sparkles
+  return <Icon size={16} />
+}
 
 export const SlashCommands = suggestionExtension<SlashEntry>('slashCommands', {
   char: '/',
@@ -95,12 +100,13 @@ export const SlashCommands = suggestionExtension<SlashEntry>('slashCommands', {
     return $from.parent.type.name !== 'codeBlock'
   },
   render: popup<SlashEntry>((p) => ({
-    caption: p.query ? `Blocks matching “${p.query}”` : 'Basic blocks',
+    caption: p.query ? `Blocks matching “${p.query}”` : 'Blocks',
     empty: 'No matching blocks',
+    tabs: true,
     entries: p.items.map((i) =>
       'extra' in i
-        ? { key: i.id, label: i.label, desc: i.desc, icon: <Sparkles size={16} />, rich: true }
-        : { key: i.id, label: i.label, desc: i.desc, hint: i.hint, icon: <i.icon size={16} />, rich: true },
+        ? { key: i.id, label: i.label, desc: i.desc, icon: iconFor(i.group), rich: true, group: i.group || 'More' }
+        : { key: i.id, label: i.label, desc: i.desc, hint: i.hint, icon: <i.icon size={16} />, rich: true, group: 'Basic' },
     ),
     onPick: (i) => p.command(p.items[i]),
   })),

@@ -11,6 +11,7 @@ import {
   addElement,
   addNote,
   CANVAS,
+  canRotate,
   center,
   colorOf,
   contains,
@@ -21,7 +22,10 @@ import {
   normRect,
   readNotes,
   rectOf,
+  reorder,
   setNoteLayout,
+  shown as isShown,
+  textCss,
   undoManager,
   union,
   updateElements,
@@ -36,7 +40,10 @@ import {
   type ShapeKind,
   type XYWH,
 } from './model'
-import { StyleBar, Toolbar, ZoomControls, type Tool } from './chrome'
+import { ZoomBar, type Tool } from './chrome'
+import { ContextBar } from './ContextBar'
+import { alignBoxes, angleTo, distributeBoxes, resizeTurned, snapBox, snapEdges, turnedBounds, type Guide } from './geometry'
+import { DRAG_TYPE, presetById, rememberUpload, SidePanel, type PanelTab, type Preset } from './SidePanel'
 
 /** The canvas viewport: world point (x, y) is at the top-left; `z` is the zoom. */
 interface Viewport {
@@ -52,6 +59,13 @@ const LAYOUT = 'layout' // origin of automatic placement: not undoable
 
 /** Viewports survive switching modes and tabs (for this session). */
 const viewports = new Map<string, Viewport>()
+/** The side panel's tab, kept across pages (null: closed). Battle maps keep their own: closed at
+ * first, since the table panel takes the other side. */
+let lastTab: PanelTab | null = 'elements'
+let lastSceneTab: PanelTab | null = null
+const RAIL_W = 64
+const DRAWER_W = 268
+const SNAP_PX = 6
 
 /** Show a page's whole canvas: now if it's open, else the next time it opens. */
 export function fitCanvas(pageId: string) {
@@ -61,8 +75,9 @@ export function fitCanvas(pageId: string) {
 
 type Gesture =
   | { kind: 'pan'; sx: number; sy: number; vp: Viewport }
-  | { kind: 'move'; wx: number; wy: number; orig: Map<string, XYWH>; moved: boolean }
-  | { kind: 'resize'; id: string; handle: string; wx: number; wy: number; orig: XYWH; note: boolean }
+  | { kind: 'move'; wx: number; wy: number; orig: Map<string, XYWH>; moved: boolean; base: Rect | null; others: Rect[] }
+  | { kind: 'resize'; id: string; handle: string; wx: number; wy: number; orig: XYWH; note: boolean; deg: number; ratio: boolean; others: Rect[] }
+  | { kind: 'rotate'; id: string; cx: number; cy: number }
   | { kind: 'marquee'; wx: number; wy: number; additive: string[] }
   | { kind: 'create'; tool: Tool; wx: number; wy: number }
   | { kind: 'connect'; source: End; wx: number; wy: number }
@@ -101,6 +116,11 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   const [heights, setHeights] = useState<Record<string, number>>({})
   const gesture = useRef<Gesture | null>(null)
   const space = useRef(false)
+  const [guides, setGuides] = useState<Guide[]>([])
+  const [readout, setReadout] = useState<{ text: string; x: number; y: number } | null>(null)
+  const [tab, setTabState] = useState<PanelTab | null>(scene ? lastSceneTab : lastTab)
+  const setTab = (t: PanelTab | null) => (scene ? (lastSceneTab = t) : (lastTab = t), setTabState(t))
+  const leftInset = RAIL_W + (tab ? DRAWER_W : 0)
   // Created in an effect (not a memo) so a remount in development gets a live one.
   const [um, setUm] = useState<Y.UndoManager | null>(null)
   const editors = useRef(new Map<string, TiptapEditor>())
@@ -145,12 +165,25 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   const rectOfId = useCallback(
     (id: string): Rect | null => {
       const el = byId.get(id)
-      if (el && el.type !== 'connector') return rectOf(el.xywh)
+      if (el && el.type !== 'connector') return turnedBounds(el.xywh, el.rotate)
       const n = notes.find((x) => x.id === id)
       return n?.xywh ? noteRect(n) : null
     },
     [byId, notes, noteRect],
   )
+  /** A selection grows to whole groups. */
+  const withGroups = (ids: string[]): string[] => {
+    const groups = new Set(ids.map((id) => byId.get(id)?.group).filter(Boolean))
+    if (!groups.size) return ids
+    return [...new Set([...ids, ...elements.filter((e) => e.group && groups.has(e.group)).map((e) => e.id)])]
+  }
+  /** What smart guides line up with: everything drawn that isn't moving. */
+  const snapTargets = (moving: Set<string>): Rect[] => {
+    const out: Rect[] = []
+    for (const e of elements) if (e.type !== 'connector' && e.type !== 'reveal' && isShown(e) && !moving.has(e.id)) out.push(turnedBounds(e.xywh, e.rotate))
+    for (const n of placedNotes) if (!moving.has(n.id)) out.push(noteRect(n))
+    return out.length > 3000 ? [] : out
+  }
   const frames = elements.filter((e): e is Extract<Element, { type: 'frame' }> => e.type === 'frame')
 
   // ---------- notes that were never placed go in a column below everything else
@@ -207,20 +240,32 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   )
   const toScreen = (r: Rect): Rect => ({ x: (r.x - vp.x) * vp.z, y: (r.y - vp.y) * vp.z, w: r.w * vp.z, h: r.h * vp.z })
 
-  /** Show `r` whole; `right` is room kept free on the right (for the battle map's panel). */
+  /** Show `r` whole, beside the side panel; `right` is room kept free on the right (the battle map's panel). */
   const fit = (r: Rect | null, pad = 60, maxZ = 1, right = 0) => {
     const b = root.current?.getBoundingClientRect()
     if (!r || !b) return
-    const width = b.width - right
-    const z = Math.max(MIN_Z, Math.min(maxZ, (width - pad * 2) / (r.w || 1), (b.height - pad * 2) / (r.h || 1)))
-    setVp({ z, x: r.x + r.w / 2 - width / 2 / z, y: r.y + r.h / 2 - b.height / 2 / z })
+    const left = presenting !== null ? 0 : leftInset
+    const top = presenting !== null ? 0 : 56
+    const width = b.width - right - left
+    const height = b.height - top
+    const z = Math.max(MIN_Z, Math.min(maxZ, (width - pad * 2) / (r.w || 1), (height - pad * 2) / (r.h || 1)))
+    setVp({ z, x: r.x + r.w / 2 - (left + width / 2) / z, y: r.y + r.h / 2 - (top + height / 2) / z })
+  }
+  /** The middle of what's visible, in world space (beside the panel). */
+  const viewCenter = (): [number, number] => {
+    const b = root.current!.getBoundingClientRect()
+    return [(leftInset + (b.width - leftInset) / 2) / vp.z + vp.x, b.height / 2 / vp.z + vp.y]
   }
   const allBounds = () =>
-    union([...placedNotes.map(noteRect), ...elements.flatMap((e) => (e.type === 'connector' ? [] : [rectOf(e.xywh)]))])
+    union([...placedNotes.map(noteRect), ...elements.flatMap((e) => (e.type === 'connector' || !isShown(e) ? [] : [turnedBounds(e.xywh, e.rotate)]))])
   function zoomToFit() {
     // A battle map fits its picture, beside the table panel.
     if (scene && elements.some((e) => e.type === 'image')) return fit(sceneBounds(elements), 40, 2, 320)
     fit(allBounds())
+  }
+  const zoomTo = (z: number) => {
+    const b = root.current!.getBoundingClientRect()
+    zoomBy(z / vp.z, [leftInset + (b.width - leftInset) / 2, b.height / 2])
   }
   const zoomBy = (factor: number, at?: [number, number]) => {
     const b = root.current!.getBoundingClientRect()
@@ -328,11 +373,15 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   const imageInput = useRef<HTMLInputElement>(null)
   const pendingImage = useRef<{ x: number; y: number } | null>(null)
   const [pinPicker, setPinPicker] = useState<{ wx: number; wy: number; sx: number; sy: number } | null>(null)
-  const addImage = async (file: File) => {
-    const at = pendingImage.current ?? { x: vp.x + 40, y: vp.y + 40 }
+  const addImage = async (file: File, drop?: { x: number; y: number }) => {
+    const at = drop ?? pendingImage.current ?? (() => {
+      const [cx, cy] = viewCenter()
+      return { x: cx - 200, y: cy - 150 }
+    })()
     pendingImage.current = null
     try {
       const { src, w, h } = await fitImage(file)
+      rememberUpload({ src, w, h })
       // A battle map keeps its own size (its squares match the grid) and sits on the grid.
       const width = scene ? w : Math.min(w, 1600)
       const g = gridOf()
@@ -379,7 +428,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       if (!selected.includes(hit.id)) setSelected([hit.id])
       return
     }
-    if ((e.target as HTMLElement).closest('textarea, .cv-stylebar, .cv-toolbar, .cv-zoom')) return
+    if ((e.target as HTMLElement).closest('textarea, input, select, .cv-context, .cv-side, .cv-zoom')) return
 
     root.current!.setPointerCapture(e.pointerId)
     if (middle || tool === 'hand' || space.current) {
@@ -398,16 +447,36 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     }
     if (hit?.part === 'handle') {
       const id = selected[0]
+      const handle = ((e.target as HTMLElement).closest('[data-handle]') as HTMLElement | null)?.dataset.handle ?? 'se'
       const n = notes.find((x) => x.id === id)
-      const orig = n?.xywh ?? (byId.get(id) as Boxed | undefined)?.xywh
-      if (orig) gesture.current = { kind: 'resize', id, handle: (e.target as HTMLElement).dataset.handle!, wx, wy, orig: [...orig] as XYWH, note: !!n }
+      const el = byId.get(id) as Boxed | undefined
+      um?.stopCapturing()
+      if (handle === 'rot' && el) {
+        const [x, y, w, h] = el.xywh
+        gesture.current = { kind: 'rotate', id, cx: x + w / 2, cy: y + h / 2 }
+        return
+      }
+      const orig = n?.xywh ?? el?.xywh
+      const ratio = el?.type === 'image' || el?.type === 'pin' || el?.type === 'token'
+      if (orig) gesture.current = { kind: 'resize', id, handle, wx, wy, orig: [...orig] as XYWH, note: !!n, deg: el?.rotate ?? 0, ratio, others: snapTargets(new Set([id])) }
       return
     }
     if (hit && hit.part !== 'frame-body') {
-      const sel = e.shiftKey ? (selected.includes(hit.id) ? selected.filter((s) => s !== hit.id) : [...selected, hit.id]) : selected.includes(hit.id) ? selected : [hit.id]
+      // A click takes the whole group; Ctrl/⌘-click picks one item inside it.
+      const deep = e.ctrlKey || e.metaKey
+      const take = deep ? [hit.id] : withGroups([hit.id])
+      const sel = e.shiftKey
+        ? take.every((id) => selected.includes(id))
+          ? selected.filter((s) => !take.includes(s))
+          : [...new Set([...selected, ...take])]
+        : selected.includes(hit.id) && !deep
+          ? selected
+          : take
       setSelected(sel)
       um?.stopCapturing()
-      gesture.current = { kind: 'move', wx, wy, orig: movable(sel), moved: false }
+      const orig = movable(sel)
+      gesture.current = { kind: 'move', wx, wy, orig, moved: false, base: union([...orig.keys()].map(rectOfId).filter((r): r is Rect => !!r)), others: [] }
+      if (orig.size) gesture.current.others = snapTargets(new Set(orig.keys()))
       return
     }
     gesture.current = { kind: 'marquee', wx, wy, additive: e.shiftKey ? selected : [] }
@@ -419,6 +488,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     const out = new Map<string, XYWH>()
     const add = (id: string) => {
       const el = byId.get(id)
+      if (el?.locked) return
       if (el && el.type !== 'connector') out.set(id, [...el.xywh] as XYWH)
       const n = notes.find((x) => x.id === id)
       if (n?.xywh) out.set(id, [...n.xywh] as XYWH)
@@ -448,10 +518,20 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         const dy = wy - g.wy
         if (!g.moved && Math.hypot(dx, dy) * vp.z < 3) return
         g.moved = true
+        // Smart guides: line the selection up with what's around (Ctrl: move freely; tokens use the grid).
+        let sdx = dx
+        let sdy = dy
+        const tokensOnly = scene && [...g.orig.keys()].every((id) => byId.get(id)?.type === 'token')
+        if (g.base && !e.ctrlKey && !e.metaKey && !tokensOnly) {
+          const snap = snapBox({ ...g.base, x: g.base.x + dx, y: g.base.y + dy }, g.others, SNAP_PX / vp.z)
+          sdx += snap.dx
+          sdy += snap.dy
+          setGuides(snap.guides)
+        } else setGuides([])
         const els: Record<string, Record<string, unknown>> = {}
         const ns: Record<string, { xywh: XYWH }> = {}
         g.orig.forEach(([x, y, w, h], id) => {
-          const xywh: XYWH = [Math.round(x + dx), Math.round(y + dy), w, h]
+          const xywh: XYWH = [Math.round(x + sdx), Math.round(y + sdy), w, h]
           if (isNote(id)) ns[id] = { xywh }
           else els[id] = { xywh }
         })
@@ -461,10 +541,30 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         }, CANVAS)
         return
       }
+      case 'rotate': {
+        const deg = angleTo(g.cx, g.cy, wx, wy, !e.shiftKey)
+        updateElements(doc, { [g.id]: { rotate: deg || undefined } })
+        const b = root.current!.getBoundingClientRect()
+        setReadout({ text: `${deg}°`, x: e.clientX - b.left + 16, y: e.clientY - b.top + 16 })
+        return
+      }
       case 'resize': {
         const [x, y, w, h] = g.orig
         const dx = wx - g.wx
         const dy = wy - g.wy
+        if (!g.note) {
+          // In the item's own frame (it may be turned); pictures keep their proportions (Shift: don't).
+          let xywh = resizeTurned(g.orig, g.deg, g.handle, dx, dy, 8, g.ratio !== e.shiftKey)
+          if (!g.deg && !(g.ratio !== e.shiftKey) && !e.ctrlKey && !e.metaKey) {
+            const snap = snapEdges(xywh, g.handle, g.others, SNAP_PX / vp.z)
+            xywh = snap.box
+            setGuides(snap.guides)
+          } else setGuides([])
+          updateElements(doc, { [g.id]: { xywh } })
+          const b = root.current!.getBoundingClientRect()
+          setReadout({ text: `${xywh[2]} × ${xywh[3]}`, x: e.clientX - b.left + 16, y: e.clientY - b.top + 16 })
+          return
+        }
         let [nx, ny, nw, nh] = [x, y, w, h]
         if (g.handle.includes('e')) nw = w + dx
         if (g.handle.includes('w')) (nx = x + dx), (nw = w - dx)
@@ -481,14 +581,16 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       case 'marquee': {
         const r = normRect(g.wx, g.wy, wx, wy)
         setPreview({ kind: 'rect', r, tool: 'marquee' })
+        // Locked and hidden items stay out of a marquee; groups come whole.
+        const pickable = (el: Element) => !el.locked && isShown(el)
         const inside = [
           ...elements
-            .filter((el) => el.type !== 'connector' && el.type !== 'frame' && (scene && el.type === 'image' ? contains(r, rectOf(el.xywh)) : intersects(r, rectOf(el.xywh))))
+            .filter((el) => pickable(el) && el.type !== 'connector' && el.type !== 'frame' && (scene && el.type === 'image' ? contains(r, rectOf(el.xywh)) : intersects(r, turnedBounds(el.xywh, el.rotate))))
             .map((el) => el.id),
-          ...frames.filter((f) => contains(r, rectOf(f.xywh))).map((f) => f.id),
+          ...frames.filter((f) => pickable(f) && contains(r, rectOf(f.xywh))).map((f) => f.id),
           ...placedNotes.filter((n) => intersects(r, noteRect(n))).map((n) => n.id),
         ]
-        setSelected([...new Set([...g.additive, ...inside])])
+        setSelected([...new Set([...g.additive, ...withGroups(inside)])])
         return
       }
       case 'create':
@@ -507,6 +609,8 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     const g = gesture.current
     gesture.current = null
     setPreview(null)
+    setGuides([])
+    setReadout(null)
     if (!g) return
     const [wx, wy] = toWorld(e.clientX, e.clientY)
     if (g.kind === 'create') {
@@ -535,9 +639,9 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       })
       if (Object.keys(snapped).length) doc.transact(() => updateElements(doc, snapped), CANVAS)
     } else if (g.kind === 'move' && !g.moved) {
-      // A plain click on an already selected item narrows the selection to it.
+      // A plain click on an already selected item narrows the selection to it (or its group).
       const hit = itemUnder(e.clientX, e.clientY)
-      if (hit && !e.shiftKey) setSelected([hit.id])
+      if (hit && !e.shiftKey) setSelected(e.ctrlKey || e.metaKey ? [hit.id] : withGroups([hit.id]))
     }
   }
 
@@ -584,19 +688,24 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     if (mod && e.key.toLowerCase() === 'y') return void (e.preventDefault(), um?.redo())
     if (mod && e.key.toLowerCase() === 'a') {
       e.preventDefault()
-      return setSelected([...elements.map((el) => el.id), ...placedNotes.map((n) => n.id)])
+      return setSelected([...elements.filter((el) => isShown(el) && !el.locked).map((el) => el.id), ...placedNotes.map((n) => n.id)])
     }
     if (mod && e.key.toLowerCase() === 'd') {
       e.preventDefault()
-      const copies = selected.flatMap((id) => {
-        const el = byId.get(id)
-        if (!el || el.type === 'connector') return []
-        const { id: _, index: __, ...rest } = el
-        const [x, y, w, h] = el.xywh
-        return [addElement(doc, { ...rest, xywh: [x + 24, y + 24, w, h] } as NewElement)]
-      })
-      if (copies.length) setSelected(copies)
-      return
+      return duplicate()
+    }
+    if (mod && e.key.toLowerCase() === 'g') {
+      e.preventDefault()
+      return e.shiftKey ? ungroup() : group()
+    }
+    if (mod && (e.key === ']' || e.key === '[' || e.code === 'BracketRight' || e.code === 'BracketLeft')) {
+      e.preventDefault()
+      const up = e.key === ']' || e.code === 'BracketRight'
+      return reorder(doc, selected, e.shiftKey ? (up ? 'front' : 'back') : up ? 'forward' : 'backward')
+    }
+    if (e.altKey && e.shiftKey && e.code === 'KeyL') {
+      e.preventDefault()
+      return lock(!selectedEls().every((x) => x.locked))
     }
     if (mod && (e.key === '0' || e.key === '1')) return void (e.preventDefault(), zoomToFit())
     if (mod && (e.key === '=' || e.key === '+')) return void (e.preventDefault(), zoomBy(1.25))
@@ -604,10 +713,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     if (mod) return
     if ((e.key === 'Delete' || e.key === 'Backspace') && selected.length) {
       e.preventDefault()
-      if (selected.filter(isNote).length >= notes.length) toast('A page keeps at least one note')
-      deleteItems(doc, new Set(selected))
-      setSelected([])
-      return
+      return remove()
     }
     if (e.key === 'Escape') return void (setSelected([]), setTool('select'))
     if (e.key === 'Enter' && selected.length === 1) {
@@ -637,6 +743,79 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   }
   const onKeyUp = (e: React.KeyboardEvent) => {
     if (e.key === ' ') space.current = false
+  }
+
+  // ---------- actions on the selection (keyboard, context bar)
+
+  const selectedEls = () => selected.map((id) => byId.get(id)).filter((x): x is Element => !!x)
+  function duplicate() {
+    // Copies keep their groups among themselves, as new groups.
+    const regroup = new Map<string, string>()
+    const copies = selectedEls().flatMap((el) => {
+      if (el.type === 'connector') return []
+      const { id: _, index: __, locked: ___, ...rest } = el
+      const [x, y, w, h] = el.xywh
+      const g = el.group ? (regroup.get(el.group) ?? regroup.set(el.group, `g${Math.random().toString(36).slice(2, 10)}`).get(el.group)) : undefined
+      return [addElement(doc, { ...rest, group: g, xywh: [x + 24, y + 24, w, h] } as NewElement)]
+    })
+    if (copies.length) setSelected(copies)
+  }
+  function remove() {
+    const locked = selectedEls().filter((x) => x.locked)
+    if (locked.length) toast(`${locked.length === 1 ? 'A locked item stays' : 'Locked items stay'}: unlock to delete`)
+    const ids = selected.filter((id) => !byId.get(id)?.locked)
+    if (ids.filter(isNote).length >= notes.length) toast('A page keeps at least one note')
+    deleteItems(doc, new Set(ids))
+    setSelected(selected.filter((id) => byId.get(id)?.locked))
+  }
+  function group() {
+    const els = selectedEls().filter((x) => x.type !== 'connector')
+    if (els.length < 2) return toast('Select two or more things to group')
+    const g = `g${Math.random().toString(36).slice(2, 10)}`
+    updateElements(doc, Object.fromEntries(els.map((x) => [x.id, { group: g }])))
+    toast('Grouped: Ctrl+click picks one item inside')
+  }
+  function ungroup() {
+    updateElements(doc, Object.fromEntries(selectedEls().filter((x) => x.group).map((x) => [x.id, { group: undefined }])))
+  }
+  function lock(on: boolean) {
+    updateElements(doc, Object.fromEntries(selectedEls().map((x) => [x.id, { locked: on || undefined }])))
+  }
+  function moveBy(shifts: Record<string, [number, number]>) {
+    const patches: Record<string, Record<string, unknown>> = {}
+    const ns: Record<string, { xywh: XYWH }> = {}
+    for (const [id, [dx, dy]] of Object.entries(shifts)) {
+      const el = byId.get(id)
+      if (el && el.type !== 'connector' && !el.locked) patches[id] = { xywh: [el.xywh[0] + dx, el.xywh[1] + dy, el.xywh[2], el.xywh[3]] }
+      const n = notes.find((x) => x.id === id)
+      if (n?.xywh) ns[id] = { xywh: [n.xywh[0] + dx, n.xywh[1] + dy, n.xywh[2], n.xywh[3]] }
+    }
+    doc.transact(() => (updateElements(doc, patches), setNoteLayout(doc, ns)), CANVAS)
+  }
+  const boxesOfSelection = () => selected.map((id) => ({ id, r: rectOfId(id) })).filter((b): b is { id: string; r: Rect } => !!b.r)
+
+  /** Add a preset from the side panel: at a drop point, or in the middle of the view. */
+  function addPreset(preset: Preset, at?: [number, number]) {
+    const [cx, cy] = at ?? viewCenter()
+    const made = preset.make()
+    setTool('select')
+    if ('note' in made) {
+      const id = addNote(doc, [Math.round(cx - made.w / 2), Math.round(cy - 40), made.w, 80], 'both')
+      focusNote.current = id
+      return setSelected([id])
+    }
+    const el = made as Extract<NewElement, { xywh: XYWH }>
+    const [, , w, h] = el.xywh
+    const id = addElement(doc, { ...el, xywh: [Math.round(cx - w / 2), Math.round(cy - h / 2), w, h] } as NewElement)
+    setSelected([id])
+    if (el.type === 'frame') requestAnimationFrame(() => fit({ x: cx - w / 2 - 40, y: cy - h / 2 - 60, w: w + 80, h: h + 100 }, 40, vp.z))
+  }
+  /** Zoom to an item and select it (from Layers or Uploads). */
+  function focusItem(id: string) {
+    const r = rectOfId(id)
+    if (!r) return
+    setSelected([id])
+    fit({ x: r.x - 80, y: r.y - 80, w: r.w + 160, h: r.h + 160 }, 40, 1.5)
   }
 
   // ---------- presenting frames
@@ -680,6 +859,25 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       onPointerCancel={onPointerUp}
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes(DRAG_TYPE) || e.dataTransfer.types.includes('Files')) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+        }
+      }}
+      onDrop={(e) => {
+        const [wx, wy] = toWorld(e.clientX, e.clientY)
+        const preset = presetById(e.dataTransfer.getData(DRAG_TYPE))
+        if (preset) {
+          e.preventDefault()
+          return addPreset(preset, [wx, wy])
+        }
+        const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
+        if (files.length) {
+          e.preventDefault()
+          files.forEach((f, i) => void addImage(f, { x: wx + i * 40, y: wy + i * 40 }))
+        }
+      }}
       onDoubleClick={(e) => {
         if (tool !== 'select' || presenting !== null) return
         const hit = itemUnder(e.clientX, e.clientY)
@@ -700,30 +898,65 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       data-testid="canvas"
     >
       <div className="cv-world" style={{ transform: `scale(${vp.z}) translate(${-vp.x}px, ${-vp.y}px)` }}>
-        {elements.map((el) =>
-          el.type === 'image' ? (
-            <img key={el.id} className={`cv-image ${selectedSet.has(el.id) ? 'selected' : ''} ${scene ? 'locked' : ''}`} data-cid={el.id} src={el.src} alt="" draggable={false} style={box(rectOf(el.xywh))} />
-          ) : null,
-        )}
+        {/* A battle map's picture stays under the grid and the fog. */}
+        {scene &&
+          elements.map((el) =>
+            el.type === 'image' && isShown(el) ? (
+              <img key={el.id} className={`cv-image ${selectedSet.has(el.id) ? 'selected' : ''} locked`} data-cid={el.id} src={el.src} alt="" draggable={false} style={{ ...box(rectOf(el.xywh)), ...layerStyle(el) }} />
+            ) : null,
+          )}
         {scene && sceneSettings && <SceneUnder elements={elements} settings={sceneSettings} selected={selectedSet} />}
-        {frames.map((f) => (
+        {frames.filter(isShown).map((f) => (
           <FrameView key={f.id} el={f} selected={selectedSet.has(f.id)} editing={editing === f.id} onText={(text) => (updateElements(doc, { [f.id]: { text } }), setEditing(null))} />
         ))}
-        {elements.map((el) =>
-          el.type === 'shape' || el.type === 'text' ? (
-            <BoxView
-              key={el.id}
-              el={el}
-              selected={selectedSet.has(el.id)}
-              editing={editing === el.id}
-              onText={(text, h) => {
-                updateElements(doc, { [el.id]: el.type === 'text' && h ? { text, xywh: [el.xywh[0], el.xywh[1], el.xywh[2], h] } : { text } })
-                setEditing(null)
-              }}
-            />
-          ) : null,
-        )}
-        {elements.map((el) => (el.type === 'pin' ? <PinView key={el.id} el={el} selected={selectedSet.has(el.id)} /> : null))}
+        <svg className="cv-links" width="1" height="1">
+          <defs>
+            {['gray', ...Object.keys(COLOR_MARKERS)].map((c) => (
+              <marker key={c} id={`cv-arrow-${c}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L10,5 L0,10 z" fill={colorOf(c)} />
+              </marker>
+            ))}
+          </defs>
+        </svg>
+        {/* Everything else in its stacking order (Layers, Position). */}
+        {elements.map((el) => {
+          if (!isShown(el)) return null
+          const sel = selectedSet.has(el.id)
+          if (el.type === 'image')
+            return scene ? null : (
+              <img key={el.id} className={`cv-image ${sel ? 'selected' : ''} ${el.locked ? 'is-locked' : ''}`} data-cid={el.id} src={el.src} alt="" draggable={false} style={{ ...box(rectOf(el.xywh)), ...layerStyle(el) }} />
+            )
+          if (el.type === 'shape' || el.type === 'text')
+            return (
+              <BoxView
+                key={el.id}
+                el={el}
+                selected={sel}
+                editing={editing === el.id}
+                onText={(text, h) => {
+                  updateElements(doc, { [el.id]: el.type === 'text' && h ? { text, xywh: [el.xywh[0], el.xywh[1], el.xywh[2], h] } : { text } })
+                  setEditing(null)
+                }}
+              />
+            )
+          if (el.type === 'pin') return <PinView key={el.id} el={el} selected={sel} />
+          if (el.type === 'connector') {
+            const line = connectorLine(el)
+            if (!line) return null
+            const [[x1, y1], [x2, y2]] = line
+            const named = el.stroke && COLOR_MARKERS[el.stroke] ? el.stroke : null
+            const stroke = named ? colorOf(named) : colorOf(el.stroke, colorOf('gray'))
+            return (
+              <svg key={el.id} className="cv-links" width="1" height="1" style={layerStyle(el)}>
+                <g data-cid={el.id} data-kind="connector" className={sel ? 'selected' : ''}>
+                  <line className="cv-link-hit" x1={x1} y1={y1} x2={x2} y2={y2} />
+                  <line className="cv-link" x1={x1} y1={y1} x2={x2} y2={y2} stroke={stroke} markerEnd={`url(#cv-arrow-${named ?? 'gray'})`} />
+                </g>
+              </svg>
+            )
+          }
+          return null
+        })}
         {scene && <SceneOver elements={elements} live={live} selected={selectedSet} pageId={pageId} />}
         {placedNotes.map((n) => (
           <NoteView
@@ -736,28 +969,6 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
             onHeight={(h) => setHeights((hs) => (hs[n.id] === h ? hs : { ...hs, [n.id]: h }))}
           />
         ))}
-        <svg className="cv-links" width="1" height="1">
-          <defs>
-            {['gray', ...Object.keys(COLOR_MARKERS)].map((c) => (
-              <marker key={c} id={`cv-arrow-${c}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0,0 L10,5 L0,10 z" fill={colorOf(c)} />
-              </marker>
-            ))}
-          </defs>
-          {elements.map((el) => {
-            if (el.type !== 'connector') return null
-            const line = connectorLine(el)
-            if (!line) return null
-            const [[x1, y1], [x2, y2]] = line
-            const color = el.stroke && COLOR_MARKERS[el.stroke] ? el.stroke : 'gray'
-            return (
-              <g key={el.id} data-cid={el.id} data-kind="connector" className={selectedSet.has(el.id) ? 'selected' : ''}>
-                <line className="cv-link-hit" x1={x1} y1={y1} x2={x2} y2={y2} />
-                <line className="cv-link" x1={x1} y1={y1} x2={x2} y2={y2} stroke={colorOf(color)} markerEnd={`url(#cv-arrow-${color})`} />
-              </g>
-            )
-          })}
-        </svg>
         {elements.map((el) => {
           if (el.type !== 'connector') return null
           const line = connectorLine(el)
@@ -779,11 +990,41 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
 
       {/* screen-space overlays */}
       {selBox && presenting === null && (
-        <SelectionBox
-          r={toScreen(selBox)}
-          handles={single && singleEl?.type !== 'connector' ? (singleNote ? ['w', 'e'] : ['nw', 'ne', 'sw', 'se']) : []}
-          id={single}
-        />
+        <>
+          {/* Each item of a multiple selection gets its own outline. */}
+          {selected.length > 1 &&
+            selected.map((id) => {
+              const r = rectOfId(id)
+              return r ? <div key={id} className="cv-sel-item" style={box(toScreen(r))} /> : null
+            })}
+          {singleEl && singleEl.type !== 'connector' && singleEl.rotate ? (
+            <TurnedSelection r={toScreen(rectOf(singleEl.xywh))} deg={singleEl.rotate} handles={handlesFor(singleEl)} id={single} rotatable={!singleEl.locked && canRotate(singleEl)} />
+          ) : (
+            <SelectionBox
+              r={toScreen(selBox)}
+              handles={single ? (singleNote ? ['w', 'e'] : singleEl && singleEl.type !== 'connector' ? handlesFor(singleEl) : []) : []}
+              id={single}
+              rotatable={!!singleEl && !singleEl.locked && canRotate(singleEl)}
+              locked={selectedEls().some((x) => x.locked)}
+            />
+          )}
+        </>
+      )}
+      {guides.length > 0 && (
+        <svg className="cv-guides">
+          {guides.map((g, i) =>
+            g.axis === 'x' ? (
+              <line key={i} x1={(g.at - vp.x) * vp.z} x2={(g.at - vp.x) * vp.z} y1={(g.from - vp.y) * vp.z - 8} y2={(g.to - vp.y) * vp.z + 8} />
+            ) : (
+              <line key={i} y1={(g.at - vp.y) * vp.z} y2={(g.at - vp.y) * vp.z} x1={(g.from - vp.x) * vp.z - 8} x2={(g.to - vp.x) * vp.z + 8} />
+            ),
+          )}
+        </svg>
+      )}
+      {readout && (
+        <div className="cv-readout" style={{ left: readout.x, top: readout.y }}>
+          {readout.text}
+        </div>
       )}
       {preview?.kind === 'rect' && <div className={`cv-preview ${preview.tool === 'marquee' ? 'marquee' : ''}`} style={box(toScreen(preview.r))} />}
       {preview?.kind === 'line' && (
@@ -797,18 +1038,32 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           />
         </svg>
       )}
-      {selBox && presenting === null && !preview && (
-        <StyleBar
-          at={toScreen(selBox)}
-          items={selected.map((id) => byId.get(id)).filter((x): x is Element => !!x)}
+      {selBox && presenting === null && (
+        <ContextBar
+          left={leftInset}
+          items={selectedEls()}
           note={singleNote && selected.length === 1 ? singleNote : undefined}
-          onStyle={(patch) => updateElements(doc, Object.fromEntries(selected.filter((id) => byId.has(id)).map((id) => [id, patchFor(byId.get(id)!, patch)])))}
+          onPatch={(patch) =>
+            updateElements(
+              doc,
+              Object.fromEntries(
+                selectedEls()
+                  .filter((x) => !x.locked)
+                  .map((x) => [x.id, patchFor(x, patch)])
+                  .filter(([, p]) => Object.keys(p as object).length),
+              ),
+            )
+          }
+          onOrder={(o) => reorder(doc, selected, o)}
+          onAlign={(a) => moveBy(alignBoxes(boxesOfSelection(), a))}
+          onDistribute={(axis) => moveBy(distributeBoxes(boxesOfSelection(), axis))}
+          onGroup={group}
+          onUngroup={ungroup}
+          onLock={lock}
+          onDuplicate={duplicate}
+          onDelete={remove}
           onDisplay={(display) => singleNote && setNoteLayout(doc, { [singleNote.id]: { display } })}
           onOpenPage={single && singleEl?.type === 'pin' ? () => openPage(singleEl.page, 'replace') : undefined}
-          onDelete={() => {
-            deleteItems(doc, new Set(selected))
-            setSelected([])
-          }}
         />
       )}
       <input
@@ -851,8 +1106,29 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       )}
       {presenting === null ? (
         <>
-          <Toolbar tool={tool} onTool={setTool} frames={frames.length} onPresent={() => present(0)} scene={scene} />
-          <ZoomControls z={vp.z} onZoom={zoomBy} onFit={zoomToFit} />
+          <SidePanel
+            tab={tab}
+            onTab={setTab}
+            tool={tool}
+            onTool={setTool}
+            scene={scene}
+            onAdd={(p) => addPreset(p)}
+            onUpload={() => ((pendingImage.current = null), imageInput.current?.click())}
+            onAddImage={(img) => {
+              const [cx, cy] = viewCenter()
+              const width = Math.min(img.w, 1600)
+              const height = Math.round((img.h / img.w) * width)
+              const id = addElement(doc, { type: 'image', xywh: [Math.round(cx - width / 2), Math.round(cy - height / 2), width, height], src: img.src })
+              setSelected([id])
+            }}
+            doc={doc}
+            elements={elements}
+            notes={notes}
+            selected={selected}
+            onSelect={(ids) => setSelected(ids)}
+            onFocus={focusItem}
+          />
+          <ZoomBar z={vp.z} onZoomTo={zoomTo} onZoom={zoomBy} onFit={zoomToFit} onUndo={() => um?.undo()} onRedo={() => um?.redo()} frames={frames.length} onPresent={() => present(0)} />
         </>
       ) : (
         <div className="cv-present-bar">
@@ -865,21 +1141,36 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     </div>
   )
 
+  /** The part of a patch that applies to this element (a text style means nothing to a picture). */
   function patchFor(el: Element, patch: Record<string, unknown>): Record<string, unknown> {
-    // One color picker for everything: shapes use it as fill and stroke, the rest as their color.
-    if (el.type === 'image' || el.type === 'reveal') return {}
-    if ('color' in patch) {
-      const c = patch.color
-      const { color: _, ...rest } = patch
-      if (el.type === 'pin' || el.type === 'token') return { ...rest, color: c }
-      if (el.type === 'shape') return { ...rest, fill: c, stroke: c }
-      if (el.type === 'text') return { ...rest, color: c }
-      if (el.type === 'frame') return { ...rest, fill: c }
-      return { ...rest, stroke: c }
+    const t = el.type
+    const ok: Record<string, boolean> = {
+      fill: t === 'shape' || t === 'frame',
+      stroke: t === 'shape' || t === 'connector',
+      strokeWidth: t === 'shape',
+      color: t === 'text' || t === 'shape' || t === 'pin' || t === 'token',
+      shape: t === 'shape',
+      rotate: canRotate(el),
+      opacity: t !== 'reveal',
     }
-    if ('shape' in patch && el.type !== 'shape') return {}
-    if ('fontSize' in patch && el.type !== 'text') return {}
-    return patch
+    for (const k of ['fontSize', 'fontFamily', 'bold', 'italic', 'underline', 'align']) ok[k] = t === 'text' || t === 'shape'
+    return Object.fromEntries(Object.entries(patch).filter(([k]) => ok[k] ?? true))
+  }
+}
+
+/** Which resize handles an element gets. */
+function handlesFor(el: Element): string[] {
+  if (el.locked || el.type === 'connector') return []
+  if (el.type === 'pin' || el.type === 'token') return ['nw', 'ne', 'sw', 'se']
+  if (el.type === 'text') return ['nw', 'ne', 'sw', 'se', 'w', 'e']
+  return ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']
+}
+
+/** Transparency and turning, as CSS. */
+function layerStyle(el: Element): React.CSSProperties {
+  return {
+    opacity: el.opacity ?? undefined,
+    transform: el.rotate ? `rotate(${el.rotate}deg)` : undefined,
   }
 }
 
@@ -924,7 +1215,7 @@ function PinView({ el, selected }: { el: Extract<Element, { type: 'pin' }>; sele
   const [x, y, w, h] = el.xywh
   const label = page?.title || el.text || 'Untitled'
   return (
-    <div className={`cv-pin ${selected ? 'selected' : ''} ${page ? '' : 'gone'} ${el.color === 'yellow' ? 'major' : ''}`} data-cid={el.id} style={{ left: x, top: y, width: w, height: h }} title={`${label} (double-click to open)`}>
+    <div className={`cv-pin ${selected ? 'selected' : ''} ${page ? '' : 'gone'} ${el.color === 'yellow' ? 'major' : ''}`} data-cid={el.id} style={{ left: x, top: y, width: w, height: h, opacity: el.opacity }} title={`${label} (double-click to open)`}>
       <svg viewBox="0 0 24 24" width={w} height={h} aria-hidden>
         <path d="M12 2c-4 0-7 3-7 7 0 5.2 7 13 7 13s7-7.8 7-13c0-4-3-7-7-7z" fill={colorOf(el.color, '#c9a45c')} stroke="#1b140c" strokeWidth="1.2" />
         <circle cx="12" cy="9" r="2.6" fill="#1b140c" />
@@ -1066,25 +1357,27 @@ function NoteView({
 function BoxView({ el, selected, editing, onText }: { el: Extract<Element, { type: 'shape' | 'text' }>; selected: boolean; editing: boolean; onText: (t: string, h?: number) => void }) {
   const [x, y, w, h] = el.xywh
   const textRef = useRef<HTMLDivElement>(null)
-  const style: React.CSSProperties = { left: x, top: y, width: w, height: el.type === 'shape' ? h : undefined, minHeight: el.type === 'text' ? h : undefined }
-  const color = el.type === 'text' ? colorOf(el.color, 'var(--foreground)') : 'var(--foreground)'
-  const fontSize = el.type === 'text' ? el.fontSize ?? 20 : 14
+  const style: React.CSSProperties = { left: x, top: y, width: w, height: el.type === 'shape' ? h : undefined, minHeight: el.type === 'text' ? h : undefined, ...layerStyle(el) }
+  const color = colorOf(el.color, 'var(--foreground)')
+  const text = { ...textCss(el, el.type === 'text' ? 20 : 14), color }
+  const fontSize = text.fontSize
+  const sw = el.type === 'shape' ? (el.strokeWidth ?? 2) : 0
   return (
-    <div className={`cv-box kind-${el.type} ${selected ? 'selected' : ''}`} data-cid={el.id} style={style}>
+    <div className={`cv-box kind-${el.type} ${selected ? 'selected' : ''} ${el.locked ? 'is-locked' : ''}`} data-cid={el.id} style={style}>
       {el.type === 'shape' && (
         <svg className="cv-shape" width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-          <ShapePath kind={el.shape} w={w} h={h} fill={fillOf(el.fill)} stroke={colorOf(el.stroke)} />
+          <ShapePath kind={el.shape} w={w} h={h} fill={fillOf(el.fill)} stroke={el.stroke === 'none' || !sw ? 'transparent' : colorOf(el.stroke)} width={sw} />
         </svg>
       )}
       {editing ? (
         <AutoTextarea
           initial={el.text ?? ''}
-          style={{ fontSize, color }}
+          style={{ ...text, fontSize }}
           className={el.type === 'shape' ? 'centered' : ''}
           onDone={(t, measured) => onText(t, measured)}
         />
       ) : (
-        <div ref={textRef} className={`cv-text ${el.type === 'shape' ? 'centered' : ''}`} style={{ fontSize, color }}>
+        <div ref={textRef} className={`cv-text ${el.type === 'shape' ? 'centered' : ''} ${el.align ? `align-${el.align}` : ''}`} style={text}>
           {el.text || (el.type === 'text' ? <span className="cv-placeholder">Text</span> : null)}
         </div>
       )}
@@ -1092,18 +1385,18 @@ function BoxView({ el, selected, editing, onText }: { el: Extract<Element, { typ
   )
 }
 
-function ShapePath({ kind, w, h, fill, stroke }: { kind: ShapeKind; w: number; h: number; fill: string; stroke: string }) {
-  const s = 1.5
-  if (kind === 'ellipse') return <ellipse cx={w / 2} cy={h / 2} rx={Math.max(0, w / 2 - s)} ry={Math.max(0, h / 2 - s)} fill={fill} stroke={stroke} strokeWidth={2} />
+function ShapePath({ kind, w, h, fill, stroke, width = 2 }: { kind: ShapeKind; w: number; h: number; fill: string; stroke: string; width?: number }) {
+  const s = Math.max(0.5, width / 2)
+  if (kind === 'ellipse') return <ellipse cx={w / 2} cy={h / 2} rx={Math.max(0, w / 2 - s)} ry={Math.max(0, h / 2 - s)} fill={fill} stroke={stroke} strokeWidth={width} />
   if (kind === 'diamond')
-    return <polygon points={`${w / 2},${s} ${w - s},${h / 2} ${w / 2},${h - s} ${s},${h / 2}`} fill={fill} stroke={stroke} strokeWidth={2} strokeLinejoin="round" />
-  return <rect x={s} y={s} width={Math.max(0, w - 2 * s)} height={Math.max(0, h - 2 * s)} rx={8} fill={fill} stroke={stroke} strokeWidth={2} />
+    return <polygon points={`${w / 2},${s} ${w - s},${h / 2} ${w / 2},${h - s} ${s},${h / 2}`} fill={fill} stroke={stroke} strokeWidth={width} strokeLinejoin="round" />
+  return <rect x={s} y={s} width={Math.max(0, w - 2 * s)} height={Math.max(0, h - 2 * s)} rx={8} fill={fill} stroke={stroke} strokeWidth={width} />
 }
 
 function FrameView({ el, selected, editing, onText }: { el: Extract<Element, { type: 'frame' }>; selected: boolean; editing: boolean; onText: (t: string) => void }) {
   const [x, y, w, h] = el.xywh
   return (
-    <div className={`cv-frame ${selected ? 'selected' : ''}`} style={{ left: x, top: y, width: w, height: h, background: el.fill ? fillOf(el.fill) : undefined }} data-cid={el.id} data-part="frame-body">
+    <div className={`cv-frame ${selected ? 'selected' : ''}`} style={{ left: x, top: y, width: w, height: h, background: el.fill ? fillOf(el.fill) : undefined, opacity: el.opacity }} data-cid={el.id} data-part="frame-body">
       <div className="cv-frame-title" data-cid={el.id} data-part="title">
         {editing ? <AutoTextarea initial={el.text ?? ''} single onDone={(t) => onText(t.trim() || 'Frame')} /> : el.text || 'Frame'}
       </div>
@@ -1174,12 +1467,36 @@ function AutoTextarea({
   )
 }
 
-function SelectionBox({ r, handles, id }: { r: Rect; handles: string[]; id: string | null }) {
+function SelectionBox({ r, handles, id, rotatable, locked }: { r: Rect; handles: string[]; id: string | null; rotatable?: boolean; locked?: boolean }) {
   return (
-    <div className="cv-selection" style={box({ x: r.x - 4, y: r.y - 4, w: r.w + 8, h: r.h + 8 })}>
+    <div className={`cv-selection ${locked ? 'locked' : ''}`} style={box({ x: r.x - 4, y: r.y - 4, w: r.w + 8, h: r.h + 8 })}>
       {handles.map((h) => (
         <div key={h} className={`cv-handle h-${h}`} data-cid={id ?? ''} data-part="handle" data-handle={h} />
       ))}
+      {rotatable && id && <RotateHandle id={id} />}
+    </div>
+  )
+}
+
+/** The selection of one turned item: drawn turned, handles and all. */
+function TurnedSelection({ r, deg, handles, id, rotatable }: { r: Rect; deg: number; handles: string[]; id: string | null; rotatable: boolean }) {
+  return (
+    <div className="cv-selection" style={{ ...box({ x: r.x - 4, y: r.y - 4, w: r.w + 8, h: r.h + 8 }), transform: `rotate(${deg}deg)` }}>
+      {handles.map((h) => (
+        <div key={h} className={`cv-handle h-${h}`} data-cid={id ?? ''} data-part="handle" data-handle={h} />
+      ))}
+      {rotatable && id && <RotateHandle id={id} />}
+    </div>
+  )
+}
+
+function RotateHandle({ id }: { id: string }) {
+  return (
+    <div className="cv-rotate" data-cid={id} data-part="handle" data-handle="rot" title="Drag to turn (Shift: 15° steps)">
+      <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden>
+        <path d="M21 12a9 9 0 1 1-3-6.7L21 8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M21 3v5h-5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
     </div>
   )
 }

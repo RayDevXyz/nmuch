@@ -96,7 +96,9 @@ New in `BlockTxn` (for modules later, e.g. a Course module laying out a board):
 **Switching views.** Use the two buttons left of the ★ in the tab bar (document / canvas), or
 **Ctrl Shift E**. The app remembers which pages you keep as a canvas.
 
-![The style bar on a selected shape](images/phase5-stylebar.png)
+> The canvas now works like a design tool (side panel, context bar, smart guides, layers): see
+> [Design tools](#design-tools) below. The table still holds; the floating style bar became the
+> context bar at the top.
 
 | To | Do |
 |---|---|
@@ -112,13 +114,64 @@ New in `BlockTxn` (for modules later, e.g. a Course module laying out a board):
 | Move a frame | Drag its title. Everything inside moves with it. |
 | Resize | Corner handles (shapes, text, frames), or the side handles (notes: width only) |
 | Select several | Drag on empty space, or Shift-click |
-| Style | The bar above the selection: color, shape kind, text size |
+| Style | The context bar at the top: colors, border, font, size, transparency, position |
 | Keep a note out of the document | Select it, then click **In document** to switch it to **Canvas only** |
 | Duplicate, delete, nudge | Ctrl D, Del, arrow keys (Shift for 10px) |
 | Undo / redo | Ctrl Z / Ctrl Shift Z (note text keeps its own undo) |
-| Present | ▶ in the toolbar (shown once a frame exists). ← → move between frames, Esc exits. |
+| Present | ▶ in the zoom bar (shown once a frame exists). ← → move between frames, Esc exits. |
 
 ![Presenting a frame](images/phase5-present.png)
+
+### Design tools
+
+The canvas is laid out like a design editor (LidoJS, Canva).
+
+![The side panel and the context bar](images/canvas-design-panel.png)
+
+**The side panel** (left) has a rail of tabs. Click a tab again to close the drawer; the rail
+keeps Select, Pan and Connector (and Token and Reveal on battle maps) at hand.
+
+| Tab | What's there |
+|---|---|
+| **Elements** | The drawing tools; ready-made shapes (outlined, solid, label, ring); connectors; frames sized as a 16:9 slide, a square, an A4 page or a board; a note. **Click** one to add it in the middle of the view, or **drag** it onto the canvas. |
+| **Text** | A heading, a subheading and body text, plus font combinations (Display, an italic serif, handwriting, code). |
+| **Uploads** | Upload a picture, add one you uploaded this session again, or jump to a picture on this page. You can also drop picture files straight onto the canvas. |
+| **Layers** | Everything on the canvas, front first. Drag to reorder, 👁 to hide (kept, not drawn), 🔒 to lock, click to select, double-click to zoom to it. |
+
+**The context bar** (top) shows what you can do with the selection:
+
+- **Colors:** fill (or none), border color and width for shapes; text color; any color with
+  **+** besides the palette.
+- **Text** (text boxes and words on shapes): font (Sans, Serif, Display, Mono, Hand), size,
+  bold, italic, underline, alignment.
+- **Shape kind** (rectangle, ellipse, diamond) and **transparency**.
+- **Position:** forward/backward and to front/back; with two or more items, align their
+  edges or centers; with three or more, even spacing; the exact rotation.
+- **Group** and **ungroup**, **lock**, **duplicate**, **delete**. A pin also gets **Open page**,
+  a note **In document / Canvas only**.
+
+![Smart guides while moving](images/canvas-design-guides.png)
+
+**Moving, resizing, turning:**
+
+- **Smart guides:** while you move or resize, pink lines show when an edge or center lines up
+  with another item, and it snaps there. Hold **Ctrl** to move freely.
+- **Eight handles** on shapes, frames and pictures. Pictures keep their proportions from the
+  corners (**Shift** to stretch); for shapes, **Shift** keeps them. A label shows the size.
+- **The round handle** above the selection turns shapes, text and pictures. It settles on
+  0°, 90°, 180° and 270°; **Shift** turns in 15° steps.
+- **Groups:** select a few things and press **Ctrl G**. A click then takes the whole group;
+  **Ctrl-click** picks one item inside it. **Ctrl Shift G** ungroups.
+- **Locked** items can be selected but not moved, resized or deleted (**Alt Shift L**).
+
+| Keys | |
+|---|---|
+| Ctrl ] / Ctrl [ | Forward / backward |
+| Ctrl Shift ] / Ctrl Shift [ | To front / to back |
+| Ctrl G / Ctrl Shift G | Group / ungroup |
+| Alt Shift L | Lock or unlock |
+
+![Layers, and the Position menu](images/canvas-design-layers.png)
 
 **Opening a page on the canvas for the first time.** Notes that were never placed are laid out
 in a column, each below the last, and the view zooms to fit. A normal page opens as its document
@@ -138,14 +191,26 @@ on a card, as below.
 - **`Canvas.tsx`** draws everything and handles pointer gestures and the keyboard.
   - **One CSS transform** (`scale(z) translate(-x, -y)`) moves the whole world. Notes are real
     Tiptap editors inside it, so editing, slash menus, links and databases all work on the canvas.
-  - **The layers are:** frames, then shapes and text, then notes, then connectors. The
-    selection, previews and toolbars are drawn in screen space on top.
+  - **The layers are:** frames at the back, then shapes, text, pictures, pins and connectors
+    in their own stacking order (each element's fractional `index`, which **Position** and
+    **Layers** change), then notes in front. On a battle map, the map picture, the grid and fog,
+    and the tokens keep their own places. The selection, guides and bars are drawn in screen
+    space on top.
   - **Hit testing uses the DOM.** Every item carries `data-cid`. Because the canvas captures the
     pointer during a drag, clicks and double-clicks look up what's under the pointer instead of
     trusting the event's target.
   - **Notes grow with their text.** The stored height is a minimum; the real height is measured
     with a `ResizeObserver`, so connectors and selection boxes fit the note as it grows.
-- **`chrome.tsx`** holds the toolbar, zoom controls and style bar.
+- **`SidePanel.tsx`** is the side panel: the presets it adds, uploads, and Layers.
+- **`ContextBar.tsx`** is the bar at the top that follows the selection.
+- **`geometry.ts`** has the editing geometry: the bounds of turned items, resizing a turned
+  item in its own frame, angles, smart-guide snapping, aligning and spacing.
+- **`chrome.tsx`** holds the zoom bar (undo/redo, a zoom slider, fit, present).
+- **New element fields** (all optional, so older pages are unchanged and older clients keep
+  them, see `surface.rs`): `rotate` (degrees), `opacity`, `locked`, `visible` (false: hidden),
+  `group` (a shared id), and for text and shapes `fontFamily`, `bold`, `italic`, `underline`,
+  `align`; shapes add `strokeWidth` and `color` (the text on them). Colors may be any `#hex`
+  as well as the named ones, and a fill may be `none`.
 
 **Changes outside the canvas:**
 - `Editor.tsx` renders the canvas in canvas mode. In doc mode it skips canvas-only notes, and
@@ -197,8 +262,8 @@ on a card, as below.
 
 - **No freehand pen**, as decided. It fits the same model later: a `stroke` element with points.
 - **Connectors are straight lines.** Elbow routing and attaching to a specific side can come later.
-- **The stacking order is fixed** (frames → shapes → notes → connectors). There's no
-  bring-to-front for individual shapes yet.
+- **Frames stay at the back and notes in front**; everything between can be reordered.
+- **Turned items** snap by their outer box, and a turned item's resize doesn't snap.
 - **No copy and paste** between pages yet. Ctrl D duplicates within a page.
 - **Large boards** render every item. Culling items outside the view is the obvious next step if
   boards get big.

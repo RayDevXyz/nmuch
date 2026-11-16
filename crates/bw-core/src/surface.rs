@@ -16,7 +16,10 @@
 //! | `reveal`    | `xywh` (its bounds), optional `points` (a polygon): an area cleared of fog |
 //!
 //! Every element also has `id`, `type` and `index`, a fractional key for the stacking order
-//! (and the order frames are presented in). Fields this version doesn't know are kept as they
+//! (and the order frames are presented in). Any element may also carry `rotate` (degrees),
+//! `opacity`, `locked`, `visible` (false: kept but not drawn) and `group` (a shared id); text and
+//! shapes may carry `fontFamily`, `bold`, `italic`, `underline` and `align`, and shapes
+//! `strokeWidth` and `color`. Colors are a name or a `#hex`. Fields this version doesn't know are kept as they
 //! are, so a newer client's additions survive an older one.
 //!
 //! The index stores each element as a block with flavour `surface.<type>` and its `text`, so

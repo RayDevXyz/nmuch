@@ -430,7 +430,7 @@ input.cs-stat-value:focus { outline: 1px solid var(--dnd-gold); }
 .az-options select { flex: 1; height: 32px; background: #0e0b08; border: 1px solid var(--dnd-line); color: var(--dnd-text); font-family: var(--dnd-body); font-size: 15px; padding: 0 6px; }
 .az-check input { accent-color: #c9a45c; width: 15px; height: 15px; }
 .az-canvas-btn {
-  position: absolute; left: 14px; top: 12px; z-index: 6; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 6; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
   border: 1px solid #6a5636; background: linear-gradient(180deg, #2a2219, #1d1812); color: #e9dec6; font-family: 'Cinzel', Georgia, serif; font-size: 12px; letter-spacing: 0.05em; cursor: pointer; box-shadow: var(--shadow);
 }
 .az-canvas-btn:hover { border-color: #c9a45c; color: #f3e2b5; }

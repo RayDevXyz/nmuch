@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { PanelRight } from 'lucide-react'
 import { closeTab, createPage, init } from './state/actions'
 import { getState, setState, useApp } from './state/store'
@@ -16,10 +16,17 @@ import { CompendiumHost, openCompendium } from './dnd/Compendium'
 import { CharacterWizardHost } from './dnd/CharacterWizard'
 import { getRoles, showsCanvas } from './dnd/api'
 import { AzgaarImportHost } from './dnd/AzgaarImport'
+import { activeTheme, themeVars as themeVarsOf } from './theme/themes'
+import { ThemeEditorHost } from './theme/ThemeEditor'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
   const theme = useApp((s) => s.theme)
+  // The theme this mode uses, as CSS variables on the workspace (and the window behind it).
+  const themes = useApp((s) => s.themes)
+  const themeFor = useApp((s) => s.themeFor)
+  const themeStyle = useMemo(() => themeVarsOf(activeTheme(theme, themeFor, themes)) as React.CSSProperties, [theme, themeFor, themes])
+  useEffect(() => void (document.body.style.background = String((themeStyle as Record<string, string>)['--app-bg'] ?? '')), [themeStyle])
   const fontSize = useApp((s) => s.fontSize)
   const sidebarOpen = useApp((s) => s.sidebarOpen)
   const rightOpen = useApp((s) => s.rightOpen)
@@ -89,7 +96,7 @@ export default function App() {
   }, [])
 
   return (
-    <main className={`workspace theme-${theme} fs-${fontSize}`}>
+    <main className={`workspace theme-${theme} fs-${fontSize}`} style={themeStyle}>
       <TopBar />
       <div className="app-shell">
         <LeftRail />
@@ -119,6 +126,7 @@ export default function App() {
       <CompendiumHost />
       <CharacterWizardHost />
       <AzgaarImportHost />
+      <ThemeEditorHost />
       {toast && <div className="toast">{toast}</div>}
     </main>
   )

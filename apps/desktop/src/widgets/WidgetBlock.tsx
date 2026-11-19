@@ -120,10 +120,13 @@ function Sandbox({ def, pageId, blockId, settings, editable, onSettings }: Widge
   }, [settingsKey])
 
   // Follow the app's light/dark switch.
+  // Follow theme edits too, not only the dark/light switch.
   const theme = useApp((s) => s.theme)
+  const themes = useApp((s) => s.themes)
+  const themeFor = useApp((s) => s.themeFor)
   useEffect(() => {
     if (started.current) requestAnimationFrame(() => frame.current?.contentWindow?.postMessage({ bw: 1, event: 'theme', theme: themeVars() }, '*'))
-  }, [theme])
+  }, [theme, themes, themeFor])
 
   useEffect(() => {
     const me: Instance = { pageId, blockId }

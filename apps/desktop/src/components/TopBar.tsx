@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { refreshModules } from '../modules/api'
-import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, Moon, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle } from 'lucide-react'
+import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, Moon, Palette, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
@@ -43,6 +43,15 @@ function SettingsPanel({ x, y, onClose }: { x: number; y: number; onClose: () =>
         <span>Theme</span>
         <Seg value={theme} options={[['dark', 'Dark'], ['light', 'Light']]} onChange={(v) => setState({ theme: v })} />
       </div>
+      <button
+        className="setting-action"
+        onClick={() => {
+          onClose()
+          setState({ themeEditor: true })
+        }}
+      >
+        <Palette size={13} /> Theme editor…
+      </button>
       <div className="setting-row">
         <span>Page width</span>
         <Seg value={width} options={[['normal', 'Normal'], ['wide', 'Wide']]} onChange={(v) => setState({ width: v })} />
@@ -151,6 +160,7 @@ export function TopBar() {
                 icon: theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />,
                 onSelect: () => setState({ theme: getState().theme === 'dark' ? 'light' : 'dark' }),
               },
+              { label: 'Theme editor', icon: <Palette size={14} />, onSelect: () => setState({ themeEditor: true }) },
               { label: 'Keyboard shortcuts', icon: <CircleHelp size={14} />, hint: 'Ctrl /', onSelect: () => setState({ help: true }) },
             ]}
           />

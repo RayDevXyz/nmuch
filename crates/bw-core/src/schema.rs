@@ -154,6 +154,8 @@ pub struct PageMeta {
     pub favorite: bool,
     pub archived: bool,
     pub trashed_at: Option<i64>,
+    /// The page's own theme (an app theme id); empty: follow its parent; "app": the app's theme.
+    pub theme: String,
 }
 
 /// A partial update of [`PageMeta`]: only fields that are `Some` change.
@@ -173,6 +175,7 @@ pub struct PageMetaPatch {
     pub archived: Option<bool>,
     #[serde(deserialize_with = "double_option")]
     pub trashed_at: Option<Option<i64>>,
+    pub theme: Option<String>,
 }
 
 /// Distinguish a missing field (`None`) from an explicit `null` (`Some(None)`).
@@ -197,6 +200,7 @@ impl PageMetaPatch {
             favorite: Some(m.favorite),
             archived: Some(m.archived),
             trashed_at: Some(m.trashed_at),
+            theme: Some(m.theme.clone()),
         }
     }
 }

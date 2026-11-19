@@ -994,3 +994,26 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .te-check-ratio { font-family: var(--font-mono); font-size: 11.5px; }
 .te-check.ok .te-check-ratio { color: var(--ok); }
 .te-check.low .te-check-ratio { color: var(--danger); font-weight: 700; }
+
+/* ---------- page themes (a page's Theme property) ---------- */
+.editor-panel.page-themed { color: var(--foreground); font-family: var(--font-sans); }
+.editor-panel.page-themed .tabs-bar, .editor-panel.page-themed .statusbar { background: var(--panel); }
+.page-prop { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--muted-foreground); font-size: 12px; padding: 5px 8px; margin-left: 4px; border-radius: 6px; opacity: 0; cursor: pointer; transition: opacity 0.15s; }
+.page-prop.set { opacity: 1; color: var(--foreground); }
+.page-prop small { color: var(--faint); }
+.note-canvas:hover .page-prop, .page-prop:focus-visible { opacity: 1; }
+.page-prop:hover { background: var(--hover); color: var(--foreground); }
+.pt-pop { width: 250px; padding: 6px; max-height: 70vh; overflow-y: auto; }
+.pt-title { padding: 4px 8px 6px; font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.pt-sep { margin: 6px 8px 2px; padding-top: 6px; border-top: 1px solid var(--line-soft); font-size: 10.5px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.pt-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--foreground); font-size: 12.5px; cursor: pointer; text-align: left; }
+.pt-item:hover { background: var(--hover); }
+.pt-item.on { background: var(--accent-soft); }
+.pt-item.edit { margin-top: 6px; border-top: 1px solid var(--line-soft); border-radius: 0 0 6px 6px; padding-top: 8px; color: var(--muted-foreground); }
+.pt-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pt-name small { color: var(--faint); }
+.pt-icon { width: 22px; display: grid; place-items: center; color: var(--muted-foreground); }
+.pt-swatch { width: 22px; height: 16px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 4px; border: 1px solid; border-radius: 4px; }
+.pt-swatch i { display: block; height: 2px; border-radius: 1px; }
+.pt-swatch i:first-child { width: 60%; }
+.setting-select { height: 26px; max-width: 140px; padding: 0 6px; border: 1px solid var(--line-soft); border-radius: 7px; background: var(--panel-2); color: var(--foreground); font-size: 11.5px; }

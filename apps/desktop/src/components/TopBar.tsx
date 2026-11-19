@@ -5,6 +5,7 @@ import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
 import { MenuList, Popover } from './Popover'
+import { activeTheme, BUILTIN } from '../theme/themes'
 
 export function IconButton({ children, label, active, onClick }: { children: React.ReactNode; label: string; active?: boolean; onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
   return (
@@ -28,6 +29,8 @@ function Seg<T extends string>({ value, options, onChange }: { value: T; options
 
 function SettingsPanel({ x, y, onClose }: { x: number; y: number; onClose: () => void }) {
   const theme = useApp((s) => s.theme)
+  const themes = useApp((s) => s.themes)
+  const themeFor = useApp((s) => s.themeFor)
   const width = useApp((s) => s.width)
   const fontSize = useApp((s) => s.fontSize)
   const spellcheck = useApp((s) => s.spellcheck)
@@ -43,6 +46,25 @@ function SettingsPanel({ x, y, onClose }: { x: number; y: number; onClose: () =>
         <span>Theme</span>
         <Seg value={theme} options={[['dark', 'Dark'], ['light', 'Light']]} onChange={(v) => setState({ theme: v })} />
       </div>
+      {(['dark', 'light'] as const).map((mode) => (
+        <div className="setting-row" key={mode}>
+          <span>{mode === 'dark' ? 'Dark theme' : 'Light theme'}</span>
+          <select
+            className="setting-select"
+            aria-label={mode === 'dark' ? 'Dark theme' : 'Light theme'}
+            value={activeTheme(mode, themeFor, themes).id}
+            onChange={(e) => setState((s) => ({ theme: mode, themeFor: { ...s.themeFor, [mode]: e.target.value } }))}
+          >
+            {[...BUILTIN, ...themes]
+              .filter((t) => t.base === mode)
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+          </select>
+        </div>
+      ))}
       <button
         className="setting-action"
         onClick={() => {

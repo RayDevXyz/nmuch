@@ -14,7 +14,8 @@ pub const REF_MARK: char = '\u{FFFC}';
 
 /// Bump when the projection's tables or contents change: an index of another version is
 /// dropped and rebuilt from the log on open. 3 = databases (`page_meta.kind`/`database_id`).
-pub const INDEX_VERSION: i64 = 4;
+/// 5 = page themes (`page_meta.theme`).
+pub const INDEX_VERSION: i64 = 5;
 
 const CREATE_PROJECTION: &str = r#"
     CREATE TABLE IF NOT EXISTS index_version (v INTEGER NOT NULL);
@@ -31,7 +32,8 @@ const CREATE_PROJECTION: &str = r#"
         archived   INTEGER NOT NULL,
         trashed_at INTEGER,
         created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
+        updated_at INTEGER NOT NULL,
+        theme      TEXT    NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS page_meta_by_parent ON page_meta(parent_id, sort_key);
     CREATE INDEX IF NOT EXISTS page_meta_by_database ON page_meta(database_id, sort_key);
@@ -158,11 +160,11 @@ pub(crate) fn project_page(
     clear_page(tx, &snap.page_id)?;
     let m = &snap.meta;
     tx.execute(
-        "INSERT INTO page_meta(id, kind, database_id, parent_id, title, icon, sort_key, favorite, archived, trashed_at, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO page_meta(id, kind, database_id, parent_id, title, icon, sort_key, favorite, archived, trashed_at, created_at, updated_at, theme)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
         params![
             snap.page_id, m.kind.as_str(), m.database_id, m.parent_id, m.title, m.icon, m.key, m.favorite,
-            m.archived, m.trashed_at, times.created_at, times.updated_at
+            m.archived, m.trashed_at, times.created_at, times.updated_at, m.theme
         ],
     )?;
 

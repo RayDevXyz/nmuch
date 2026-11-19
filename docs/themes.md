@@ -30,6 +30,27 @@ from **Settings → Theme editor…** or the app menu (BrainWaves ▾ → **Them
 
 ![A light theme imported from a file](images/theme-editor-light.png)
 
+## Choosing quickly
+
+**Settings** (the ⚙ in the top bar) has a **Dark theme** and a **Light theme** picker, so you can
+switch themes without opening the editor.
+
+## A page's own theme
+
+Every page has a **Theme** property in its header, next to *Add icon* (hover the page to see
+it), and **Page theme…** in its ⋯ menu.
+
+- Pick any theme, dark or light, built-in or yours. The page's whole pane (its tabs,
+  breadcrumb, content and status bar) shows in it; the sidebars keep your app theme.
+- **Sub-pages follow** their parent's theme, and a database's rows follow the database. The
+  property then reads, for example, "Paper · from Project Atlas".
+- **Follow the parent page** (the default) goes back to that; **App theme** makes a page use
+  your app theme even inside a themed page.
+- The choice is stored in the page, so it syncs and survives restarts. A theme of your own
+  that another computer doesn't have falls back to the parent's, or the app's.
+
+![A page in its own theme](images/page-theme.png)
+
 ## Sharing themes
 
 **Export** saves the theme as a `.bwtheme.json` file and **Copy** puts it on the clipboard.
@@ -59,6 +80,9 @@ Color keys: `appBg`, `panel`, `panel2`, `hover`, `line`, `editorBg`, `codeBg`, `
 - `App.tsx` sets those variables on the workspace (and the window's background), so everything
   styled with them follows, including the graph view, widgets and modules, which get the new
   colors as you edit.
+- A page's theme is the page's `theme` field (`crates/bw-core/src/schema.rs`, indexed in
+  `page_meta.theme`); `theme/PageTheme.tsx` resolves it up the parents and restyles the
+  center pane.
 - Your themes and which theme each mode uses are saved with the app's preferences (on this
   computer; export a theme to take it elsewhere).
 - Campaign pages keep their own D&D look on top of the theme.

@@ -26,6 +26,7 @@ import { charactersDb, isThemed, showsCanvas, useRoles } from '../dnd/api'
 import { CharacterSheet } from '../dnd/CharacterSheet'
 import { CampaignOverview } from '../dnd/Campaign'
 import { openAzgaarImport } from '../dnd/AzgaarImport'
+import { PageThemeChip } from '../theme/PageTheme'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -461,6 +462,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
               </>
             )}
           </button>
+          <PageThemeChip page={page} />
         </div>
         <Title page={page} onExit={focusFirst} />
         {page.databaseId && page.databaseId === charactersDb(roles) ? (

@@ -30,10 +30,17 @@ They live in the page's own Y.Doc, in a root map called `properties`:
 - Each property is one entry, a plain object: `{ id, name, type, order, value, options? }`.
 - The key `$show` holds whether the properties are shown on the page.
 
-They sync, and are versioned, with the page. The core keeps the map but doesn't read it, the same as the page header. See `apps/desktop/src/properties/model.ts`.
+They sync, and are versioned, with the page. The core indexes only the "Tags" property, as tags of the page (`property_tags` in the snapshot). See `apps/desktop/src/properties/model.ts`.
+
+## Tags
+
+A property named **Tags** (or **Tag**) holds the page's tags. It can be a multi-select, a select, or text with commas between the tags. Those tags count like `#tags` in the text:
+- they appear in the Tags panel and on tag pages;
+- a map of content set to "Pages with a tag" finds them.
+
+Tags are matched without the `#` and ignoring case, and spaces become dashes, so "Sci Fi" and `#sci-fi` are the same tag. A Tags property also suggests the tags already used in the workspace.
 
 ## Limits
 
-- Search and the map of content don't use property values yet.
-- A multi-select called "Tags" is separate from `#tags` in the text.
+Search and the map of content don't use other property values yet.
 - Database rows keep their own columns, which come from their database. A row can have page properties too.

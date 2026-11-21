@@ -31,6 +31,9 @@ const SOURCES: [MocSettings['source'], string][] = [
   ['all', 'All pages'],
 ]
 
+/** A tag as the index keeps it: no `#`, lower case, spaces as `-` (so "Sci Fi" = #sci-fi). */
+export const normTag = (t: string) => t.trim().replace(/^#/, '').trim().split(/\s+/).join('-').toLowerCase()
+
 const visible = (p: Page) => p.trashedAt == null && !p.archived
 
 interface Item {
@@ -109,7 +112,7 @@ export async function expandMocs<T extends { type?: string; attrs?: Record<strin
       } catch {
         s = { source: 'children' }
       }
-      const tagged = s.source === 'tag' && s.tag ? await db().pagesWithTag(s.tag).catch(() => []) : null
+      const tagged = s.source === 'tag' && s.tag ? await db().pagesWithTag(normTag(s.tag)).catch(() => []) : null
       const toList = (items: Item[]): unknown => ({
         type: 'bulletList',
         content: items.map((it) => ({
@@ -142,7 +145,7 @@ export function MocBlock({ settings, editable, onSettings, pageId }: MocBlockPro
     if (s.source !== 'tag' || !s.tag) return setTagged(null)
     let live = true
     db()
-      .pagesWithTag(s.tag.replace(/^#/, ''))
+      .pagesWithTag(normTag(s.tag))
       .then((ids) => live && setTagged(ids))
       .catch(() => live && setTagged([]))
     return () => {
@@ -160,7 +163,7 @@ export function MocBlock({ settings, editable, onSettings, pageId }: MocBlockPro
     (s.source === 'children'
       ? 'Contents'
       : s.source === 'tag'
-        ? s.tag ? `#${s.tag.replace(/^#/, '')}` : 'Pages with a tag'
+        ? s.tag ? `#${normTag(s.tag)}` : 'Pages with a tag'
         : s.source === 'database'
           ? (s.databaseId && pages[s.databaseId]?.title) || 'Database'
           : 'All pages')
@@ -218,7 +221,7 @@ export function MocBlock({ settings, editable, onSettings, pageId }: MocBlockPro
           {s.source === 'children'
             ? 'No sub-pages yet. Pages you nest under this one appear here.'
             : s.source === 'tag'
-              ? s.tag ? `No pages with #${s.tag.replace(/^#/, '')} yet.` : 'Pick a tag in the settings.'
+              ? s.tag ? `No pages with #${normTag(s.tag)} yet.` : 'Pick a tag in the settings.'
               : s.source === 'database'
                 ? s.databaseId ? 'This database has no rows yet.' : 'Pick a database in the settings.'
                 : 'No pages yet.'}

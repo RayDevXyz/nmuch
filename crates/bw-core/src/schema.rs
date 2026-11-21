@@ -20,6 +20,8 @@
 //! │                  xywh, text, … per type      plain Any values, one per field
 //! │              }>
 //! │
+//! ├── "properties": Y.Map   the page's own properties, one plain object per property, set by
+//! │                     the app; the core reads only a property named "Tags" (as tags)
 //! ├── "header":  Y.Map   the page's header (cover): background, layout, navigation; one plain
 //! │                     value per setting (see `apps/desktop/src/header/model.ts`). The core
 //! │                     keeps it with the page but doesn't read it.
@@ -65,6 +67,9 @@ pub mod keys {
     pub const EL_INDEX: &str = "index";
     pub const EL_TEXT: &str = "text";
 
+    /// A page's own properties (written by the app, see `apps/desktop/src/properties/model.ts`).
+    /// The core only reads the "Tags" property, as tags of the page.
+    pub const PAGE_PROPERTIES: &str = "properties";
     pub const DB_PROPERTIES: &str = "dbProperties";
     pub const DB_VIEWS: &str = "dbViews";
     /// Prefix of a row's cell values in its `props`: `db.<property_id>`.
@@ -252,6 +257,8 @@ pub struct PageSnapshot {
     pub blocks: Vec<BlockSnapshot>,
     /// Columns and views, for database pages.
     pub database: Option<crate::database::DatabaseDef>,
+    /// Tags from the page's "Tags" property (lower-cased).
+    pub property_tags: Vec<String>,
 }
 
 impl PageSnapshot {

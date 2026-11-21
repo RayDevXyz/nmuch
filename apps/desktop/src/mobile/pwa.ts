@@ -17,8 +17,9 @@ let deferred: InstallEvent | null = null
 const subs = new Set<() => void>()
 const emit = () => subs.forEach((l) => l())
 if (typeof window !== 'undefined') {
+  // Kept (not cancelled), so Chrome may still offer its own install banner, and the menu's
+  // "Install app" can ask later.
   window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault()
     deferred = e as InstallEvent
     emit()
   })

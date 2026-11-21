@@ -36,12 +36,26 @@ async function tauriClient(): Promise<CoreClient> {
 
 let signingOut = false
 
+/**
+ * Commands that change something. After one succeeds the app tells its own views at once,
+ * so a cell edited here shows up even when the live event stream is slow or held back by a
+ * reverse proxy. (`pushUpdate`, the editor's typing, is left out: the editor already shows it.)
+ */
+const WRITES =
+  /^(create|update|delete|remove|set|convert|install|import|rebuild|approve|grant|revoke|widgetMutate|widgetCreateRow|course(Import|Setup|Sync)|dnd(Add|Create|Import|Set)|burrowSave)/
+
 function devClient(): CoreClient {
   const subs = new Set<(e: CoreEvent) => void>()
+  const emit = (e: CoreEvent) => subs.forEach((cb) => cb(e))
   const source = new EventSource('/api/events')
-  source.onmessage = (m) => {
-    const e = JSON.parse(m.data) as CoreEvent
-    subs.forEach((cb) => cb(e))
+  source.onmessage = (m) => emit(JSON.parse(m.data) as CoreEvent)
+  // The stream dropped and came back (a proxy timeout, the laptop slept): events may have
+  // been missed, so have every view re-read.
+  let dropped = false
+  source.onerror = () => (dropped = true)
+  source.onopen = () => {
+    if (dropped) emit({ type: 'indexRebuilt', pages: -1 })
+    dropped = false
   }
   return {
     kind: 'dev',
@@ -57,7 +71,13 @@ function devClient(): CoreClient {
         location.reload()
       }
       if (!res.ok) throw new Error((await res.text()) || `${command} failed (${res.status})`)
-      return res.json()
+      const out = await res.json()
+      if (WRITES.test(command)) {
+        const a = (args ?? {}) as Record<string, unknown>
+        const pageId = String(a.rowId ?? a.pageId ?? a.databaseId ?? a.id ?? '')
+        queueMicrotask(() => emit({ type: 'pageChanged', pageId, seq: -1, origin: 'local' }))
+      }
+      return out
     },
     onEvent: (cb) => (subs.add(cb), () => subs.delete(cb)),
   }

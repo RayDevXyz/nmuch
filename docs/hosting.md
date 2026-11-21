@@ -78,6 +78,19 @@ See [android.md](android.md).
 - Forgot the password? On the server, stop the container and delete `auth.json` from the data
   volume; the next visit makes the account again. Your pages are untouched.
 
+## When something doesn't work
+
+**"Can't reach the table server" (in the browser console: blocked by CORS policy)**
+
+The table server allows BrainWaves to make rooms from any site, so this error means something in front of it answered instead. Open `https://<your table URL>/health` in a browser tab. It should show `ok`.
+
+- **A login page:** your reverse proxy is asking for a login. In Cosmos, open the table URL and turn off **Authentication required**. Also turn off anything else that can stop a request, such as SmartShield or "restrict to the constellation". Players need to reach the table without a login too.
+- **An error page (502, 404):** the URL's target is wrong, or the container isn't running. The target must be `http://brainwaves-table:8090`, and the container must be healthy.
+
+**Edits save but the window doesn't update**
+
+The app gets "something changed" notices through a long-lived stream, `GET /api/events`. Some reverse proxies hold such a stream back. The server now asks them not to (`Cache-Control: no-transform`, `X-Accel-Buffering: no`). The app also refreshes after its own changes either way. If changes made in another window still only show after a reload, turn off compression or buffering for the BrainWaves URL in your proxy.
+
 ## Backups
 
 Everything is in the data volume: `brainwaves.db` (every page and its history) and `auth.json`.

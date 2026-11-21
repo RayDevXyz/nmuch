@@ -265,7 +265,12 @@ export class Live {
       code = (await res.json()).code
       if (t.room !== code) await setCampaignTable(this.campaignId, { room: code })
     } catch (e) {
-      const msg = e instanceof TypeError ? `Can't reach the table server at ${server}.` : String(e).replace(/^Error:\s*/, '')
+      // A TypeError is the browser refusing or failing the request: the server is down, or
+      // something in front of it (a login page, a proxy error) answers without CORS headers.
+      const msg =
+        e instanceof TypeError
+          ? `Can't reach the table server at ${server}. Open ${server}/health in a new tab: it should say "ok". If it shows a login page, turn off "Authentication required" for that URL in your reverse proxy; if it shows an error, check the URL's target and that the table container is running.`
+          : String(e).replace(/^Error:\s*/, '')
       this.set({ status: 'error', error: msg })
       throw new Error(msg)
     }

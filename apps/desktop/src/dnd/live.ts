@@ -227,6 +227,31 @@ export interface Shown {
   getTitle: () => string
 }
 
+
+/**
+ * Make (or re-open) a room on the table server. BrainWaves' own server (or the desktop app's
+ * core) asks, so the browser makes no cross-site request: a reverse proxy that mishandles the
+ * browser's CORS check can't break it. Only when that side can't reach the table server is the
+ * request made from the browser.
+ */
+async function createRoom(server: string, key: string, body: { name: string; code?: string }): Promise<string> {
+  try {
+    const r = await coreClient().call<{ code: string }>('tableCreateRoom', { server, key, ...body })
+    return r.code
+  } catch (e) {
+    const m = String(e).replace(/^Error:\s*/, '')
+    if (!m.startsWith('unreachable:') && !m.includes('unknown command')) throw new Error(m)
+  }
+  const res = await fetch(`${server}/api/rooms`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (res.status === 401) throw new Error('The table server refused the DM key.')
+  if (!res.ok) throw new Error(`The table server answered ${res.status}.`)
+  return (await res.json()).code
+}
+
 export class Live {
   state: LiveState = idle()
   private listeners = new Set<() => void>()
@@ -255,14 +280,8 @@ export class Live {
     let code: string
     try {
       const t = await getCampaignTable(this.campaignId)
-      const res = await fetch(`${server}/api/rooms`, {
-        method: 'POST',
-        headers: { authorization: `Bearer ${table.key}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ name: roomName, code: t.room ?? undefined }),
-      })
-      if (res.status === 401) throw new Error('The table server refused the DM key.')
-      if (!res.ok) throw new Error(`The table server answered ${res.status}.`)
-      code = (await res.json()).code
+      const body = { name: roomName, code: t.room ?? undefined }
+      code = await createRoom(server, table.key, body)
       if (t.room !== code) await setCampaignTable(this.campaignId, { room: code })
     } catch (e) {
       // A TypeError is the browser refusing or failing the request: the server is down, or

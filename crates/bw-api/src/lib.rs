@@ -18,6 +18,7 @@ pub mod fivee;
 mod modules_api;
 pub mod nimbus;
 pub mod sync;
+pub mod table;
 pub mod watch;
 
 pub use bw_core::Event;
@@ -233,6 +234,7 @@ pub fn dispatch_unlocked(core: &std::sync::Arc<std::sync::Mutex<Core>>, command:
     fivee::dispatch_unlocked(core, command, args)
         .or_else(|| burrow::dispatch_unlocked(core, command, args))
         .or_else(|| sync::dispatch_unlocked(core, command, args))
+        .or_else(|| table::dispatch_unlocked(command, args))
 }
 
 pub fn dispatch(core: &mut Core, ctx: &Context, command: &str, a: Value) -> Result<Value, String> {

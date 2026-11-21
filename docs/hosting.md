@@ -84,12 +84,15 @@ The desktop app can sync its workspace with your server, both ways and offline-f
 
 ## When something doesn't work
 
-**"Can't reach the table server" (in the browser console: blocked by CORS policy)**
+**"Can't reach the table server"**
 
-The table server allows BrainWaves to make rooms from any site, so this error means something in front of it answered instead. Open `https://<your table URL>/health` in a browser tab. It should show `ok`.
+BrainWaves makes rooms on the table server from its own side: the BrainWaves server, or the desktop app's core. The browser doesn't make that request, so a reverse proxy that mishandles the browser's cross-site (CORS) check can't break it. The live connection is a WebSocket, which that check doesn't affect.
 
-- **A login page:** your reverse proxy is asking for a login. In Cosmos, open the table URL and turn off **Authentication required**. Also turn off anything else that can stop a request, such as SmartShield or "restrict to the constellation". Players need to reach the table without a login too.
-- **An error page (502, 404):** the URL's target is wrong, or the container isn't running. The target must be `http://brainwaves-table:8090`, and the container must be healthy.
+So this message means the BrainWaves container itself can't reach the table URL. Check these:
+- Open `https://<your table URL>/health` in a browser. It should show `ok`.
+  - If you get a login page, turn off **Authentication required** for that URL in Cosmos, and also SmartShield or restricting it to your constellation. Players need to reach it without a login too.
+  - If you get an error (502, 404), the URL's target must be `http://brainwaves-table:8090` and the container must be healthy.
+- If `/health` works in your browser but the error stays, the BrainWaves container can't reach the table's public address. Some VPS networks don't let a server reach its own public address.
 
 **Edits save but the window doesn't update**
 

@@ -46,8 +46,11 @@ export function PageHeader({ page, doc, h, icon, title, editable, wide }: { page
       onPointerUp={() => (drag.current = null)}
       data-testid="page-header"
     >
-      <div className="ph-bg" style={{ ...backgroundCss(h), filter: h.blur && isImage ? `blur(${h.blur}px)` : undefined, transform: h.blur && isImage ? 'scale(1.06)' : undefined }} />
-      {h.dim > 0 && <div className="ph-dim" style={{ opacity: h.dim }} />}
+      {/* The background is clipped here, not on the header, so the editor panel can hang below it. */}
+      <div className="ph-clip">
+        <div className="ph-bg" style={{ ...backgroundCss(h), filter: h.blur && isImage ? `blur(${h.blur}px)` : undefined, transform: h.blur && isImage ? 'scale(1.06)' : undefined }} />
+        {h.dim > 0 && <div className="ph-dim" style={{ opacity: h.dim }} />}
+      </div>
       <div className={`ph-inner ${wide ? 'wide' : ''}`} style={{ ['--ph-title' as string]: h.titleScale }}>
         {crumbs.length > 0 && (
           <nav className="ph-crumbs" aria-label="Where this page is">

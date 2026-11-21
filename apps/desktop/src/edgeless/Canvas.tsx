@@ -31,6 +31,7 @@ import {
   updateElements,
   useElements,
   type Boxed,
+  type BookmarkEl,
   type CanvasNote,
   type ConnectorEl,
   type Element,
@@ -44,6 +45,8 @@ import { ZoomBar, type Tool } from './chrome'
 import { ContextBar } from './ContextBar'
 import { alignBoxes, angleTo, distributeBoxes, resizeTurned, snapBox, snapEdges, turnedBounds, type Guide } from './geometry'
 import { DRAG_TYPE, presetById, rememberUpload, SidePanel, type PanelTab, type Preset } from './SidePanel'
+import { DRAG as BURROW_DRAG, domainOf, droppedBookmark, getBookmark } from '../burrow/api'
+import { openExternal } from '../lib/storage'
 
 /** The canvas viewport: world point (x, y) is at the top-left; `z` is the zoom. */
 interface Viewport {
@@ -860,7 +863,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       onKeyDown={onKeyDown}
       onKeyUp={onKeyUp}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(DRAG_TYPE) || e.dataTransfer.types.includes('Files')) {
+        if (e.dataTransfer.types.includes(DRAG_TYPE) || e.dataTransfer.types.includes(BURROW_DRAG) || e.dataTransfer.types.includes('Files')) {
           e.preventDefault()
           e.dataTransfer.dropEffect = 'copy'
         }
@@ -871,6 +874,15 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         if (preset) {
           e.preventDefault()
           return addPreset(preset, [wx, wy])
+        }
+        // A bookmark from the Burrow panel becomes a link card.
+        const bm = droppedBookmark(e.dataTransfer)
+        if (bm?.url) {
+          e.preventDefault()
+          const id = addElement(doc, { type: 'bookmark', xywh: [Math.round(wx - 170), Math.round(wy - 60), 340, 120], url: bm.url, text: bm.title || bm.url, burrowId: bm.id })
+          setSelected([id])
+          void getBookmark(bm.id).then((b) => updateElements(doc, { [id]: { image: b.image_url || undefined, site: b.site_name || domainOf(b.url) || undefined, text: b.title || bm.title || bm.url } }), () => {})
+          return
         }
         const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
         if (files.length) {
@@ -885,6 +897,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         if (el?.type === 'pin') return void openPage(el.page, e.ctrlKey || e.metaKey ? 'tab' : 'replace')
         if (el?.type === 'token') return void (el.page && openPage(el.page, 'tab'))
         if (el?.type === 'reveal') return
+        if (el?.type === 'bookmark') return void openExternal(el.url)
         if (el?.type === 'image') return
         if (hit && (hit.part === 'body' || hit.part === 'title')) {
           if (!isNote(hit.id)) setEditing(hit.id)
@@ -940,6 +953,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
               />
             )
           if (el.type === 'pin') return <PinView key={el.id} el={el} selected={sel} />
+          if (el.type === 'bookmark') return <BookmarkView key={el.id} el={el} selected={sel} />
           if (el.type === 'connector') {
             const line = connectorLine(el)
             if (!line) return null
@@ -1224,6 +1238,21 @@ function PinView({ el, selected }: { el: Extract<Element, { type: 'pin' }>; sele
         {page?.icon ? `${page.icon} ` : ''}
         {label}
       </span>
+    </div>
+  )
+}
+
+/** A link card on the canvas (a bookmark from Burrow). Double-click opens the link. */
+function BookmarkView({ el, selected }: { el: BookmarkEl; selected: boolean }) {
+  const [x, y, w, h] = el.xywh
+  return (
+    <div className={`cv-bookmark ${selected ? 'selected' : ''} ${el.image ? 'with-image' : ''}`} data-cid={el.id} style={{ left: x, top: y, width: w, height: h, ...layerStyle(el) }} title={`${el.url} (double-click to open)`}>
+      <div className="cv-bookmark-text">
+        <small>{el.site || domainOf(el.url)}</small>
+        <b>{el.text || el.url}</b>
+        <span>{el.url}</span>
+      </div>
+      {el.image && <img src={el.image} alt="" draggable={false} onError={(e) => (e.currentTarget.style.display = 'none')} />}
     </div>
   )
 }

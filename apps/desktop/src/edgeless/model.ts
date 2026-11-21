@@ -105,8 +105,17 @@ export interface RevealEl extends Base {
   xywh: XYWH
   points?: [number, number][]
 }
-export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl
-export type Boxed = ShapeEl | TextEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl
+/** A link card (from Burrow, say); `text` is its title. */
+export interface BookmarkEl extends Base {
+  type: 'bookmark'
+  xywh: XYWH
+  url: string
+  burrowId?: number
+  image?: string
+  site?: string
+}
+export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl | BookmarkEl
+export type Boxed = ShapeEl | TextEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl | BookmarkEl
 /** An element before it has an id and a place in the stacking order. */
 export type NewElement = Element extends infer E ? (E extends Element ? Omit<E, 'id' | 'index'> & { index?: string } : never) : never
 
@@ -170,7 +179,7 @@ export function readElements(doc: Y.Doc): Element[] {
     const el = { ...m.toJSON(), id } as Element
     if (el.type === 'connector') {
       if (el.source && el.target) out.push(el)
-    } else if (['shape', 'text', 'frame', 'image', 'pin', 'token', 'reveal'].includes(el.type) && isXYWH((el as Boxed).xywh)) {
+    } else if (['shape', 'text', 'frame', 'image', 'pin', 'token', 'reveal', 'bookmark'].includes(el.type) && isXYWH((el as Boxed).xywh)) {
       out.push(el)
     }
   })

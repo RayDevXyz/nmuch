@@ -56,6 +56,11 @@ export interface EditorHost {
   WidgetBlock?: ComponentType<WidgetBlockProps>
   /** Extra `/` commands the app adds (templates, module blocks). */
   slashExtras?: SlashExtra[]
+  /**
+   * Something dragged in from the app (a bookmark from a side panel, say): the blocks to insert
+   * where it's dropped, or null to let the editor handle the drop as usual.
+   */
+  dropContent?(data: DataTransfer): JSONContent[] | null
 }
 
 export interface WidgetBlockProps {

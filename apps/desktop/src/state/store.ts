@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { Page } from '../lib/types'
 import type { ThemeDef } from '../theme/themes'
 
-export type View = 'home' | 'recent' | 'favorites' | 'tags' | 'archive' | 'trash'
+export type View = 'home' | 'recent' | 'favorites' | 'tags' | 'archive' | 'trash' | 'burrow'
 
 export interface OutlineItem {
   id: string

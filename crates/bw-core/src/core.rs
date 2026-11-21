@@ -73,6 +73,7 @@ impl Core {
         core.catch_up_index()?;
         core.register_course_module()?;
         core.register_dnd_module()?;
+        core.register_burrow_module()?;
         Ok(core)
     }
 

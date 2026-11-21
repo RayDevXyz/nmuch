@@ -1,5 +1,6 @@
 import {
   ArrowUpRight,
+  Bookmark,
   ChevronsLeft,
   CircleUserRound,
   CloudFog,
@@ -319,6 +320,7 @@ const TYPE_LABEL: Record<Element['type'], string> = {
   pin: 'Pin',
   token: 'Token',
   reveal: 'Revealed area',
+  bookmark: 'Bookmark',
 }
 
 function LayersTab(p: Props) {
@@ -410,6 +412,6 @@ function LayerIcon({ e }: { e: Element }) {
       </svg>
     )
   }
-  const Icon = { text: Type, connector: ArrowUpRight, frame: Frame, pin: MapPin, token: CircleUserRound, reveal: CloudFog, image: ImageIcon }[e.type] ?? Square
+  const Icon = ({ text: Type, connector: ArrowUpRight, frame: Frame, pin: MapPin, token: CircleUserRound, reveal: CloudFog, image: ImageIcon, bookmark: Bookmark } as Record<string, LucideIcon>)[e.type] ?? Square
   return <Icon size={14} />
 }

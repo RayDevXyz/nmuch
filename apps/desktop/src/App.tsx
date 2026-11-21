@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { PanelRight } from 'lucide-react'
-import { closeTab, createPage, init } from './state/actions'
+import { closeTab, createPage, init, openPage } from './state/actions'
 import { getState, setState, useApp } from './state/store'
 import { TopBar } from './components/TopBar'
 import { LeftRail } from './components/LeftRail'
@@ -18,9 +18,25 @@ import { getRoles, showsCanvas } from './dnd/api'
 import { AzgaarImportHost } from './dnd/AzgaarImport'
 import { activeTheme, themeVars as themeVarsOf } from './theme/themes'
 import { ThemeEditorHost } from './theme/ThemeEditor'
+import { BurrowPickerHost } from './burrow/Burrow'
+import { SaveToBurrowHost } from './burrow/Save'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
+  // A #/p/<id> link (from Burrow, a bookmark, another app) opens that page.
+  useEffect(() => {
+    if (!ready) return
+    const openLinked = () => {
+      const m = location.hash.match(/^#\/p\/([\w-]{6,64})$/)
+      if (!m) return
+      history.replaceState(null, '', location.pathname + location.search)
+      if (getState().pages[m[1]]) openPage(m[1], 'replace')
+      else setState({ toast: "That page isn't in this BrainWaves" })
+    }
+    openLinked()
+    window.addEventListener('hashchange', openLinked)
+    return () => window.removeEventListener('hashchange', openLinked)
+  }, [ready])
   const theme = useApp((s) => s.theme)
   // The theme this mode uses, as CSS variables on the workspace (and the window behind it).
   const themes = useApp((s) => s.themes)
@@ -127,6 +143,8 @@ export default function App() {
       <CharacterWizardHost />
       <AzgaarImportHost />
       <ThemeEditorHost />
+      <BurrowPickerHost />
+      <SaveToBurrowHost />
       {toast && <div className="toast">{toast}</div>}
     </main>
   )

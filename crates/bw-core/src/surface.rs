@@ -14,6 +14,7 @@
 //! | `pin`       | `xywh`, `page` (the page it marks), `text` (its label), `icon`           |
 //! | `token`     | `xywh`, `text` (name), `page` (character/NPC/monster page), `hidden` (DM only), `hp`, `maxHp`, `ac`, `color`, `owner` |
 //! | `reveal`    | `xywh` (its bounds), optional `points` (a polygon): an area cleared of fog |
+//! | `bookmark`  | `xywh`, `url`, `text` (title), `burrowId`, `image`, `site`: a link card (e.g. from Burrow) |
 //!
 //! Every element also has `id`, `type` and `index`, a fractional key for the stacking order
 //! (and the order frames are presented in). Any element may also carry `rotate` (degrees),
@@ -36,7 +37,7 @@ use crate::doc::to_json;
 use crate::error::{Error, Result};
 use crate::schema::keys;
 
-pub const TYPES: [&str; 8] = [
+pub const TYPES: [&str; 9] = [
     "shape",
     "text",
     "connector",
@@ -45,6 +46,7 @@ pub const TYPES: [&str; 8] = [
     "pin",
     "token",
     "reveal",
+    "bookmark",
 ];
 
 /// Largest image an element may hold (as a data URL).
@@ -134,6 +136,14 @@ pub fn validate(id: &str, element: Value) -> Result<BTreeMap<String, Value>> {
             .is_some_and(|p| !p.is_empty())
     {
         return Err(bad(id, "a pin needs the page it marks"));
+    }
+    if kind == "bookmark"
+        && !fields
+            .get("url")
+            .and_then(Value::as_str)
+            .is_some_and(|u| (u.starts_with("http://") || u.starts_with("https://")) && u.len() <= 4096)
+    {
+        return Err(bad(id, "a bookmark needs an http(s) url"));
     }
     if kind == "token" && fields.get("hidden").is_some_and(|h| !h.is_boolean()) {
         return Err(bad(id, "a token's hidden is true or false"));

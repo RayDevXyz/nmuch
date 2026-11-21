@@ -26,7 +26,7 @@ async fn core_call(
     let args = args.unwrap_or(Value::Object(Default::default()));
     tauri::async_runtime::spawn_blocking(move || {
         // Slow host work (fetching 5etools files) runs without holding the core.
-        if let Some(r) = bw_api::fivee::dispatch_unlocked(&core, &command, &args) {
+        if let Some(r) = bw_api::dispatch_unlocked(&core, &command, &args) {
             return r;
         }
         let mut core = core.lock().map_err(|e| e.to_string())?;

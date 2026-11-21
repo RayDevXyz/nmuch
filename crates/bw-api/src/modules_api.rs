@@ -220,6 +220,12 @@ pub(crate) fn dispatch(
             ok(core.dnd_scenes(&d.id).map_err(e)?)
         }
         "dndTable" => ok(core.dnd_table().map_err(e)?),
+        // The address only: the token stays in the workspace.
+        "burrowConnection" => ok(core.burrow_connection().map_err(e)?.map(|c| json!({ "url": c.url }))),
+        "burrowSetConnection" => {
+            let d: DndArgs = args(a)?;
+            ok(core.burrow_set_connection(&d.url, &d.key).map_err(e)?)
+        }
         "dndCampaignTable" => {
             let d: DndArgs = args(a)?;
             ok(core.dnd_campaign_table(&d.id).map_err(e)?)

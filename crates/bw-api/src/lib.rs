@@ -13,6 +13,7 @@ use serde_json::{json, Value};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+pub mod burrow;
 pub mod fivee;
 mod modules_api;
 pub mod nimbus;
@@ -225,6 +226,12 @@ fn b64(s: &str) -> Result<Vec<u8>, String> {
 }
 
 /// Run one command against the core. Errors come back as strings for the frontend.
+/// Commands a host runs before taking the core's lock, because they wait on the network
+/// (5etools, Burrow). `None`: an ordinary command; take the lock and call [`dispatch`].
+pub fn dispatch_unlocked(core: &std::sync::Arc<std::sync::Mutex<Core>>, command: &str, args: &Value) -> Option<Result<Value, String>> {
+    fivee::dispatch_unlocked(core, command, args).or_else(|| burrow::dispatch_unlocked(core, command, args))
+}
+
 pub fn dispatch(core: &mut Core, ctx: &Context, command: &str, a: Value) -> Result<Value, String> {
     let e = |err: bw_core::Error| err.to_string();
     match command {

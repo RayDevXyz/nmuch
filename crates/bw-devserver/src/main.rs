@@ -86,7 +86,7 @@ async fn call(
     let (core, ctx) = (s.core.clone(), s.ctx.clone());
     tokio::task::spawn_blocking(move || {
         // Slow host work (fetching 5etools files) runs without holding the core.
-        if let Some(r) = bw_api::fivee::dispatch_unlocked(&core, &command, &args) {
+        if let Some(r) = bw_api::dispatch_unlocked(&core, &command, &args) {
             return r;
         }
         let mut core = core.lock().map_err(|e| e.to_string())?;

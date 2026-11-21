@@ -8,6 +8,7 @@ import { BindingSetup } from './BindingSetup'
 import { ModuleBlock } from '../modules/ModuleBlock'
 import { DndBlock } from '../dnd/DndBlock'
 import { buildSrcdoc, themeVars } from './runtime'
+import { BurrowCard } from '../burrow/BurrowCard'
 import {
   loadWidget,
   widgetCreateRow,
@@ -40,6 +41,8 @@ export function WidgetBlock(props: WidgetBlockProps & { pageId: string }) {
   if (props.widgetId.startsWith('module:')) return <ModuleBlock {...props} moduleId={props.widgetId.slice(7)} />
   // First-party D&D blocks (compendium cards, …) use it too, as `dnd:<kind>`.
   if (props.widgetId.startsWith('dnd:')) return <DndBlock {...props} kind={props.widgetId.slice(4)} />
+  // A Burrow bookmark (`burrow:card`).
+  if (props.widgetId === 'burrow:card') return <BurrowCard {...props} />
   return <WidgetInstance {...props} />
 }
 

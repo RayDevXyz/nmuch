@@ -27,6 +27,8 @@ import { CharacterSheet } from '../dnd/CharacterSheet'
 import { CampaignOverview } from '../dnd/Campaign'
 import { openAzgaarImport } from '../dnd/AzgaarImport'
 import { PageThemeChip } from '../theme/PageTheme'
+import { burrowSlashExtras } from '../burrow/slash'
+import { cardContent, droppedBookmark } from '../burrow/api'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -315,6 +317,11 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
         <DatabaseView databaseId={databaseId} viewId={viewId} onViewChange={onViewChange} editable={editable} inline />
       ),
       WidgetBlock: (props) => <WidgetBlock {...props} pageId={pageId} />,
+      // A bookmark dragged from the Burrow panel becomes a card.
+      dropContent: (data) => {
+        const b = droppedBookmark(data)
+        return b ? cardContent(b) : null
+      },
       // A getter: the slash menu reads it on every keystroke, so newly installed widgets show up.
       get slashExtras() {
         const modules = installedModules()
@@ -327,7 +334,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
             group: 'Modules',
             run: (editor: TiptapEditor) => void editor.chain().focus().insertWidget(`module:${m.manifest.id}`).run(),
           }))
-        return [courseTrackerExtra(pageId), ...dndSlashExtras, ...modules, ...installedWidgets().map((w) => ({
+        return [courseTrackerExtra(pageId), ...dndSlashExtras, ...burrowSlashExtras, ...modules, ...installedWidgets().map((w) => ({
           id: `widget:${w.manifest.id}`,
           label: w.manifest.name,
           desc: w.manifest.description || 'Widget',

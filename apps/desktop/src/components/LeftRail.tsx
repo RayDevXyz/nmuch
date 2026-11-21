@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Archive, CircleHelp, Clock3, Home, PanelLeft, Search, Star, Tag, Trash2 } from 'lucide-react'
+import { Archive, BookmarkCheck, CircleHelp, Clock3, Home, PanelLeft, Search, Star, Tag, Trash2 } from 'lucide-react'
 import { setView } from '../state/actions'
 import { setState, useApp, type View } from '../state/store'
 import { IconButton } from './TopBar'
@@ -36,6 +36,8 @@ export function LeftRail() {
         {item('tags', <Tag />, 'Tags')}
         {item('archive', <Archive />, 'Archive')}
         {item('trash', <Trash2 />, 'Trash', trashCount)}
+        <div className="nav-divider" />
+        {item('burrow', <BookmarkCheck />, 'Burrow')}
       </nav>
       <div className="rail-footer">
         <button className="nav-item" title="Help & shortcuts" aria-label="Help & shortcuts" onClick={() => setState({ help: true })}>

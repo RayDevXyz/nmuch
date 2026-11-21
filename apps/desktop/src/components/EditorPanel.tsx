@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { showsCanvas, useRoles } from '../dnd/api'
-import { Archive, ArchiveRestore, ChevronRight, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, Palette, Plus, Shapes, Star, Trash2, X } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronRight, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, BookmarkCheck, Palette, Plus, Shapes, Star, Trash2, X } from 'lucide-react'
 import { ancestors, closeTab, createPage, duplicatePage, openPage, setArchived, toggleFavorite, trashPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
 import { Editor, pageMarkdown } from '../editor/Editor'
 import { IconButton } from './TopBar'
 import { MenuList, Popover } from './Popover'
 import { openPageThemeMenu, usePageThemeStyle } from '../theme/PageTheme'
+import { openSaveToBurrow } from '../burrow/Save'
 
 function Tab({ id }: { id: string }) {
   const page = useApp((s) => s.pages[id])
@@ -196,6 +197,7 @@ export function EditorPanel() {
                 onSelect: () => setState({ width: getState().width === 'wide' ? 'normal' : 'wide' }),
               },
               { label: 'Page theme…', icon: <Palette size={14} />, onSelect: () => setTimeout(openPageThemeMenu) },
+              { label: 'Save to Burrow…', icon: <BookmarkCheck size={14} />, onSelect: () => openSaveToBurrow(page.id) },
               { label: 'Add sub-page', icon: <Plus size={14} />, onSelect: () => createPage({ parentId: page.id }) },
               { label: 'Duplicate page', icon: <Copy size={14} />, onSelect: () => duplicatePage(page.id) },
               'sep',

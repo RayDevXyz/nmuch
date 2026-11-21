@@ -2,7 +2,7 @@ import { Extension } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { maybeHost } from '../host-extension'
 
-const LOOKS_LIKE_MD = /(^|\n)\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s|```|\[[ xX]?\]\s)|\*\*[^*]+\*\*|\[\[[^\]]+\]\]/
+const LOOKS_LIKE_MD = /(^|\n)\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s|```|\[[ xX]?\]\s)|\*\*[^*]+\*\*|\[\[[^\]]+\]\]|(^|\n)\s*\|.*\|\s*\n\s*\|?\s*:?-{2,}/
 
 /** Paste of plain-text Markdown becomes blocks (headings, lists, to-dos, code, ...). */
 export const MarkdownPaste = Extension.create({

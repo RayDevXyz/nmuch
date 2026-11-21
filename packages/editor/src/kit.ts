@@ -2,6 +2,7 @@ import type { Extensions } from '@tiptap/core'
 import Collaboration from '@tiptap/extension-collaboration'
 import { TaskItem, TaskList } from '@tiptap/extension-list'
 import { Placeholder } from '@tiptap/extensions'
+import { TableKit } from '@tiptap/extension-table'
 import StarterKit from '@tiptap/starter-kit'
 import type * as Y from 'yjs'
 import { BlockId } from './block-id'
@@ -10,6 +11,7 @@ import { HostExtension } from './host-extension'
 import { Callout } from './nodes/callout'
 import { Database } from './nodes/database'
 import { Widget } from './nodes/widget'
+import { Moc } from './nodes/moc'
 import { Image } from './nodes/image'
 import { PageLink } from './nodes/page-link'
 import { Ref } from './nodes/ref'
@@ -42,6 +44,9 @@ export function schemaExtensions(): Extensions {
     PageLink,
     Database,
     Widget,
+    Moc,
+    // Simple tables: a header row and plain cells. Columns can be resized by dragging.
+    TableKit.configure({ table: { resizable: true, cellMinWidth: 60, lastColumnResizable: true, allowTableNodeSelection: true } }),
     Ref,
     BlockId,
   ]

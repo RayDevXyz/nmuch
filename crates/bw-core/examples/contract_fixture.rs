@@ -62,6 +62,8 @@ fn main() -> bw_core::Result<()> {
                 json!({ "label": "Done" }),
             ),
         )?;
+        tx.append(&note, NewBlock::moc(json!({ "source": "tag", "tag": "reading" })))?;
+        tx.append(&note, NewBlock::table(&[&["Name", "Role"], &["Ada", "Engineer"]]))?;
         tx.set_prop(&h, "course.progress", json!(1))?;
         let second = tx.add_note();
         tx.append(&second, NewBlock::paragraph("Second note"))?;

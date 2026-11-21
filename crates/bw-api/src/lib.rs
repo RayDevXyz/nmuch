@@ -306,6 +306,14 @@ pub fn dispatch(core: &mut Core, ctx: &Context, command: &str, a: Value) -> Resu
             let CreatePage { id, meta } = args(a)?;
             ok(core.create_database(&id, meta).map_err(e)?)
         }
+        "convertToDatabase" => {
+            let PageArg { page_id } = args(a)?;
+            ok(core.convert_to_database(&page_id).map_err(e)?)
+        }
+        "convertToPage" => {
+            let DbArg { database_id } = args(a)?;
+            ok(core.convert_to_page(&database_id).map_err(e)?)
+        }
         "databaseDef" => {
             let DbArg { database_id } = args(a)?;
             ok(core.database_def(&database_id).map_err(e)?)

@@ -369,6 +369,8 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .inline-toolbar button { width: 28px; height: 26px; border: 0; background: transparent; color: var(--muted-foreground); border-radius: 5px; display: grid; place-items: center; cursor: pointer; }
 .inline-toolbar button:hover { background: var(--hover); color: var(--foreground); }
 .inline-toolbar button.on { color: var(--accent); background: var(--accent-soft); }
+.inline-toolbar button:disabled { opacity: 0.35; cursor: default; background: transparent; }
+.inline-toolbar button.danger:hover { color: #ff6b6b; background: rgba(255, 107, 107, 0.12); }
 .tb-sep { width: 1px; height: 16px; background: var(--line); margin: 0 3px; }
 .link-edit { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 6px; color: var(--accent); }
 .link-edit input { width: 230px; height: 26px; border: 0; outline: 0; background: transparent; color: var(--foreground); font-size: 12px; }
@@ -427,6 +429,17 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 
 /* ---------- Tiptap editor (phase 2): one ProseMirror document per note ---------- */
 .note-editor { position: relative; }
+
+/* Simple tables */
+.note-editor .tableWrapper { margin: 10px 0; overflow-x: auto; }
+.note-editor table { border-collapse: collapse; table-layout: fixed; width: 100%; margin: 0; overflow: hidden; }
+.note-editor th, .note-editor td { position: relative; min-width: 60px; padding: 6px 9px; border: 1px solid var(--line); vertical-align: top; box-sizing: border-box; text-align: left; }
+.note-editor th { background: var(--panel-2); font-weight: 600; }
+.note-editor th > p, .note-editor td > p { margin: 0; }
+.note-editor .selectedCell::after { content: ''; position: absolute; inset: 0; background: var(--accent-soft); pointer-events: none; z-index: 1; }
+.note-editor .column-resize-handle { position: absolute; right: -2px; top: 0; bottom: -2px; width: 4px; background: var(--accent); pointer-events: none; z-index: 2; }
+.note-editor.resize-cursor, .note-editor .resize-cursor { cursor: col-resize; }
+.table-menu { transform: none; }
 .note-editor + .note-editor { margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--line-soft); }
 .editor-error { padding: 14px; color: var(--danger); font-size: 13px; }
 .bw-prose { outline: 0; color: var(--muted-foreground); line-height: 1.72; caret-color: var(--accent); word-break: break-word; }
@@ -1349,3 +1362,44 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
   .ph-tools button { height: 30px; }
   .ph-editor { position: fixed; left: 8px; right: 8px; top: auto; bottom: 8px; width: auto; max-height: 70vh; }
 }
+
+/* Map of content */
+.moc-block { margin: 10px 0; }
+.moc { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px 14px 12px; }
+.moc-head { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.moc-head-icon { color: var(--accent); }
+.moc-head b { font-weight: 650; }
+.moc-count { padding: 0 6px; border-radius: 9px; background: var(--panel-2); color: var(--muted-foreground); font-size: 11px; line-height: 18px; }
+.moc-gear { margin-left: auto; width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--muted-foreground); cursor: pointer; opacity: 0; transition: opacity 0.15s; }
+.moc:hover .moc-gear, .moc-gear.on, .moc-gear:focus-visible { opacity: 1; }
+.moc-gear:hover, .moc-gear.on { background: var(--hover); color: var(--foreground); }
+.moc-empty { margin-top: 8px; color: var(--faint); font-size: 13px; }
+.moc-group { margin-top: 8px; }
+.moc-group-label { display: flex; align-items: center; gap: 4px; margin: 4px 0 2px; color: var(--muted-foreground); font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; }
+.moc-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.moc-list .moc-list { margin: 0 0 0 11px; padding-left: 10px; border-left: 1px solid var(--line-soft); }
+.moc-list li { margin: 0; padding: 0; }
+.moc-link { display: flex; align-items: center; gap: 7px; padding: 3px 6px; margin: 0 -6px; border-radius: 6px; color: var(--foreground); text-decoration: none; font-size: 14px; line-height: 1.45; }
+.moc-link:hover { background: var(--hover); }
+.note-editor .moc a.moc-link, .note-editor .moc a.moc-card { color: var(--foreground); text-decoration: none; border: 0; }
+.moc-icon { width: 18px; flex: none; display: grid; place-items: center; color: var(--muted-foreground); font-size: 14px; }
+.moc-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.moc-columns > .moc-list { columns: 3 190px; column-gap: 18px; }
+.moc-columns > .moc-list > li { break-inside: avoid; }
+.moc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 8px; }
+.moc-card { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--line-soft); border-radius: 10px; background: var(--panel-2); color: var(--foreground); text-decoration: none; }
+.note-editor .moc a.moc-card { border: 1px solid var(--line-soft); }
+.moc-card:hover, .note-editor .moc a.moc-card:hover { border-color: var(--accent); }
+.moc-card-icon { font-size: 18px; color: var(--muted-foreground); line-height: 1; }
+.moc-card b { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.moc-card small { color: var(--faint); font-size: 11px; }
+.moc-settings { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 4px; padding: 10px; border-radius: 9px; background: var(--panel-2); border: 1px solid var(--line-soft); }
+.moc-settings label { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.moc-settings label > span { width: 64px; flex: none; color: var(--muted-foreground); font-weight: 600; }
+.moc-settings select, .moc-settings input { flex: 1; min-width: 0; height: 28px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--foreground); font: inherit; font-size: 12px; }
+.moc-seg { flex: 1; display: flex; flex-wrap: wrap; gap: 2px; padding: 2px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line-soft); }
+.moc-seg button { flex: 1; height: 24px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--muted-foreground); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.moc-seg button.on { background: var(--hover); color: var(--foreground); }
+.db-intro { margin-bottom: 14px; }
+.note-editor .moc ul.moc-list { padding-left: 0; margin-left: 0; }
+.note-editor .moc ul.moc-list ul.moc-list { margin-left: 11px; padding-left: 10px; }

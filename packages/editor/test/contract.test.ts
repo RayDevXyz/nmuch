@@ -48,6 +48,15 @@ const DOC: JSONContent = {
       type: 'widget',
       attrs: { id: 'w1', widget: 'progress', bindings: JSON.stringify({ items: { databaseId: 'db-lessons', fields: { done: 'done' } } }), settings: '{"label":"Done"}' },
     },
+    { type: 'moc', attrs: { id: 'moc1', settings: '{"source":"children"}' } },
+    {
+      type: 'table',
+      attrs: { id: 'tb1' },
+      content: [
+        { type: 'tableRow', attrs: { id: 'tr1' }, content: [{ type: 'tableHeader', attrs: { id: 'th1', colspan: 1, rowspan: 1, colwidth: null }, content: [p('th1p', t('Name'))] }] },
+        { type: 'tableRow', attrs: { id: 'tr2' }, content: [{ type: 'tableCell', attrs: { id: 'td1', colspan: 1, rowspan: 1, colwidth: null }, content: [p('td1p', t('Ada', ['bold']))] }] },
+      ],
+    },
     p('p2', t('link', ['link'])),
   ],
 }

@@ -90,8 +90,17 @@ pub mod node {
     /// columns), `settings` (the widget's own options). See `widgets.rs`.
     pub const WIDGET: &str = "widget";
     pub const IMAGE: &str = "image";
+    /// A map of content: a live list of links to pages. attrs: `settings` (JSON: which pages,
+    /// how to sort, group and show them). The app works the list out; the core only stores it.
+    pub const MOC: &str = "moc";
     /// A sub-page embedded as a block. attrs: `pageId`.
     pub const PAGE_LINK: &str = "pageLink";
+    /// A simple table: `table` > `tableRow` > `tableHeader` | `tableCell` > blocks.
+    /// Cell attrs: `colspan`, `rowspan`, `colwidth`.
+    pub const TABLE: &str = "table";
+    pub const TABLE_ROW: &str = "tableRow";
+    pub const TABLE_HEADER: &str = "tableHeader";
+    pub const TABLE_CELL: &str = "tableCell";
 
     /// Inline reference. attrs: `kind` ("page" | "block"), `target` (id).
     pub const REF: &str = "ref";
@@ -115,11 +124,13 @@ pub mod node {
     /// Mirror of the ProseMirror content expressions: may `child` appear inside `parent`?
     /// `parent == NOTE` means the top level of a note.
     pub fn allows(parent: &str, child: &str) -> bool {
-        let block = !is_inline(child) && child != LIST_ITEM && child != TASK_ITEM;
+        let block = !is_inline(child) && ![LIST_ITEM, TASK_ITEM, TABLE_ROW, TABLE_HEADER, TABLE_CELL].contains(&child);
         match parent {
-            NOTE | BLOCKQUOTE | LIST_ITEM | TASK_ITEM => block,
+            NOTE | BLOCKQUOTE | LIST_ITEM | TASK_ITEM | TABLE_HEADER | TABLE_CELL => block,
             BULLET_LIST | ORDERED_LIST => child == LIST_ITEM,
             TASK_LIST => child == TASK_ITEM,
+            TABLE => child == TABLE_ROW,
+            TABLE_ROW => child == TABLE_HEADER || child == TABLE_CELL,
             _ => false,
         }
     }

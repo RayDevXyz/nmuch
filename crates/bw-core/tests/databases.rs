@@ -484,3 +484,53 @@ fn rows_are_pages_and_the_index_rebuilds() {
     let mut core = Core::open(&path).unwrap();
     assert_eq!(core.query_database("courses", None, None).unwrap(), before);
 }
+
+#[test]
+fn a_page_becomes_a_database_and_back() {
+    use bw_core::{Inline, NewBlock, PageKind};
+    let mut core = Core::open_in_memory().unwrap();
+    let meta = |title: &str, parent: Option<&str>| PageMeta {
+        title: title.into(),
+        parent_id: parent.map(Into::into),
+        ..Default::default()
+    };
+    core.create_page_with_id("books", meta("Books", None)).unwrap();
+    core.transact("books", |tx| {
+        let note = tx.first_note()?;
+        tx.append(&note, NewBlock::paragraph_with(vec![Inline::from("Everything I read this year.")]))?;
+        Ok(())
+    })
+    .unwrap();
+    core.create_page_with_id("dune", meta("Dune", Some("books"))).unwrap();
+    core.create_page_with_id("emma", meta("Emma", Some("books"))).unwrap();
+    core.create_database("shelf", meta("Shelf", Some("books"))).unwrap();
+
+    let rows = core.convert_to_database("books").unwrap();
+    assert_eq!(rows.len(), 2, "the two sub-pages become rows, the inner database stays");
+    let snap = core.snapshot("books").unwrap();
+    assert_eq!(snap.meta.kind, PageKind::Database);
+    assert!(snap.content().any(|b| b.text == "Everything I read this year."), "the text is kept");
+    let r = core.query_database("books", None, None).unwrap();
+    let mut titles: Vec<_> = r.rows.iter().map(|r| r.title.clone()).collect();
+    titles.sort();
+    assert_eq!(titles, ["Dune", "Emma"]);
+    assert!(core.convert_to_database("books").is_err());
+
+    // Cells added while it's a database survive a round trip.
+    core.set_property("books", prop("rating", "Rating", PropType::Number)).unwrap();
+    core.set_value("dune", "rating", json!(5)).unwrap();
+    let views = core.database_def("books").unwrap().views.len();
+    assert_eq!(core.convert_to_page("books").unwrap().len(), 2);
+    let back = core.snapshot("books").unwrap();
+    assert_eq!(back.meta.kind, PageKind::Page);
+    assert_eq!(core.snapshot("dune").unwrap().meta.database_id, None);
+    assert_eq!(core.snapshot("dune").unwrap().meta.parent_id.as_deref(), Some("books"));
+
+    core.convert_to_database("books").unwrap();
+    let def = core.database_def("books").unwrap();
+    assert_eq!(def.views.len(), views, "no extra view");
+    assert!(def.property("rating").is_some());
+    let r = core.query_database("books", None, None).unwrap();
+    let dune = r.rows.iter().find(|r| r.id == "dune").unwrap();
+    assert_eq!(dune.values.get("rating"), Some(&json!(5)));
+}

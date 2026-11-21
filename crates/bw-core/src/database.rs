@@ -310,6 +310,109 @@ impl Core {
         Ok(id.to_string())
     }
 
+    /// Turn an ordinary page into a database. Its text stays (shown above the table), and its
+    /// sub-pages become the rows: same pages, same content, now with cells. Sub-pages that are
+    /// databases themselves stay sub-pages. Columns and views from an earlier conversion are kept;
+    /// otherwise it gets a Name column and a table view. Returns the ids of the new rows.
+    pub fn convert_to_database(&mut self, page_id: &str) -> Result<Vec<PageId>> {
+        let snap = self.snapshot(page_id)?;
+        if snap.meta.kind == PageKind::Database {
+            return Err(Error::Invalid("this page is already a database".into()));
+        }
+        if snap.meta.database_id.is_some() {
+            return Err(Error::Invalid("a database row can't become a database".into()));
+        }
+        self.update_page(
+            page_id,
+            &PageMetaPatch {
+                kind: Some(PageKind::Database),
+                ..Default::default()
+            },
+        )?;
+        // Now a database, its snapshot shows any columns and views kept from before.
+        let def = self.database_def(page_id)?;
+        if def.properties.iter().all(|p| p.id != TITLE) || def.views.is_empty() {
+            self.transact(page_id, |tx| {
+                if def.properties.iter().all(|p| p.id != TITLE) {
+                    tx.set_db_property(&Property {
+                        id: TITLE.into(),
+                        name: "Name".into(),
+                        kind: PropType::Title,
+                        order: "a0".into(),
+                        options: vec![],
+                        relation: None,
+                        rollup: None,
+                    })?;
+                }
+                if def.views.is_empty() {
+                    tx.set_db_view(&View {
+                        id: new_id(),
+                        name: "Table".into(),
+                        kind: ViewKind::Table,
+                        order: "a0".into(),
+                        filters: vec![],
+                        sorts: vec![],
+                        group_by: None,
+                        hidden: vec![],
+                    })?;
+                }
+                Ok(())
+            })?;
+        }
+        let children: Vec<_> = self
+            .list_pages()?
+            .into_iter()
+            .filter(|p| p.parent_id.as_deref() == Some(page_id) && p.kind != "database" && p.database_id.is_none())
+            .collect();
+        let mut rows = Vec::new();
+        for child in children {
+            self.update_page(
+                &child.id,
+                &PageMetaPatch {
+                    database_id: Some(Some(page_id.to_string())),
+                    ..Default::default()
+                },
+            )?;
+            rows.push(child.id);
+        }
+        Ok(rows)
+    }
+
+    /// Turn a database back into a page: the rows become ordinary sub-pages again. Their cell
+    /// values and the columns stay stored, so converting back restores them.
+    pub fn convert_to_page(&mut self, database_id: &str) -> Result<Vec<PageId>> {
+        let snap = self.snapshot(database_id)?;
+        if snap.meta.kind != PageKind::Database {
+            return Err(Error::Invalid("this page is not a database".into()));
+        }
+        let rows: Vec<_> = self
+            .list_pages()?
+            .into_iter()
+            .filter(|p| p.database_id.as_deref() == Some(database_id))
+            .collect();
+        let mut out = Vec::new();
+        for row in rows {
+            let mut patch = PageMetaPatch {
+                database_id: Some(None),
+                ..Default::default()
+            };
+            // Rows always live under their database; keep them there as sub-pages.
+            if row.parent_id.as_deref() != Some(database_id) {
+                patch.parent_id = Some(Some(database_id.to_string()));
+            }
+            self.update_page(&row.id, &patch)?;
+            out.push(row.id);
+        }
+        self.update_page(
+            database_id,
+            &PageMetaPatch {
+                kind: Some(PageKind::Page),
+                ..Default::default()
+            },
+        )?;
+        Ok(out)
+    }
+
     /// The database definition, read from the live doc (not the index).
     pub fn database_def(&mut self, database_id: &str) -> Result<DatabaseDef> {
         let snap = self.snapshot(database_id)?;

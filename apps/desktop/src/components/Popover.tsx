@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useNarrow } from '../mobile/narrow'
 
 interface Props {
   x: number
@@ -11,9 +12,13 @@ interface Props {
   className?: string
   /** keep focus where it is (editor menus) */
   keepFocus?: boolean
+  /** stay next to the anchor on phones too, instead of becoming a bottom sheet */
+  anchored?: boolean
 }
 
-export function Popover({ x, y, anchorTop, onClose, children, className, keepFocus }: Props) {
+export function Popover({ x, y, anchorTop, onClose, children, className, keepFocus, anchored }: Props) {
+  // Phones: menus and panels slide up from the bottom, where a thumb can reach them.
+  const sheet = useNarrow() && !anchored && !keepFocus
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ left: x, top: y, ready: false })
 
@@ -53,14 +58,18 @@ export function Popover({ x, y, anchorTop, onClose, children, className, keepFoc
   }, [onClose, keepFocus])
 
   return createPortal(
-    <div
-      ref={ref}
-      className={`popover ${className ?? ''}`}
-      style={{ left: pos.left, top: pos.top, visibility: pos.ready ? 'visible' : 'hidden' }}
-      onMouseDown={keepFocus ? (e) => e.preventDefault() : undefined}
-    >
-      {children}
-    </div>,
+    <>
+      {sheet && <div className="sheet-scrim" aria-hidden />}
+      <div
+        ref={ref}
+        className={`popover ${sheet ? 'sheet' : ''} ${className ?? ''}`}
+        style={sheet ? undefined : { left: pos.left, top: pos.top, visibility: pos.ready ? 'visible' : 'hidden' }}
+        onMouseDown={keepFocus ? (e) => e.preventDefault() : undefined}
+      >
+        {sheet && <div className="sheet-grip" aria-hidden />}
+        {children}
+      </div>
+    </>,
     document.querySelector('.workspace') ?? document.body,
   )
 }

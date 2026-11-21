@@ -44,6 +44,8 @@ import { IconButton } from './TopBar'
 import { MenuList, Popover, type MenuEntry } from './Popover'
 import { BurrowPanel } from '../burrow/Burrow'
 import { BurrowTagItems } from '../burrow/Tags'
+import { useNarrow } from '../mobile/narrow'
+import { DrawerHead } from '../mobile/MobileChrome'
 
 const byKey = (a: Page, b: Page) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
 
@@ -436,6 +438,7 @@ export function Sidebar() {
     return m
   }, [pages])
   const all = Object.values(pages)
+  const narrow = useNarrow()
 
   let body: React.ReactNode
   if (view === 'recent') {
@@ -516,6 +519,7 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
+      {narrow && <DrawerHead />}
       <div className="sidebar-scroll">
         {body}
         <Outline />

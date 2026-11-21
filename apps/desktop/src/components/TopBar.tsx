@@ -30,7 +30,7 @@ function Seg<T extends string>({ value, options, onChange }: { value: T; options
   )
 }
 
-function SettingsPanel({ x, y, onClose, onAccount }: { x: number; y: number; onClose: () => void; onAccount: () => void }) {
+export function SettingsPanel({ x, y, onClose, onAccount }: { x: number; y: number; onClose: () => void; onAccount: () => void }) {
   const theme = useApp((s) => s.theme)
   const themes = useApp((s) => s.themes)
   const themeFor = useApp((s) => s.themeFor)

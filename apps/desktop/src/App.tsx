@@ -22,6 +22,7 @@ import { BurrowPickerHost } from './burrow/Burrow'
 import { SaveToBurrowHost } from './burrow/Save'
 import { flushShares, inboxPage, readShare, ShareSheet } from './mobile/share'
 import { isNarrow, useNarrow } from './mobile/narrow'
+import { MobileBottom } from './mobile/MobileChrome'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
@@ -135,10 +136,10 @@ export default function App() {
   }, [])
 
   return (
-    <main className={`workspace theme-${theme} fs-${fontSize}`} style={themeStyle}>
-      <TopBar />
+    <main className={`workspace theme-${theme} fs-${fontSize} ${narrow ? 'is-narrow' : ''}`} style={themeStyle}>
+      {!narrow && <TopBar />}
       <div className="app-shell">
-        <LeftRail />
+        {!narrow && <LeftRail />}
         {sidebarOpen && <Sidebar />}
         {narrow && sidebarOpen && <div className="drawer-scrim" onClick={() => setState({ sidebarOpen: false })} />}
         {ready ? (
@@ -152,12 +153,13 @@ export default function App() {
           </section>
         )}
         {rightOpen && <RightPanel />}
-        {!rightOpen && (
+        {!rightOpen && !narrow && (
           <button className="expand-right" aria-label="Open graph panel" title="Open graph panel (Ctrl Shift \)" onClick={() => setState({ rightOpen: true })}>
             <PanelRight />
           </button>
         )}
       </div>
+      {narrow && ready && <MobileBottom />}
       {quickFind && <QuickFind />}
       {help && <HelpModal />}
       {importDialog && <ImportDialog />}

@@ -91,6 +91,7 @@ docs/                architecture.md (the plan), spike-01-block-model.md, phase-
 **On your own server:** see [docs/hosting.md](docs/hosting.md): a Docker image
 (`ghcr.io/raydevxyz/nmuch`) for Cosmos Cloud or Docker Compose, with your own login.
 It works with [Burrow](https://github.com/RayDevXyz/burrow): see [docs/burrow.md](docs/burrow.md).
+On Android it installs as an app with a place in the share menu: see [docs/android.md](docs/android.md).
 
 **Windows, from scratch:** double-click `scripts\install-windows.cmd`. It installs everything
 that's missing (Git, the C++ build tools, WebView2, Rust, Node.js, pnpm), installs the

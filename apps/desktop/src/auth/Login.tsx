@@ -11,11 +11,17 @@ export interface AuthState {
   user: string | null
 }
 
-/** What the server says about signing in; null: no sign-in here (desktop app, dev server). */
-export async function authState(): Promise<AuthState | null> {
+/** What the server says about signing in; null: no sign-in here (desktop app, dev server);
+ * 'offline': the server can't be reached (the installed app without a connection). */
+export async function authState(): Promise<AuthState | null | 'offline'> {
+  let r: Response
   try {
-    const r = await fetch('/api/auth/state', { headers: { accept: 'application/json' } })
-    if (!r.ok) return null
+    r = await fetch('/api/auth/state', { headers: { accept: 'application/json' } })
+  } catch {
+    return 'offline'
+  }
+  if (!r.ok) return null
+  try {
     const s = (await r.json()) as AuthState
     return s && s.hosted ? s : null
   } catch {

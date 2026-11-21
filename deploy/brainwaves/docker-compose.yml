@@ -1,0 +1,22 @@
+# BrainWaves on any server with Docker, built from this repository.
+#   cd deploy/brainwaves && docker compose up -d --build
+# Then open http://<server>:8080 and make your account (the first account is the owner).
+# Put it behind HTTPS (Caddy, Traefik, nginx, Cosmos) and set TRUST_PROXY=true there.
+
+services:
+  brainwaves:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: brainwaves
+    container_name: brainwaves
+    restart: unless-stopped
+    ports:
+      - "${BRAINWAVES_PORT:-8080}:8080"
+    volumes:
+      - brainwaves-data:/data   # the workspace (brainwaves.db) and the login (auth.json)
+    environment:
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+
+volumes:
+  brainwaves-data:

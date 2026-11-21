@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { refreshModules } from '../modules/api'
-import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, Moon, Palette, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle } from 'lucide-react'
+import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, KeyRound, Moon, Palette, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
 import { MenuList, Popover } from './Popover'
 import { activeTheme, BUILTIN } from '../theme/themes'
+import { AccountDialog } from '../auth/Account'
+import { hostedUser } from '../state/hosted'
 
 export function IconButton({ children, label, active, onClick }: { children: React.ReactNode; label: string; active?: boolean; onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
   return (
@@ -27,7 +29,7 @@ function Seg<T extends string>({ value, options, onChange }: { value: T; options
   )
 }
 
-function SettingsPanel({ x, y, onClose }: { x: number; y: number; onClose: () => void }) {
+function SettingsPanel({ x, y, onClose, onAccount }: { x: number; y: number; onClose: () => void; onAccount: () => void }) {
   const theme = useApp((s) => s.theme)
   const themes = useApp((s) => s.themes)
   const themeFor = useApp((s) => s.themeFor)
@@ -86,10 +88,21 @@ function SettingsPanel({ x, y, onClose }: { x: number; y: number; onClose: () =>
         <span>Spellcheck</span>
         <Seg value={spellcheck ? 'on' : 'off'} options={[['on', 'On'], ['off', 'Off']]} onChange={(v) => setState({ spellcheck: v === 'on' })} />
       </div>
+      {hostedUser() && (
+        <button
+          className="setting-action"
+          onClick={() => {
+            onClose()
+            onAccount()
+          }}
+        >
+          <KeyRound size={13} /> Account and API tokens…
+        </button>
+      )}
       <div className="setting-storage">
         <HardDrive size={13} />
         <div>
-          <strong>{kind === 'sqlite' ? 'Yjs log + index · SQLite' : 'Dev server · SQLite'}</strong>
+          <strong>{kind === 'sqlite' ? 'Yjs log + index · SQLite' : hostedUser() ? 'Hosted · SQLite on the server' : 'Dev server · SQLite'}</strong>
           <span title={loc}>{loc || '…'}</span>
         </div>
       </div>
@@ -130,6 +143,7 @@ export function TopBar() {
   const theme = useApp((s) => s.theme)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [settings, setSettings] = useState<{ x: number; y: number } | null>(null)
+  const [account, setAccount] = useState(false)
   return (
     <header className="topbar">
       <div className="brand-area">
@@ -166,7 +180,7 @@ export function TopBar() {
         </IconButton>
         <span className="storage-chip" title={kind === 'sqlite' ? 'Every edit is a Yjs update in a local SQLite file' : 'Running in a browser against bw-devserver'}>
           <span className="dot" />
-          {kind === 'sqlite' ? 'Local · SQLite' : 'Dev · SQLite'}
+          {kind === 'sqlite' ? 'Local · SQLite' : hostedUser() ? 'Hosted' : 'Dev · SQLite'}
         </span>
       </div>
       {menu && (
@@ -188,7 +202,8 @@ export function TopBar() {
           />
         </Popover>
       )}
-      {settings && <SettingsPanel x={settings.x} y={settings.y} onClose={() => setSettings(null)} />}
+      {settings && <SettingsPanel x={settings.x} y={settings.y} onClose={() => setSettings(null)} onAccount={() => setAccount(true)} />}
+      {account && hostedUser() && <AccountDialog user={hostedUser()!} onClose={() => setAccount(false)} />}
     </header>
   )
 }

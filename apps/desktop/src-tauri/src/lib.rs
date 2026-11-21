@@ -94,13 +94,21 @@ pub fn run() {
             let mut core = bw_core::Core::open(dir.join("brainwaves.db"))?;
             let events = core.subscribe();
             let handle = app.handle().clone();
+            // Changes made here wake the sync with the server (if one is connected); changes
+            // that came from the server don't.
+            let (changed, local_changes) = std::sync::mpsc::channel();
             std::thread::spawn(move || {
                 for event in events {
+                    let local = !matches!(event, bw_api::Event::PageChanged { origin: bw_core::Origin::Remote, .. });
+                    if local {
+                        let _ = changed.send(());
+                    }
                     let _ = handle.emit("core-event", &event);
                 }
             });
             let core = Arc::new(Mutex::new(core));
             bw_api::watch::spawn(core.clone());
+            bw_api::sync::spawn(core.clone(), local_changes);
             app.manage(CoreState(core, ctx));
             Ok(())
         })

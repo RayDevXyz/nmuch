@@ -62,6 +62,7 @@ impl Core {
 
     fn init(conn: Connection) -> Result<Self> {
         store::migrate(&conn)?;
+        crate::sync::migrate(&conn)?;
         index::prepare(&conn)?;
         let mut core = Self {
             conn,
@@ -194,6 +195,10 @@ impl Core {
     pub fn delete_pages(&mut self, ids: &[String]) -> Result<()> {
         let tx = self.conn.transaction()?;
         for id in ids {
+            // A tombstone, so a synced workspace deletes the page too.
+            if store::page_exists(&tx, id)? {
+                crate::sync::record_deletion(&tx, id)?;
+            }
             store::delete_page(&tx, id)?;
             index::clear_page(&tx, id)?;
             tx.execute("DELETE FROM index_state WHERE page_id = ?1", [id])?;
@@ -428,6 +433,22 @@ impl Core {
     /// Drop the in-memory docs; the next access replays from the log.
     pub fn evict_all(&mut self) {
         self.docs.clear();
+    }
+
+    /// Run `f` on a page's live doc (loaded from the log if needed).
+    pub(crate) fn with_doc<R>(&mut self, page_id: &str, f: impl FnOnce(&Doc) -> R) -> Result<R> {
+        self.ensure_loaded(page_id)?;
+        Ok(f(&self.docs[page_id]))
+    }
+
+    /// Forget a page's cached doc; it's replayed from the log on next use.
+    pub(crate) fn evict(&mut self, page_id: &str) {
+        self.docs.remove(page_id);
+    }
+
+    /// Persist and index an update already applied to the cached doc, from elsewhere.
+    pub(crate) fn commit_remote(&mut self, page_id: &str, update: &[u8]) -> Result<i64> {
+        self.commit(page_id, update, Origin::Remote)
     }
 
     fn ensure_loaded(&mut self, page_id: &str) -> Result<()> {

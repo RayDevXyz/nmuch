@@ -42,6 +42,8 @@ export interface AppState {
   help: boolean
   /** The "Import from Nimbus" dialog is open. */
   importDialog: boolean
+  /** The "Sync with a server" dialog (desktop app). */
+  syncDialog: boolean
   widgetsDialog: boolean
   modulesDialog: boolean
   /** request for the editor to scroll to / focus a block once a page is open */
@@ -90,6 +92,7 @@ let state: AppState = {
   quickFind: false,
   help: false,
   importDialog: false,
+  syncDialog: false,
   widgetsDialog: false,
   modulesDialog: false,
   reveal: null,

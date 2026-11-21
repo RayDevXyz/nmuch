@@ -78,6 +78,10 @@ See [android.md](android.md).
 - Forgot the password? On the server, stop the container and delete `auth.json` from the data
   volume; the next visit makes the account again. Your pages are untouched.
 
+## Syncing the desktop app
+
+The desktop app can sync its workspace with your server, both ways and offline-friendly: Settings → **Sync with a server…**, with an API token from **Account and API tokens**. See [sync.md](sync.md).
+
 ## When something doesn't work
 
 **"Can't reach the table server" (in the browser console: blocked by CORS policy)**

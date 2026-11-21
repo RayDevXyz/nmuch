@@ -408,3 +408,28 @@ function stripIds<T extends { attrs?: Record<string, unknown>; content?: T[] }>(
 export function createPageNamed(title: string, open: 'replace' | 'tab' | false = false) {
   return createPage({ title, open })
 }
+
+/**
+ * Turn a page into a database (its sub-pages become rows, its text stays above the table),
+ * or a database back into a page (its rows become sub-pages again; their cells are kept).
+ */
+export async function convertPage(id: string, to: 'database' | 'page') {
+  try {
+    const moved = await coreClient().call<string[]>(to === 'database' ? 'convertToDatabase' : 'convertToPage', to === 'database' ? { pageId: id } : { databaseId: id })
+    // Show the new kind right away; the core's change event re-reads the rest.
+    setState((s) => {
+      const pages = { ...s.pages }
+      if (pages[id]) pages[id] = { ...pages[id], kind: to }
+      for (const r of moved) if (pages[r]) pages[r] = { ...pages[r], databaseId: to === 'database' ? id : null }
+      return { pages }
+    })
+    const n = moved.length
+    toast(
+      to === 'database'
+        ? n ? `Now a database: ${n} sub-page${n === 1 ? '' : 's'} became rows` : 'Now a database'
+        : n ? `Now a page: ${n} row${n === 1 ? '' : 's'} became sub-pages` : 'Now a page',
+    )
+  } catch (e) {
+    toast(`Could not convert: ${e instanceof Error ? e.message : String(e)}`)
+  }
+}

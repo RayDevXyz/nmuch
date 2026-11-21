@@ -52,6 +52,17 @@ export function parseMarkdown(text: string, resolvePage?: (title: string) => str
       continue
     }
     if (!line.trim()) continue
+    // A table: a "| a | b |" row, then a "| --- | :-: |" line, then more rows.
+    if (/^\s*\|.*\|\s*$/.test(line) && /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(lines[i + 1] ?? '')) {
+      const cells = (l: string) =>
+        l.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map((c) => inline(c.trim().replace(/\\\|/g, '|')))
+      const rows = [cells(line)]
+      i += 2
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) rows.push(cells(lines[i++]))
+      i--
+      out.push({ type: 'table', text: '', props: { rows } })
+      continue
+    }
     let m: RegExpMatchArray | null
     const indentOf = (ws: string) => Math.min(4, Math.floor(ws.replace(/\t/g, '  ').length / 2))
     if ((m = line.match(/^(#{1,6})\s+(.*)$/))) {

@@ -20,6 +20,11 @@ export const BLOCK_TYPES = [
   'pageLink',
   'database',
   'widget',
+  'moc',
+  'table',
+  'tableRow',
+  'tableHeader',
+  'tableCell',
 ] as const
 
 export type BlockTypeName = (typeof BLOCK_TYPES)[number]

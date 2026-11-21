@@ -54,6 +54,8 @@ export interface EditorHost {
   DatabaseBlock?: ComponentType<DatabaseBlockProps>
   /** Renders a widget block (sandboxed by the host; the core checks its data access). */
   WidgetBlock?: ComponentType<WidgetBlockProps>
+  /** Renders a map of content: a live list of links to pages, from its settings. */
+  MocBlock?: ComponentType<MocBlockProps>
   /** Extra `/` commands the app adds (templates, module blocks). */
   slashExtras?: SlashExtra[]
   /**
@@ -83,6 +85,13 @@ export interface SlashExtra {
   group?: string
   /** Runs after the typed `/query` has been removed. */
   run(editor: Editor): void
+}
+
+export interface MocBlockProps {
+  blockId: string
+  settings: Record<string, unknown>
+  editable: boolean
+  onSettings(settings: Record<string, unknown>): void
 }
 
 export interface DatabaseBlockProps {

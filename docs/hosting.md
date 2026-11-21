@@ -9,8 +9,11 @@ working as before, with its own local workspace.
 
 ## On a VPS with Cosmos Cloud
 
-GitHub Actions builds the images on every push to `main` (`.github/workflows/docker.yml`):
-`ghcr.io/raydevxyz/nmuch` (BrainWaves) and `ghcr.io/raydevxyz/nmuch-table` (the D&D table).
+GitHub Actions builds the images on pushes to `main`: `ghcr.io/raydevxyz/nmuch` (BrainWaves) on
+every push (`.github/workflows/docker.yml`), and `ghcr.io/raydevxyz/nmuch-table` (the D&D table)
+only when the table's own files change (`.github/workflows/docker-table.yml`: `crates/bw-table`,
+`apps/table`, `deploy/table/Dockerfile`, `Cargo.toml`/`Cargo.lock`). A `v*` tag builds both; to
+rebuild the table image by hand, open **Actions → Build & publish the table image → Run workflow**.
 
 1. **Make the images public** (once): on GitHub, go to your profile → **Packages** → `nmuch`
    (and `nmuch-table`) → **Package settings** → **Change visibility** → Public. Otherwise the
@@ -74,6 +77,19 @@ See [android.md](android.md).
 - After 5 wrong passwords from one address, sign-in waits 15 minutes.
 - Forgot the password? On the server, stop the container and delete `auth.json` from the data
   volume; the next visit makes the account again. Your pages are untouched.
+
+## When something doesn't work
+
+**"Can't reach the table server" (in the browser console: blocked by CORS policy)**
+
+The table server allows BrainWaves to make rooms from any site, so this error means something in front of it answered instead. Open `https://<your table URL>/health` in a browser tab. It should show `ok`.
+
+- **A login page:** your reverse proxy is asking for a login. In Cosmos, open the table URL and turn off **Authentication required**. Also turn off anything else that can stop a request, such as SmartShield or "restrict to the constellation". Players need to reach the table without a login too.
+- **An error page (502, 404):** the URL's target is wrong, or the container isn't running. The target must be `http://brainwaves-table:8090`, and the container must be healthy.
+
+**Edits save but the window doesn't update**
+
+The app gets "something changed" notices through a long-lived stream, `GET /api/events`. Some reverse proxies hold such a stream back. The server now asks them not to (`Cache-Control: no-transform`, `X-Accel-Buffering: no`). The app also refreshes after its own changes either way. If changes made in another window still only show after a reload, turn off compression or buffering for the BrainWaves URL in your proxy.
 
 ## Backups
 

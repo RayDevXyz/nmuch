@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use axum::extract::{ConnectInfo, DefaultBodyLimit, Path, Request, State};
-use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
+use axum::http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::middleware::{self, Next};
 use axum::response::sse::{Event as SseEvent, KeepAlive, Sse};
 use axum::response::{IntoResponse, Response};
@@ -146,9 +146,18 @@ async fn call(State(s): State<AppState>, Path(command): Path<String>, body: Opti
     .map_err(|e| (StatusCode::BAD_REQUEST, e))
 }
 
-async fn events(State(s): State<AppState>) -> Sse<impl futures_util::Stream<Item = Result<SseEvent, Infallible>>> {
-    let stream = BroadcastStream::new(s.events.subscribe()).filter_map(|m| m.ok()).map(|json| Ok(SseEvent::default().data(json)));
-    Sse::new(stream).keep_alive(KeepAlive::default())
+async fn events(State(s): State<AppState>) -> impl IntoResponse {
+    let stream = BroadcastStream::new(s.events.subscribe()).filter_map(|m| m.ok()).map(|json| Ok::<_, Infallible>(SseEvent::default().data(json)));
+    // Reverse proxies (Cosmos, nginx, Traefik) may buffer or compress a response until it ends,
+    // which holds every event back: ask them not to. A first comment makes them pass it on now.
+    let hello = tokio_stream::once(Ok::<_, Infallible>(SseEvent::default().comment("connected")));
+    (
+        [
+            (header::CACHE_CONTROL, HeaderValue::from_static("no-cache, no-transform")),
+            (HeaderName::from_static("x-accel-buffering"), HeaderValue::from_static("no")),
+        ],
+        Sse::new(hello.chain(stream)).keep_alive(KeepAlive::new().interval(std::time::Duration::from_secs(15))),
+    )
 }
 
 // ---------------------------------------------------------------- who's asking

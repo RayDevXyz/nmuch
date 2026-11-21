@@ -4,6 +4,8 @@ import {
   Code2,
   FileText,
   Table2,
+  Grid3x3,
+  Map as MapIcon,
   Heading1,
   Heading2,
   Heading3,
@@ -34,6 +36,8 @@ export type SlashId =
   | 'page'
   | 'database'
   | 'databasePage'
+  | 'table'
+  | 'moc'
 
 export interface SlashItem {
   id: SlashId
@@ -57,8 +61,10 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'code', label: 'Code', desc: 'Code snippet', icon: Code2, keywords: 'snippet pre programming ```', hint: '```' },
   { id: 'divider', label: 'Divider', desc: 'Visual separator', icon: Minus, keywords: 'hr line separator rule ---', hint: '---' },
   { id: 'image', label: 'Image', desc: 'Upload an image', icon: Image, keywords: 'picture photo img upload' },
+  { id: 'table', label: 'Table', desc: 'A simple table of text', icon: Grid3x3, keywords: 'table grid rows columns cells simple |' },
   { id: 'database', label: 'Database', desc: 'Table, board or gallery in this page', icon: Table2, keywords: 'table board kanban gallery inline db' },
   { id: 'databasePage', label: 'Database page', desc: 'A new database as its own page', icon: Table2, keywords: 'table board full page db' },
+  { id: 'moc', label: 'Map of content', desc: 'Links to pages that stay up to date', icon: MapIcon, keywords: 'moc index overview toc contents links hub sub-pages children tag' },
   { id: 'page', label: 'Sub-page', desc: 'Nest a new page inside this one', icon: FileText, keywords: 'page subpage child document link' },
 ]
 
@@ -123,6 +129,8 @@ export function runSlash(editor: Editor, id: SlashId, range?: Range) {
       return chain().clearNodes().setCodeBlock().run()
     case 'divider':
       return chain().setHorizontalRule().run()
+    case 'table':
+      return chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
     case 'image':
       chain().run()
       return pickImages(editor)
@@ -136,6 +144,8 @@ export function runSlash(editor: Editor, id: SlashId, range?: Range) {
       })
       return true
     }
+    case 'moc':
+      return chain().insertMoc({ source: 'children' }).run()
     case 'page': {
       chain().run()
       const host = maybeHost(editor)

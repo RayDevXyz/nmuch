@@ -44,6 +44,15 @@ function block(n: JSONContent, titleOf: TitleOf, indent: string): string[] {
       return [`${indent}![${n.attrs?.caption ?? ''}](${n.attrs?.src ?? ''})`]
     case 'pageLink':
       return [`${indent}[[${titleOf('page', n.attrs?.pageId ?? '')}]]`]
+    case 'table': {
+      // GitHub-style table: the first row is the header row.
+      const cell = (c: JSONContent) => (c.content ?? []).map((b) => inline(b.content, titleOf)).join(' ').replace(/\|/g, '\\|').replace(/\n/g, ' ')
+      const rows = kids.map((r) => (r.content ?? []).map(cell))
+      if (!rows.length) return []
+      const width = Math.max(...rows.map((r) => r.length))
+      const line = (r: string[]) => `${indent}| ${Array.from({ length: width }, (_, i) => r[i] ?? '').join(' | ')} |`
+      return [line(rows[0]), `${indent}|${' --- |'.repeat(width)}`, ...rows.slice(1).map(line)]
+    }
     case 'bulletList':
     case 'orderedList':
     case 'taskList':

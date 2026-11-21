@@ -6,6 +6,7 @@ import type { EditorHost } from './host'
 import { editorExtensions } from './kit'
 import { BlockHandle } from './menus/BlockHandle'
 import { FormatToolbar } from './menus/FormatToolbar'
+import { TableMenu } from './menus/TableMenu'
 
 export interface NoteEditorProps {
   /** The note's `content` fragment inside the page Y.Doc. */
@@ -61,6 +62,7 @@ export function NoteEditor({ fragment, host, editable = true, spellcheck = true,
       <EditorContent editor={editor} />
       <FormatToolbar editor={editor} />
       <BlockHandle editor={editor} />
+      <TableMenu editor={editor} />
     </div>
   )
 }

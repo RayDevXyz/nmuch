@@ -20,6 +20,7 @@ import { createCourseTracker } from '../database/templates'
 import { installedWidgets } from '../widgets/api'
 import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
+import { expandMocs, MocBlock } from '../moc/MocBlock'
 import { Canvas } from '../edgeless/Canvas'
 import { dndSlashExtras } from '../dnd/slash'
 import { charactersDb, isThemed, showsCanvas, useRoles } from '../dnd/api'
@@ -46,7 +47,7 @@ export async function pageMarkdown(pageId: string): Promise<string> {
     return new Map(infos.map((b) => [b.id, b.text]))
   }
   return withPage(pageId, async (sync) => {
-    const notes = sync.notesJSON(true)
+    const notes = await Promise.all(sync.notesJSON(true).map((n) => expandMocs(n, pageId)))
     const blockText = await titles(notes)
     return toMarkdown(page?.title ?? '', notes, (kind, id) => (kind === 'page' ? titleOf(id) : (blockText.get(id) ?? '')))
   })
@@ -222,6 +223,13 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   const choice = useApp((s) => s.edgeless)
   const edgeless = showsCanvas(pageId, choice, roles) && page?.kind !== 'database'
   const notes = useMemo(() => (edgeless ? allNotes : allNotes.filter((n) => n.display !== 'edgeless')), [allNotes, edgeless])
+  // A page turned into a database keeps its text: shown above the table. Checked once per
+  // page open, so the editor doesn't vanish while its last line is being deleted.
+  const dbText = useMemo(
+    () => page?.kind === 'database' && notes.some((n) => n.fragment.length > 1 || (n.fragment.length === 1 && n.fragment.toString().replace(/<[^>]*>/g, '').trim() !== '')),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pageId, page?.kind, sync, notes.length],
+  )
   const editors = useRef(new Map<string, TiptapEditor>())
   const [editorCount, setEditorCount] = useState(0)
   const [picker, setPicker] = useState<{ x: number; y: number; page: boolean; resolve?: (e: string | null) => void } | null>(null)
@@ -321,6 +329,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
         <DatabaseView databaseId={databaseId} viewId={viewId} onViewChange={onViewChange} editable={editable} inline />
       ),
       WidgetBlock: (props) => <WidgetBlock {...props} pageId={pageId} />,
+      MocBlock: (props) => <MocBlock {...props} pageId={pageId} />,
       // A bookmark dragged from the Burrow panel becomes a card.
       dropContent: (data) => {
         const b = droppedBookmark(data)
@@ -495,7 +504,16 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
           page.databaseId && <RowProperties rowId={page.id} databaseId={page.databaseId} />
         )}
         {page.kind === 'database' ? (
-          <DatabaseView databaseId={page.id} />
+          <>
+            {dbText && sync && (
+              <div className="blocks db-intro">
+                {notes.map((n) => (
+                  <NoteEditor key={n.id} fragment={n.fragment} host={host} spellcheck={spellcheck} onEditor={editorCallback(n.id)} />
+                ))}
+              </div>
+            )}
+            <DatabaseView databaseId={page.id} />
+          </>
         ) : (
           <div className="blocks">
             {error && <div className="editor-error">Could not open this page: {error}</div>}

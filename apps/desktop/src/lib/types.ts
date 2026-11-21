@@ -13,6 +13,7 @@ export type BlockType =
   | 'divider'
   | 'image'
   | 'page'
+  | 'table'
 
 export interface BlockProps {
   checked?: boolean
@@ -22,6 +23,8 @@ export interface BlockProps {
   src?: string
   caption?: string
   pageId?: string
+  /** Table cells as inline HTML, row by row; the first row is the header. */
+  rows?: string[][]
 }
 
 export interface Page {

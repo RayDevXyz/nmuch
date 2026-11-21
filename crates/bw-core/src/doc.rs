@@ -219,6 +219,28 @@ impl NewBlock {
             .collect();
         Self::el(node::TASK_LIST, vec![], items)
     }
+
+    /// A map of content block with its settings (see `node::MOC`).
+    pub fn moc(settings: serde_json::Value) -> XNode {
+        Self::el(node::MOC, vec![("settings", Any::from(settings.to_string()))], vec![])
+    }
+
+    /// A simple table; the first row is the header row.
+    pub fn table(rows: &[&[&str]]) -> XNode {
+        let rows = rows
+            .iter()
+            .enumerate()
+            .map(|(r, cells)| {
+                let tag = if r == 0 { node::TABLE_HEADER } else { node::TABLE_CELL };
+                let cells = cells
+                    .iter()
+                    .map(|t| Self::el(tag, vec![("colspan", Any::from(1)), ("rowspan", Any::from(1))], vec![Self::paragraph(t)]))
+                    .collect();
+                Self::el(node::TABLE_ROW, vec![], cells)
+            })
+            .collect();
+        Self::el(node::TABLE, vec![], rows)
+    }
 }
 
 impl XNode {
@@ -848,6 +870,12 @@ impl<'a, 'doc> BlockTxn<'a, 'doc> {
         match (&loc.parent, &loc.parent_block) {
             (Container::Note(f), _) if f.len(&*self.txn) == 0 => {
                 write_xnode(self.txn, f, 0, &NewBlock::paragraph(""));
+            }
+            // A table cell must hold a block: leave it an empty paragraph.
+            (Container::Block(e), Some(pb))
+                if e.len(&*self.txn) == 0 && [node::TABLE_HEADER, node::TABLE_CELL].contains(&pb.tag().as_ref()) =>
+            {
+                write_xnode(self.txn, e, 0, &NewBlock::paragraph(""));
             }
             (Container::Block(e), Some(pb)) if e.len(&*self.txn) == 0 => {
                 let needs_content = [

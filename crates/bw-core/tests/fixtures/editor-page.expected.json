@@ -233,6 +233,78 @@
       ]
     },
     {
+      "id": "moc1",
+      "type": "moc",
+      "depth": 2,
+      "text": "",
+      "attrs": {
+        "settings": "{\"source\":\"children\"}"
+      },
+      "refs": []
+    },
+    {
+      "id": "tb1",
+      "type": "table",
+      "depth": 2,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "tr1",
+      "type": "tableRow",
+      "depth": 3,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "th1",
+      "type": "tableHeader",
+      "depth": 4,
+      "text": "",
+      "attrs": {
+        "colspan": 1,
+        "rowspan": 1
+      },
+      "refs": []
+    },
+    {
+      "id": "th1p",
+      "type": "paragraph",
+      "depth": 5,
+      "text": "Name",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "tr2",
+      "type": "tableRow",
+      "depth": 3,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "td1",
+      "type": "tableCell",
+      "depth": 4,
+      "text": "",
+      "attrs": {
+        "colspan": 1,
+        "rowspan": 1
+      },
+      "refs": []
+    },
+    {
+      "id": "td1p",
+      "type": "paragraph",
+      "depth": 5,
+      "text": "Ada",
+      "attrs": {},
+      "refs": []
+    },
+    {
       "id": "p2",
       "type": "paragraph",
       "depth": 2,

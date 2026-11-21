@@ -58,6 +58,12 @@ export function blocksToHTML(blocks: ParsedBlock[]): string {
       case 'image':
         html += `<figure data-type="image"${idAttr(b)}><img src="${escapeHtml(b.props.src ?? '')}"><figcaption>${escapeHtml(b.props.caption ?? '')}</figcaption></figure>`
         break
+      case 'table': {
+        const [head = [], ...body] = b.props.rows ?? []
+        const row = (cells: string[], tag: 'th' | 'td') => `<tr>${cells.map((c) => `<${tag}><p>${c}</p></${tag}>`).join('')}</tr>`
+        html += `<table${idAttr(b)}>${row(head, 'th')}${body.map((r) => row(r, 'td')).join('')}</table>`
+        break
+      }
       case 'page':
         html += `<div data-type="page-link" data-page-id="${escapeHtml(b.props.pageId ?? '')}"${idAttr(b)}></div>`
         break

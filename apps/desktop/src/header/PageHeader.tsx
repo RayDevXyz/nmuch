@@ -1,5 +1,6 @@
 import { ChevronRight, Image as ImageIcon, Move, Palette, Trash2, X } from 'lucide-react'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type * as Y from 'yjs'
 import type { Page } from '../lib/types'
 import { ancestors, childrenOf, openPage } from '../state/actions'
@@ -103,7 +104,7 @@ export function PageHeader({ page, doc, h, icon, title, editable, wide }: { page
         </div>
       )}
       {moving && <div className="ph-moving-hint">Drag to reposition</div>}
-      {editing && <HeaderEditor doc={doc} h={h} close={() => setEditing(false)} />}
+      {editing && <HeaderEditor doc={doc} h={h} anchor={() => box.current?.querySelector<HTMLElement>('.ph-tools') ?? null} host={box.current?.closest<HTMLElement>('.editor-panel, .workspace') ?? document.body} close={() => setEditing(false)} />}
     </header>
   )
 }
@@ -131,12 +132,38 @@ function Slider({ label, value, min, max, step, show, onChange }: { label: strin
 }
 
 /** The header's settings: background, layout, navigation. Changes show at once. */
-function HeaderEditor({ doc, h, close }: { doc: Y.Doc; h: HeaderSettings; close: () => void }) {
+function HeaderEditor({ doc, h, close, anchor, host }: { doc: Y.Doc; h: HeaderSettings; close: () => void; anchor: () => HTMLElement | null; host: HTMLElement }) {
   const [tab, setTab] = useState<'background' | 'layout' | 'nav'>('background')
   const [link, setLink] = useState(h.image.startsWith('http') ? h.image : '')
   const file = useRef<HTMLInputElement>(null)
   const panel = useRef<HTMLDivElement>(null)
   const set = (p: Partial<HeaderSettings>) => setHeader(doc, p)
+  // The panel floats over the page (not inside the header, which clips its background), under
+  // the Edit header button, and never past the window's edge: it scrolls inside when it must.
+  // On a phone it's a sheet at the bottom of the screen.
+  const [pos, setPos] = useState<CSSProperties>({ visibility: 'hidden' })
+  useLayoutEffect(() => {
+    const place = () => {
+      const a = anchor()?.getBoundingClientRect()
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      if (vw <= 760 || !a) return setPos({ left: 8, right: 8, bottom: 8, maxHeight: Math.round(vh * 0.7) })
+      const width = Math.min(360, vw - 24)
+      const left = Math.max(12, Math.min(a.right - width, vw - width - 12))
+      const below = vh - a.bottom - 20
+      // Room under the button: open downwards. Too little (the header is near the bottom of
+      // the window): open upwards instead.
+      if (below >= 260 || below >= a.top) return setPos({ left, width, top: Math.round(a.bottom + 8), maxHeight: Math.round(below) })
+      setPos({ left, width, bottom: Math.round(vh - a.top + 8), maxHeight: Math.round(a.top - 20) })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [anchor])
   useEffect(() => {
     const away = (e: PointerEvent) => {
       const t = e.target as HTMLElement
@@ -152,8 +179,8 @@ function HeaderEditor({ doc, h, close }: { doc: Y.Doc; h: HeaderSettings; close:
       toast(`Could not use the picture: ${String(e).replace(/^Error:\s*/, '')}`)
     }
   }
-  return (
-    <div className="ph-editor" ref={panel} onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => (e.stopPropagation(), e.key === 'Escape' && close())}>
+  return createPortal(
+    <div className="ph-editor" ref={panel} style={pos} onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => (e.stopPropagation(), e.key === 'Escape' && close())}>
       <div className="ph-editor-head">
         <Seg
           value={tab}
@@ -333,6 +360,8 @@ function HeaderEditor({ doc, h, close }: { doc: Y.Doc; h: HeaderSettings; close:
           ))}
         </div>
       )}
-    </div>
+    </div>,
+    // Inside the editor panel, so the app's and the page's theme still apply to it.
+    host,
   )
 }

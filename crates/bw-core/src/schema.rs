@@ -20,6 +20,10 @@
 //! │                  xywh, text, … per type      plain Any values, one per field
 //! │              }>
 //! │
+//! ├── "header":  Y.Map   the page's header (cover): background, layout, navigation; one plain
+//! │                     value per setting (see `apps/desktop/src/header/model.ts`). The core
+//! │                     keeps it with the page but doesn't read it.
+//! │
 //! │   only on database pages (page.kind = "database"), see `database.rs`:
 //! ├── "dbProperties": Y.Map<property_id, Any>   one JSON object per column
 //! └── "dbViews":      Y.Map<view_id, Any>       one JSON object per saved view

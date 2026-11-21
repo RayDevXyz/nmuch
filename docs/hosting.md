@@ -60,6 +60,11 @@ the server (`cargo build --release -p bw-server`), then run
 | `WEB_DIR` | `./web` (Docker: `/app/web`) | The built web app. |
 | `TRUST_PROXY` | `false` | `true` behind an HTTPS reverse proxy: secure cookies, and the client's address from `X-Forwarded-For` (for the sign-in limits). |
 
+## On your phone
+
+Open it in Chrome on Android and **Install app**: an app icon, and BrainWaves in the share menu.
+See [android.md](android.md).
+
 ## Your account
 
 - **Settings → Account and API tokens…**: sign out, change the password (other browsers are

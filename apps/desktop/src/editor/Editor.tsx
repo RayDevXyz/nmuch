@@ -1,7 +1,7 @@
 import { NoteEditor, outlineOf, statsOf, toMarkdown, type EditorHost, type RefKind, type SlashExtra } from '@brainwaves/editor'
 import type { Editor as TiptapEditor } from '@tiptap/core'
 import { Selection } from '@tiptap/pm/state'
-import { Globe, Smile } from 'lucide-react'
+import { Globe, PanelTop, Smile } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as Y from 'yjs'
 import { EmojiPicker } from '../components/EmojiPicker'
@@ -29,6 +29,8 @@ import { openAzgaarImport } from '../dnd/AzgaarImport'
 import { PageThemeChip } from '../theme/PageTheme'
 import { burrowSlashExtras } from '../burrow/slash'
 import { cardContent, droppedBookmark } from '../burrow/api'
+import { PageHeader } from '../header/PageHeader'
+import { addHeader, useHeader } from '../header/model'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -212,6 +214,8 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   const now = useNow(30000)
 
   const [sync, setSync] = useState<PageSync | null>(null)
+  // The page's header (a cover with its title), if it has one.
+  const header = useHeader(sync?.doc)
   const [error, setError] = useState<string | null>(null)
   const allNotes = useNotes(sync)
   const roles = useRoles()
@@ -447,8 +451,26 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
     )
   }
 
+  const iconButton = (
+    <button
+      className={page.icon ? 'note-icon' : 'add-icon'}
+      onClick={(e) => {
+        const r = e.currentTarget.getBoundingClientRect()
+        setPicker({ x: r.left, y: r.bottom, page: true })
+      }}
+    >
+      {page.icon || (
+        <>
+          <Smile size={14} /> Add icon
+        </>
+      )}
+    </button>
+  )
+  const title = <Title page={page} onExit={focusFirst} />
+
   return (
-    <div className={`note-scroll ${themed ? 'dnd-theme' : ''}`} ref={scrollRef}>
+    <div className={`note-scroll ${themed ? 'dnd-theme' : ''} ${header ? 'with-header' : ''}`} ref={scrollRef}>
+      {header && sync && <PageHeader page={page} doc={sync.doc} h={header} icon={iconButton} title={title} editable wide={width === 'wide'} />}
       <article className={`note-canvas ${width === 'wide' ? 'wide' : ''}`}>
         <div className="note-meta">
           <span>Updated {relativeTime(page.updatedAt, now)}</span>
@@ -456,22 +478,15 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
           <span>{readMin} min read</span>
         </div>
         <div className="note-icon-wrap">
-          <button
-            className={page.icon ? 'note-icon' : 'add-icon'}
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect()
-              setPicker({ x: r.left, y: r.bottom, page: true })
-            }}
-          >
-            {page.icon || (
-              <>
-                <Smile size={14} /> Add icon
-              </>
-            )}
-          </button>
+          {(!header || !header.showIcon) && iconButton}
+          {!header && sync && (
+            <button className="page-prop" title="A header with a picture or a gradient" onClick={() => addHeader(sync.doc)}>
+              <PanelTop size={13} /> Add header
+            </button>
+          )}
           <PageThemeChip page={page} />
         </div>
-        <Title page={page} onExit={focusFirst} />
+        {!header && title}
         {page.databaseId && page.databaseId === charactersDb(roles) ? (
           <CharacterSheet pageId={page.id} />
         ) : page.databaseId && roles[page.id] === 'campaign' ? (

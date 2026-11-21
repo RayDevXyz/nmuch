@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { refreshModules } from '../modules/api'
-import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, KeyRound, Moon, Palette, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle } from 'lucide-react'
+import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, KeyRound, Menu, Moon, Palette, Smartphone, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
@@ -8,6 +8,7 @@ import { MenuList, Popover } from './Popover'
 import { activeTheme, BUILTIN } from '../theme/themes'
 import { AccountDialog } from '../auth/Account'
 import { hostedUser } from '../state/hosted'
+import { useInstall } from '../mobile/pwa'
 
 export function IconButton({ children, label, active, onClick }: { children: React.ReactNode; label: string; active?: boolean; onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
   return (
@@ -144,9 +145,13 @@ export function TopBar() {
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [settings, setSettings] = useState<{ x: number; y: number } | null>(null)
   const [account, setAccount] = useState(false)
+  const { canInstall, install } = useInstall()
   return (
     <header className="topbar">
       <div className="brand-area">
+        <button className="icon-button mobile-only" aria-label="Menu" title="Menu" onClick={() => setState((s) => ({ sidebarOpen: !s.sidebarOpen }))}>
+          <Menu />
+        </button>
         <button
           className="brand-trigger"
           onClick={(e) => {
@@ -197,6 +202,7 @@ export function TopBar() {
                 onSelect: () => setState({ theme: getState().theme === 'dark' ? 'light' : 'dark' }),
               },
               { label: 'Theme editor', icon: <Palette size={14} />, onSelect: () => setState({ themeEditor: true }) },
+              ...(canInstall ? [{ label: 'Install app', icon: <Smartphone size={14} />, onSelect: () => void install() }] : []),
               { label: 'Keyboard shortcuts', icon: <CircleHelp size={14} />, hint: 'Ctrl /', onSelect: () => setState({ help: true }) },
             ]}
           />

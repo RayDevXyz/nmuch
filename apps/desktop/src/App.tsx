@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PanelRight } from 'lucide-react'
 import { closeTab, createPage, init, openPage } from './state/actions'
 import { getState, setState, useApp } from './state/store'
@@ -20,9 +20,32 @@ import { activeTheme, themeVars as themeVarsOf } from './theme/themes'
 import { ThemeEditorHost } from './theme/ThemeEditor'
 import { BurrowPickerHost } from './burrow/Burrow'
 import { SaveToBurrowHost } from './burrow/Save'
+import { flushShares, inboxPage, readShare, ShareSheet } from './mobile/share'
+import { isNarrow, useNarrow } from './mobile/narrow'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
+  // Phones: the sidebar is a drawer over the page; it closes once a page is open.
+  const narrow = useNarrow()
+  const activeId = useApp((s) => s.activeId)
+  useEffect(() => {
+    if (narrow) setState({ rightOpen: false })
+  }, [narrow])
+  useEffect(() => {
+    if (isNarrow()) setState({ sidebarOpen: false })
+  }, [activeId])
+  // Shared from another app (Android's share menu), and the home-screen shortcuts.
+  const [shared, setShared] = useState(readShare)
+  useEffect(() => {
+    if (!ready) return
+    void flushShares()
+    const q = new URLSearchParams(location.search)
+    if (q.has('new') || q.has('inbox')) {
+      history.replaceState(null, '', '/')
+      if (q.has('new')) void createPage()
+      else void inboxPage().then((id) => openPage(id, 'replace'))
+    }
+  }, [ready])
   // A #/p/<id> link (from Burrow, a bookmark, another app) opens that page.
   useEffect(() => {
     if (!ready) return
@@ -117,6 +140,7 @@ export default function App() {
       <div className="app-shell">
         <LeftRail />
         {sidebarOpen && <Sidebar />}
+        {narrow && sidebarOpen && <div className="drawer-scrim" onClick={() => setState({ sidebarOpen: false })} />}
         {ready ? (
           <EditorPanel />
         ) : (
@@ -143,6 +167,7 @@ export default function App() {
       <CharacterWizardHost />
       <AzgaarImportHost />
       <ThemeEditorHost />
+      {ready && shared && <ShareSheet shared={shared} done={() => setShared(null)} />}
       <BurrowPickerHost />
       <SaveToBurrowHost />
       {toast && <div className="toast">{toast}</div>}

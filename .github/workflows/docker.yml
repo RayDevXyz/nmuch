@@ -1,7 +1,8 @@
 name: Build & publish Docker images
 
-# On every push to main (and v* tags): ghcr.io/<owner>/nmuch (BrainWaves) and
-# ghcr.io/<owner>/nmuch-table (the battle map table server).
+# On every push to main (and v* tags): ghcr.io/<owner>/nmuch (BrainWaves).
+# The table server's image has its own workflow, docker-table.yml, which only
+# runs when the table's files change.
 
 on:
   push:
@@ -21,8 +22,6 @@ jobs:
         include:
           - name: nmuch
             dockerfile: Dockerfile
-          - name: nmuch-table
-            dockerfile: deploy/table/Dockerfile
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3

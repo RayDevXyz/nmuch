@@ -9,8 +9,11 @@ working as before, with its own local workspace.
 
 ## On a VPS with Cosmos Cloud
 
-GitHub Actions builds the images on every push to `main` (`.github/workflows/docker.yml`):
-`ghcr.io/raydevxyz/nmuch` (BrainWaves) and `ghcr.io/raydevxyz/nmuch-table` (the D&D table).
+GitHub Actions builds the images on pushes to `main`: `ghcr.io/raydevxyz/nmuch` (BrainWaves) on
+every push (`.github/workflows/docker.yml`), and `ghcr.io/raydevxyz/nmuch-table` (the D&D table)
+only when the table's own files change (`.github/workflows/docker-table.yml`: `crates/bw-table`,
+`apps/table`, `deploy/table/Dockerfile`, `Cargo.toml`/`Cargo.lock`). A `v*` tag builds both; to
+rebuild the table image by hand, open **Actions → Build & publish the table image → Run workflow**.
 
 1. **Make the images public** (once): on GitHub, go to your profile → **Packages** → `nmuch`
    (and `nmuch-table`) → **Package settings** → **Change visibility** → Public. Otherwise the

@@ -1,8 +1,16 @@
 // BrainWaves' service worker (hosted web app only): makes it installable and lets it open
 // without a connection. The app itself (HTML, scripts, styles, fonts, icons) is cached; the API
 // (/api/…) never is, so notes always come from the server.
-const VERSION = 'bw-v1'
+const VERSION = 'bw-v2'
 const SHELL = ['/', '/manifest.webmanifest', '/icon.svg', '/icons/icon-192.png', '/icons/icon-512.png']
+
+/** Keep a copy of a response. The copy is made right away, before the page reads the original:
+ * a response's body can be read only once. */
+function keep(key, res) {
+  if (!res.ok || res.type !== 'basic') return
+  const copy = res.clone()
+  caches.open(VERSION).then((c) => c.put(key, copy)).catch(() => {})
+}
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()))
@@ -27,7 +35,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       fetch(req)
         .then((res) => {
-          if (res.ok) caches.open(VERSION).then((c) => c.put('/', res.clone()))
+          keep('/', res)
           return res
         })
         .catch(() => caches.match('/')),
@@ -42,7 +50,7 @@ self.addEventListener('fetch', (e) => {
         (hit) =>
           hit ||
           fetch(req).then((res) => {
-            if (res.ok) caches.open(VERSION).then((c) => c.put(req, res.clone()))
+            keep(req, res)
             return res
           }),
       ),
@@ -55,7 +63,7 @@ self.addEventListener('fetch', (e) => {
     caches.match(req).then((hit) => {
       const fresh = fetch(req)
         .then((res) => {
-          if (res.ok) caches.open(VERSION).then((c) => c.put(req, res.clone()))
+          keep(req, res)
           return res
         })
         .catch(() => hit)

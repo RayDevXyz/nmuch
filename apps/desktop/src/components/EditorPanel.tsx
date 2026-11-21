@@ -5,9 +5,11 @@ import { ancestors, closeTab, createPage, duplicatePage, openPage, setArchived, 
 import { getState, setState, toast, useApp } from '../state/store'
 import { Editor, pageMarkdown } from '../editor/Editor'
 import { IconButton } from './TopBar'
-import { MenuList, Popover } from './Popover'
+import { MenuList, Popover, type MenuEntry } from './Popover'
 import { openPageThemeMenu, usePageThemeStyle } from '../theme/PageTheme'
 import { openSaveToBurrow } from '../burrow/Save'
+import { useNarrow } from '../mobile/narrow'
+import { MobileHeader } from '../mobile/MobileChrome'
 
 function Tab({ id }: { id: string }) {
   const page = useApp((s) => s.pages[id])
@@ -118,9 +120,13 @@ export function EditorPanel() {
   const scrollRef = useRef<HTMLDivElement>(null)
   // The open page's own theme (or its parent's) restyles this pane; the sidebars keep the app's.
   const { style: pageTheme, theme: pageThemeDef } = usePageThemeStyle(activeId)
+  const narrow = useNarrow()
 
   return (
     <section className={`editor-panel ${pageThemeDef ? `page-themed page-${pageThemeDef.base}` : ''}`} style={pageTheme}>
+      {narrow ? (
+        <MobileHeader page={page} onMore={() => setMore({ x: 0, y: 0 })} />
+      ) : (
       <div className="tabs-bar">
         <div className="tabs-scroll" role="tablist">
           {tabs.map((id) => (
@@ -177,9 +183,10 @@ export function EditorPanel() {
           </div>
         )}
       </div>
+      )}
       {page && activeId ? (
         <>
-          <Breadcrumb pageId={activeId} />
+          {!narrow && <Breadcrumb pageId={activeId} />}
           <Editor key={activeId} pageId={activeId} scrollRef={scrollRef} />
         </>
       ) : (
@@ -191,11 +198,32 @@ export function EditorPanel() {
           <MenuList
             onDone={() => setMore(null)}
             items={[
-              {
-                label: width === 'wide' ? 'Normal width' : 'Full width',
-                icon: width === 'wide' ? <Minimize2 size={14} /> : <Maximize2 size={14} />,
-                onSelect: () => setState({ width: getState().width === 'wide' ? 'normal' : 'wide' }),
-              },
+              ...(narrow
+                ? [
+                    page.kind !== 'database' &&
+                      (edgeless
+                        ? { label: 'Document view', icon: <FileText size={14} />, onSelect: () => setState((s) => ({ edgeless: { ...s.edgeless, [page.id]: false } })) }
+                        : { label: 'Canvas view', icon: <Shapes size={14} />, onSelect: () => setState((s) => ({ edgeless: { ...s.edgeless, [page.id]: true } })) }),
+                    {
+                      label: 'Copy as Markdown',
+                      icon: <ClipboardCopy size={14} />,
+                      onSelect: async () => {
+                        await navigator.clipboard?.writeText(await pageMarkdown(page.id))
+                        toast('Page copied as Markdown')
+                      },
+                    },
+                    'sep' as const,
+                  ].filter((x) => !!x) as (MenuEntry | 'sep')[]
+                : []),
+              ...(narrow
+                ? []
+                : [
+                    {
+                      label: width === 'wide' ? 'Normal width' : 'Full width',
+                      icon: width === 'wide' ? <Minimize2 size={14} /> : <Maximize2 size={14} />,
+                      onSelect: () => setState({ width: getState().width === 'wide' ? 'normal' : 'wide' }),
+                    },
+                  ]),
               { label: 'Page theme…', icon: <Palette size={14} />, onSelect: () => setTimeout(openPageThemeMenu) },
               { label: 'Save to Burrow…', icon: <BookmarkCheck size={14} />, onSelect: () => openSaveToBurrow(page.id) },
               { label: 'Add sub-page', icon: <Plus size={14} />, onSelect: () => createPage({ parentId: page.id }) },

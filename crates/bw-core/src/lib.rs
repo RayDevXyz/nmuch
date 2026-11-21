@@ -27,6 +27,7 @@ pub mod query;
 pub mod schema;
 mod store;
 pub mod surface;
+pub mod sync;
 pub mod widgets;
 
 pub use crate::core::{Core, RebuildReport};
@@ -38,6 +39,7 @@ pub use crate::db_query::{DatabaseResult, Group, Row, RowRef};
 pub use crate::doc::{BlockTxn, Inline, NewBlock, RefKind, XNode};
 pub use crate::error::{Error, Result};
 pub use crate::events::{Event, Origin};
+pub use crate::sync::{Changes, Cursor};
 pub use crate::index::IndexDump;
 pub use crate::schema::{
     node, BlockId, BlockSnapshot, PageId, PageKind, PageMeta, PageMetaPatch, PageSnapshot,

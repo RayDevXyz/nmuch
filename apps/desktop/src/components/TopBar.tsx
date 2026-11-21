@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { refreshModules } from '../modules/api'
-import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, KeyRound, Menu, Moon, Palette, Smartphone, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle } from 'lucide-react'
+import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, KeyRound, Menu, Moon, Palette, Smartphone, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle, RefreshCw } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
 import { MenuList, Popover } from './Popover'
 import { activeTheme, BUILTIN } from '../theme/themes'
 import { AccountDialog } from '../auth/Account'
+import { SyncChip } from '../sync/SyncDialog'
 import { hostedUser } from '../state/hosted'
 import { useInstall } from '../mobile/pwa'
 
@@ -100,6 +101,17 @@ export function SettingsPanel({ x, y, onClose, onAccount }: { x: number; y: numb
           <KeyRound size={13} /> Account and API tokens…
         </button>
       )}
+      {!hostedUser() && (
+        <button
+          className="setting-action"
+          onClick={() => {
+            onClose()
+            setState({ syncDialog: true })
+          }}
+        >
+          <RefreshCw size={13} /> Sync with a server…
+        </button>
+      )}
       <div className="setting-storage">
         <HardDrive size={13} />
         <div>
@@ -183,6 +195,7 @@ export function TopBar() {
         >
           <Settings />
         </IconButton>
+        <SyncChip />
         <span className="storage-chip" title={kind === 'sqlite' ? 'Every edit is a Yjs update in a local SQLite file' : 'Running in a browser against bw-devserver'}>
           <span className="dot" />
           {kind === 'sqlite' ? 'Local · SQLite' : hostedUser() ? 'Hosted' : 'Dev · SQLite'}

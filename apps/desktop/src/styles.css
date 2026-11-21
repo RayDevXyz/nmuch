@@ -1463,3 +1463,27 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
   .pp-label, .pp-inline .pp-label { width: 112px; }
   .pp-hide { opacity: 1; }
 }
+
+/* Sync with a server */
+.sync-chip { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border: 1px solid var(--line); border-radius: 12px; background: transparent; color: var(--muted-foreground); font: inherit; font-size: 11.5px; cursor: pointer; }
+.sync-chip:hover { background: var(--hover); color: var(--foreground); }
+.sync-chip.ok svg { color: #5fbf7f; }
+.sync-chip.error { color: #ff8a80; border-color: rgba(255, 138, 128, 0.4); }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.sync-field { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; font-size: 12.5px; }
+.sync-field > span { color: var(--muted-foreground); font-weight: 600; }
+.sync-field input { height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); color: var(--foreground); font: inherit; font-size: 13px; outline: none; }
+.sync-field input:focus { border-color: var(--accent); }
+.sync-field small { color: var(--faint); font-size: 11.5px; }
+.sync-modes { display: flex; flex-direction: column; gap: 6px; margin: 8px 0 10px; }
+.sync-modes label { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.sync-modes label.on { border-color: var(--accent); background: var(--accent-soft); }
+.sync-modes input { margin-top: 3px; accent-color: var(--accent); }
+.sync-modes span { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.sync-modes small { color: var(--muted-foreground); font-size: 12px; }
+.sync-state { margin: 10px 0; padding: 9px 12px; border-radius: 8px; background: var(--panel-2); font-size: 12.5px; color: var(--muted-foreground); }
+.sync-state.error { color: #ff8a80; background: rgba(255, 138, 128, 0.08); }
+.sync-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.setting-action.primary { background: var(--accent); color: #17151c; border-color: var(--accent); font-weight: 650; }
+.setting-action:disabled { opacity: 0.55; cursor: default; }

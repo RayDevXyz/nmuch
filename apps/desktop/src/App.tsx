@@ -9,6 +9,7 @@ import { EditorPanel } from './components/EditorPanel'
 import { RightPanel } from './components/RightPanel'
 import { QuickFind } from './components/QuickFind'
 import { HelpModal } from './components/HelpModal'
+import { SyncDialog } from './sync/SyncDialog'
 import { ImportDialog } from './components/ImportDialog'
 import { WidgetsDialog } from './widgets/WidgetsDialog'
 import { ModulesDialog } from './modules/ModulesDialog'
@@ -163,6 +164,7 @@ export default function App() {
       {quickFind && <QuickFind />}
       {help && <HelpModal />}
       {importDialog && <ImportDialog />}
+      <SyncDialog />
       {widgetsDialog && <WidgetsDialog />}
       {modulesDialog && <ModulesDialog />}
       <CompendiumHost />

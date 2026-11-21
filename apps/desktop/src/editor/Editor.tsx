@@ -1,7 +1,7 @@
 import { NoteEditor, outlineOf, statsOf, toMarkdown, type EditorHost, type RefKind, type SlashExtra } from '@brainwaves/editor'
 import type { Editor as TiptapEditor } from '@tiptap/core'
 import { Selection } from '@tiptap/pm/state'
-import { Smile } from 'lucide-react'
+import { Globe, Smile } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as Y from 'yjs'
 import { EmojiPicker } from '../components/EmojiPicker'
@@ -21,6 +21,14 @@ import { installedWidgets } from '../widgets/api'
 import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
 import { Canvas } from '../edgeless/Canvas'
+import { dndSlashExtras } from '../dnd/slash'
+import { charactersDb, isThemed, showsCanvas, useRoles } from '../dnd/api'
+import { CharacterSheet } from '../dnd/CharacterSheet'
+import { CampaignOverview } from '../dnd/Campaign'
+import { openAzgaarImport } from '../dnd/AzgaarImport'
+import { PageThemeChip } from '../theme/PageTheme'
+import { burrowSlashExtras } from '../burrow/slash'
+import { cardContent, droppedBookmark } from '../burrow/api'
 
 export async function pageMarkdown(pageId: string): Promise<string> {
   const page = getState().pages[pageId]
@@ -163,6 +171,7 @@ function courseTrackerExtra(pageId: string): SlashExtra {
     label: 'Course tracker',
     desc: 'Start here: Courses + Lessons; import folders of videos as courses',
     keywords: 'template course lessons progress module import folder',
+    group: 'Courses',
     run: (editor) => {
       toast('Creating the course tracker…')
       void createCourseTracker(pageId).then(
@@ -205,7 +214,9 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   const [sync, setSync] = useState<PageSync | null>(null)
   const [error, setError] = useState<string | null>(null)
   const allNotes = useNotes(sync)
-  const edgeless = useApp((s) => !!s.edgeless[pageId]) && page?.kind !== 'database'
+  const roles = useRoles()
+  const choice = useApp((s) => s.edgeless)
+  const edgeless = showsCanvas(pageId, choice, roles) && page?.kind !== 'database'
   const notes = useMemo(() => (edgeless ? allNotes : allNotes.filter((n) => n.display !== 'edgeless')), [allNotes, edgeless])
   const editors = useRef(new Map<string, TiptapEditor>())
   const [editorCount, setEditorCount] = useState(0)
@@ -306,6 +317,11 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
         <DatabaseView databaseId={databaseId} viewId={viewId} onViewChange={onViewChange} editable={editable} inline />
       ),
       WidgetBlock: (props) => <WidgetBlock {...props} pageId={pageId} />,
+      // A bookmark dragged from the Burrow panel becomes a card.
+      dropContent: (data) => {
+        const b = droppedBookmark(data)
+        return b ? cardContent(b) : null
+      },
       // A getter: the slash menu reads it on every keystroke, so newly installed widgets show up.
       get slashExtras() {
         const modules = installedModules()
@@ -315,13 +331,15 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
             label: m.manifest.name,
             desc: m.manifest.description || 'Module',
             keywords: `module ${m.manifest.id}`,
+            group: 'Modules',
             run: (editor: TiptapEditor) => void editor.chain().focus().insertWidget(`module:${m.manifest.id}`).run(),
           }))
-        return [courseTrackerExtra(pageId), ...modules, ...installedWidgets().map((w) => ({
+        return [courseTrackerExtra(pageId), ...dndSlashExtras, ...burrowSlashExtras, ...modules, ...installedWidgets().map((w) => ({
           id: `widget:${w.manifest.id}`,
           label: w.manifest.name,
           desc: w.manifest.description || 'Widget',
           keywords: `widget ${w.manifest.id}`,
+          group: w.manifest.id.includes('course') ? 'Courses' : 'Widgets',
           run: (editor: TiptapEditor) => void editor.chain().focus().insertWidget(w.manifest.id).run(),
         }))]
       },
@@ -394,6 +412,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
   // ---------- render ----------
 
   if (!page) return null
+  const themed = isThemed(pageId, roles)
   const readMin = Math.max(1, Math.round(words / 200))
 
   const emojiPicker = picker && (
@@ -415,16 +434,21 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
 
   if (edgeless) {
     return (
-      <div className="note-scroll edgeless" ref={scrollRef}>
+      <div className={`note-scroll edgeless ${themed ? 'dnd-theme' : ''}`} ref={scrollRef}>
         {error && <div className="editor-error">Could not open this page: {error}</div>}
-        {sync && <Canvas pageId={pageId} doc={sync.doc} notes={notes} host={host} spellcheck={spellcheck} onEditor={editorCallback} />}
+        {sync && <Canvas pageId={pageId} doc={sync.doc} notes={notes} host={host} spellcheck={spellcheck} onEditor={editorCallback} scene={roles[pageId] === 'scene'} />}
+        {roles[pageId] === 'map' && page.parentId && (
+          <button className="az-canvas-btn" title="Bring in a world from Azgaar's Fantasy Map Generator" onClick={() => openAzgaarImport(page.parentId!)}>
+            <Globe size={14} /> Import Azgaar world
+          </button>
+        )}
         {emojiPicker}
       </div>
     )
   }
 
   return (
-    <div className="note-scroll" ref={scrollRef}>
+    <div className={`note-scroll ${themed ? 'dnd-theme' : ''}`} ref={scrollRef}>
       <article className={`note-canvas ${width === 'wide' ? 'wide' : ''}`}>
         <div className="note-meta">
           <span>Updated {relativeTime(page.updatedAt, now)}</span>
@@ -445,9 +469,16 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
               </>
             )}
           </button>
+          <PageThemeChip page={page} />
         </div>
         <Title page={page} onExit={focusFirst} />
-        {page.databaseId && <RowProperties rowId={page.id} databaseId={page.databaseId} />}
+        {page.databaseId && page.databaseId === charactersDb(roles) ? (
+          <CharacterSheet pageId={page.id} />
+        ) : page.databaseId && roles[page.id] === 'campaign' ? (
+          <CampaignOverview campaignId={page.id} />
+        ) : (
+          page.databaseId && <RowProperties rowId={page.id} databaseId={page.databaseId} />
+        )}
         {page.kind === 'database' ? (
           <DatabaseView databaseId={page.id} />
         ) : (

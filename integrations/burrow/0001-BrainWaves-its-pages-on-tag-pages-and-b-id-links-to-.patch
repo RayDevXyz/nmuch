@@ -1,0 +1,264 @@
+From f363dbc138d96229e9940b0b1e6bc0b3c8a9afff Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 21 Nov 2026 12:48:05 +0000
+Subject: [PATCH] BrainWaves: its pages on tag pages, and #/b/<id> links to a
+ bookmark
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Settings → BrainWaves connects a BrainWaves (its address and an API token). Burrow's server
+calls BrainWaves with the token (never sent to the browser), and a tag page shows the
+BrainWaves pages with that tag, nested tags included, linking to them (#/p/<id>).
+#/b/<id> opens a bookmark, so other apps can link straight to it.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NP2yAXhvpFeajcs1sBtSN9
+---
+ README.md                | 10 ++++++
+ server/public/app.js     | 44 +++++++++++++++++++++++
+ server/public/styles.css |  6 ++++
+ server/src/api.js        |  1 +
+ server/src/brainwaves.js | 75 ++++++++++++++++++++++++++++++++++++++++
+ server/src/db.js         |  7 ++++
+ 6 files changed, 143 insertions(+)
+ create mode 100644 server/src/brainwaves.js
+
+diff --git a/README.md b/README.md
+index 53ad83e..4cdedc0 100644
+--- a/README.md
++++ b/README.md
+@@ -121,6 +121,16 @@ burrow.example.com {
+ }
+ ```
+ 
++## BrainWaves
++
++Burrow works with [BrainWaves](https://github.com/RayDevXyz/nmuch), a self-hosted notes app:
++
++- **In BrainWaves** (connect Burrow in its 🦫 Burrow panel with a Burrow API token): browse and search your bookmarks, drag them into pages or onto a canvas, type `/burrow` to insert a bookmark card, and **Save to Burrow** a page (as a note) or the links in it. A BrainWaves `#tag` page also lists the Burrow bookmarks with that tag.
++- **In Burrow** (Settings → 🧠 BrainWaves, with a BrainWaves API token from its Settings → Account and API tokens): tag pages show the BrainWaves pages with the same tag.
++- `#/b/<id>` opens a bookmark directly (BrainWaves' "In Burrow" button uses it).
++
++Burrow's server calls BrainWaves with the token, so it never reaches the browser.
++
+ ## Install the extension
+ 
+ 1. Open `chrome://extensions` and turn on **Developer mode**.
+diff --git a/server/public/app.js b/server/public/app.js
+index df7c10e..4c23f39 100644
+--- a/server/public/app.js
++++ b/server/public/app.js
+@@ -246,6 +246,8 @@ function route() {
+     }
+     case 'spaces': return { kind: 'spaces', title: 'Tab spaces', icon: '🗂' };
+     case 'settings': return { kind: 'settings', title: 'Settings', icon: '⚙' };
++    // #/b/<id>: Home with that bookmark open (links from BrainWaves and elsewhere).
++    case 'b': return { kind: 'all', title: 'Home', icon: '🏠', filter: {}, open: +p[1] || null };
+     default: return { kind: 'all', title: 'Home', icon: '🏠', filter: {} };
+   }
+ }
+@@ -523,6 +525,7 @@ function renderMain() {
+     ] : null];
+   headerFor = (rr, t) => pageHeader(rr, t, actions());
+   content.append(headerFor(r, theme));
++  if (r.kind === 'tag') content.append(brainwavesStrip(r.filter.tag));
+   if (['all', 'collection', 'unsorted', 'notes', 'tag'].includes(r.kind)) content.append(composer(r));
+   if (isDbPage(r)) {
+     const box = h('div', { id: 'db' });
+@@ -833,6 +836,7 @@ async function renderSettings(el) {
+       tokens.length ? h('table', {}, h('tr', {}, h('th', {}, 'Name'), h('th', {}, 'Created'), h('th', {}, 'Last used'), h('th')),
+         tokens.map(t => h('tr', {}, h('td', {}, t.name), h('td', {}, ago(t.created_at)), h('td', {}, t.last_used_at ? ago(t.last_used_at) : 'never'),
+           h('td', {}, h('button', { class: 'btn small danger', onclick: async () => { await api(`/tokens/${t.id}`, { method: 'DELETE' }); location.reload(); } }, 'Revoke'))))) : null),
++    brainwavesSettings(),
+     h('section', { class: 'panel' }, h('h3', {}, 'Import'),
+       h('p', { class: 'muted' }, 'Netscape bookmark HTML (exported from Chrome, Firefox, Pocket, Raindrop, Linkwarden, Hoarder…) or a Burrow JSON export. Folders become collections.'),
+       (() => {
+@@ -850,6 +854,42 @@ async function renderSettings(el) {
+   );
+ }
+ 
++// ───────── BrainWaves (the notes app): its pages on tag pages ─────────
++/** On a tag page: the BrainWaves pages with the same tag. Empty when BrainWaves isn't connected. */
++function brainwavesStrip(tag) {
++  const box = h('div', { class: 'bw-strip', hidden: true });
++  api(`/integrations/brainwaves/tag/${encodeURIComponent(tag)}`).then(r => {
++    if (!r || !r.pages.length) return;
++    box.hidden = false;
++    box.replaceChildren(h('span', { class: 'bw-strip-label' }, '🧠 In BrainWaves'),
++      ...r.pages.map(p => h('a', { class: 'bw-page', href: p.link, target: '_blank', rel: 'noopener' }, (p.icon ? p.icon + ' ' : '📄 ') + p.title)));
++  }).catch(e => { box.hidden = false; box.replaceChildren(h('span', { class: 'bw-strip-label muted' }, '🧠 BrainWaves: ' + e.message)); });
++  return box;
++}
++
++function brainwavesSettings() {
++  const body = h('div');
++  const draw = async () => {
++    const c = await api('/integrations/brainwaves').catch(() => null);
++    if (c) {
++      body.replaceChildren(h('p', {}, 'Connected to ', h('a', { href: c.url, target: '_blank', rel: 'noopener' }, c.url), '. Tag pages show your BrainWaves pages with the same tag.'),
++        h('div', { class: 'row' }, h('button', { class: 'btn', onclick: async () => { await api('/integrations/brainwaves', { method: 'DELETE' }); draw(); } }, 'Disconnect')));
++      return;
++    }
++    const url = h('input', { class: 'input', placeholder: 'https://notes.example.com' });
++    const token = h('input', { class: 'input', type: 'password', placeholder: 'API token from BrainWaves' });
++    body.replaceChildren(
++      h('p', { class: 'muted' }, 'Show your BrainWaves pages on tag pages here. In BrainWaves, open Settings → Account and API tokens → New token, then paste its address and the token.'),
++      h('div', { class: 'row', style: { flexWrap: 'wrap' } }, url, token,
++        h('button', { class: 'btn primary', onclick: async () => {
++          try { await api('/integrations/brainwaves', { method: 'PUT', body: { url: url.value, token: token.value } }); toast('BrainWaves connected'); draw(); }
++          catch (e) { toast(e.message); }
++        } }, 'Connect')));
++  };
++  draw();
++  return h('section', { class: 'panel' }, h('h3', {}, '🧠 BrainWaves'), body);
++}
++
+ // ───────── share target (Android share sheet → /share?title=&text=&url=) ─────────
+ function sharedPayload() {
+   if (location.pathname !== '/share') return null;
+@@ -946,12 +986,16 @@ async function boot() {
+   const share = sharedPayload();
+   if (share) return renderShare(share);
+   render(); await loadItems(); renderList();
++  openLinked();
+ }
++/** A #/b/<id> link opens that bookmark. */
++function openLinked() { const id = route().open; if (id) openDrawer(id); }
+ window.addEventListener('online', () => { if (state.me) flushQueue().then(() => refresh()); });
+ window.addEventListener('hashchange', async () => {
+   if (!state.me) return;
+   state.selected.clear(); closeDrawer();
+   renderSidebar(); renderMain(); await loadItems(); renderList();
++  openLinked();
+ });
+ document.addEventListener('keydown', e => {
+   if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); $('#q')?.focus(); }
+diff --git a/server/public/styles.css b/server/public/styles.css
+index ae86e57..23be7c9 100644
+--- a/server/public/styles.css
++++ b/server/public/styles.css
+@@ -364,3 +364,9 @@ body.glass .db-kcard { background: color-mix(in srgb, var(--panel) 72%, transpar
+   .db-pills { max-width: 50%; }
+   .db-col { flex-basis: 82vw; }
+ }
++
++/* BrainWaves pages on a tag page */
++.bw-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 14px; }
++.bw-strip-label { font-size: 12px; font-weight: 600; opacity: .75; margin-right: 2px; }
++.bw-page { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border, rgba(127,127,127,.3)); background: var(--card, transparent); color: inherit; text-decoration: none; font-size: 13px; }
++.bw-page:hover { border-color: var(--accent, #8b5cf6); }
+diff --git a/server/src/api.js b/server/src/api.js
+index b0e9a7c..f22540a 100644
+--- a/server/src/api.js
++++ b/server/src/api.js
+@@ -53,6 +53,7 @@ api.post('/auth/logout', (req, res) => {
+ 
+ // Everything below requires a session cookie or API token
+ api.use(auth.requireAuth);
++api.use('/integrations/brainwaves', require('./brainwaves'));
+ api.use(database.router);
+ 
+ api.get('/me', (req, res) => {
+diff --git a/server/src/brainwaves.js b/server/src/brainwaves.js
+new file mode 100644
+index 0000000..265862c
+--- /dev/null
++++ b/server/src/brainwaves.js
+@@ -0,0 +1,75 @@
++// BrainWaves (https://github.com/RayDevXyz/nmuch), the user's notes app: its address and an API
++// token (BrainWaves → Settings → Account and API tokens). Burrow's server calls BrainWaves, so the
++// token never reaches the browser. Used to list BrainWaves pages on a tag page.
++const express = require('express');
++const { db } = require('./db');
++
++const router = express.Router();
++const get = (userId) => {
++  const row = db.prepare("SELECT value FROM integrations WHERE user_id = ? AND kind = 'brainwaves'").get(userId);
++  try { return row ? JSON.parse(row.value) : null; } catch { return null; }
++};
++
++async function call(conn, command, body) {
++  const res = await fetch(`${conn.url}/api/${command}`, {
++    method: 'POST',
++    headers: { authorization: `Bearer ${conn.token}`, 'content-type': 'application/json' },
++    body: JSON.stringify(body || {}),
++    signal: AbortSignal.timeout(10_000),
++  });
++  if (res.status === 401) throw Object.assign(new Error('BrainWaves refused the token: make a new one in BrainWaves (Settings → Account and API tokens).'), { status: 400 });
++  if (!res.ok) throw Object.assign(new Error(`BrainWaves answered ${res.status}`), { status: 502 });
++  if (!(res.headers.get('content-type') || '').includes('json')) throw Object.assign(new Error('That address answered with a web page, not BrainWaves. If a proxy asks for its own login there, turn that off for BrainWaves.'), { status: 400 });
++  return res.json();
++}
++
++router.get('/', (req, res) => {
++  const c = get(req.userId);
++  res.json(c ? { url: c.url } : null);
++});
++
++router.put('/', async (req, res) => {
++  const url = String(req.body?.url || '').trim().replace(/\/+$/, '');
++  const token = String(req.body?.token || '').trim();
++  if (!/^https?:\/\/\S+$/.test(url) || url.length > 300) return res.status(400).json({ error: 'Enter the BrainWaves address, like https://notes.example.com' });
++  if (token.length < 8 || token.length > 300) return res.status(400).json({ error: 'Paste an API token from BrainWaves' });
++  try { await call({ url, token }, 'tags'); }
++  catch (e) { return res.status(e.status || 502).json({ error: e.name === 'TimeoutError' ? `BrainWaves at ${url} didn't answer` : e.message }); }
++  db.prepare("INSERT INTO integrations (user_id, kind, value) VALUES (?, 'brainwaves', ?) ON CONFLICT(user_id, kind) DO UPDATE SET value = excluded.value")
++    .run(req.userId, JSON.stringify({ url, token }));
++  res.json({ url });
++});
++
++router.delete('/', (req, res) => {
++  db.prepare("DELETE FROM integrations WHERE user_id = ? AND kind = 'brainwaves'").run(req.userId);
++  res.json({ ok: true });
++});
++
++// BrainWaves pages with a tag (nested tags too: #research also finds #research/web).
++const cache = new Map();
++router.get('/tag/:tag', async (req, res) => {
++  const c = get(req.userId);
++  if (!c) return res.json(null);
++  const tag = String(req.params.tag).replace(/^#/, '').slice(0, 120);
++  const key = `${req.userId}:${tag.toLowerCase()}`;
++  const hit = cache.get(key);
++  if (hit && Date.now() - hit.at < 30_000) return res.json(hit.value);
++  try {
++    const [tags, pages] = await Promise.all([call(c, 'tags'), call(c, 'listPages')]);
++    const lower = tag.toLowerCase();
++    const matching = tags.map(t => t.tag).filter(t => t.toLowerCase() === lower || t.toLowerCase().startsWith(lower + '/'));
++    const ids = new Set((await Promise.all(matching.map(t => call(c, 'pagesWithTag', { tag: t })))).flat());
++    const value = {
++      url: c.url,
++      pages: pages.filter(p => ids.has(p.id) && p.trashedAt == null)
++        .sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 50)
++        .map(p => ({ id: p.id, title: p.title || 'Untitled', icon: p.icon || '', link: `${c.url}/#/p/${p.id}` })),
++    };
++    cache.set(key, { at: Date.now(), value });
++    res.json(value);
++  } catch (e) {
++    res.status(e.status || 502).json({ error: e.name === 'TimeoutError' ? "BrainWaves didn't answer" : e.message });
++  }
++});
++
++module.exports = router;
+diff --git a/server/src/db.js b/server/src/db.js
+index 48d6550..b0d50a9 100644
+--- a/server/src/db.js
++++ b/server/src/db.js
+@@ -143,6 +143,13 @@ CREATE TABLE IF NOT EXISTS page_settings (
+   settings TEXT NOT NULL DEFAULT '{}',
+   PRIMARY KEY (user_id, page)
+ );
++-- Other apps a user connects (BrainWaves: its address and token).
++CREATE TABLE IF NOT EXISTS integrations (
++  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
++  kind TEXT NOT NULL,
++  value TEXT NOT NULL,
++  PRIMARY KEY (user_id, kind)
++);
+ `);
+ 
+ /** Searchable text from custom property values (text, URL, select options). */
+-- 
+2.43.0
+

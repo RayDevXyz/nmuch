@@ -11,10 +11,13 @@
 //!
 //! See `docs/spike-01-block-model.md` and `docs/phase-02-editor.md`.
 
+pub mod azgaar;
+pub mod burrow;
 pub mod core;
 pub mod course;
 pub mod database;
 pub mod db_query;
+pub mod dnd;
 pub mod doc;
 pub mod error;
 pub mod events;

@@ -385,6 +385,11 @@ fn apply_meta(txn: &mut TransactionMut, page: &MapRef, p: &PageMetaPatch) {
             v.map(|t| Any::from(t as f64)).unwrap_or(Any::Null),
         );
     }
+    if let Some(v) = &p.theme {
+        // Short and plain: an id or a name, never markup.
+        let v: String = v.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_').take(64).collect();
+        page.insert(txn, "theme", any_str(&v));
+    }
 }
 
 fn read_meta<T: ReadTxn>(txn: &T, page: &MapRef) -> PageMeta {
@@ -413,6 +418,7 @@ fn read_meta<T: ReadTxn>(txn: &T, page: &MapRef) -> PageMeta {
         favorite: b("favorite"),
         archived: b("archived"),
         trashed_at: n("trashedAt"),
+        theme: s("theme").unwrap_or_default(),
     }
 }
 
@@ -1051,9 +1057,16 @@ pub fn snapshot(doc: &Doc, page_id: &str) -> Result<PageSnapshot> {
             position: pos as u32,
             depth: 1,
             text: el.text.clone(),
+            // A pin links to the page it marks (so that page's backlinks show the map).
+            refs: match (
+                el.kind.as_str(),
+                el.attrs.get("page").and_then(|p| p.as_str()),
+            ) {
+                ("pin" | "token", Some(p)) => vec![(p.to_string(), "page".to_string())],
+                _ => vec![],
+            },
             attrs: el.attrs,
             props: props_of(&el.id),
-            refs: vec![],
         });
     }
     let database =

@@ -26,6 +26,26 @@ export const MarkdownPaste = Extension.create({
             editor.chain().focus().insertContent(content).run()
             return true
           },
+          // Things dragged in from the app (see EditorHost.dropContent).
+          handleDrop: (view, event) => {
+            const data = event.dataTransfer
+            const host = maybeHost(editor)
+            if (!data || !host?.dropContent || data.files.length) return false
+            const content = host.dropContent(data)
+            if (!content?.length) return false
+            event.preventDefault()
+            const at = view.posAtCoords({ left: event.clientX, top: event.clientY })
+            if (!at) {
+              editor.chain().focus().insertContent(content).run()
+              return true
+            }
+            // Between blocks, never inside a sentence: before the paragraph it lands on if
+            // that's at its start, else after it.
+            const $pos = view.state.doc.resolve(at.pos)
+            const pos = $pos.parent.isTextblock && $pos.depth > 0 ? ($pos.parentOffset === 0 ? $pos.before() : $pos.after()) : at.pos
+            editor.chain().focus().insertContentAt(pos, content).run()
+            return true
+          },
         },
       }),
     ]

@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { PanelRight } from 'lucide-react'
-import { closeTab, createPage, init } from './state/actions'
+import { closeTab, createPage, init, openPage } from './state/actions'
 import { getState, setState, useApp } from './state/store'
 import { TopBar } from './components/TopBar'
 import { LeftRail } from './components/LeftRail'
@@ -12,10 +12,37 @@ import { HelpModal } from './components/HelpModal'
 import { ImportDialog } from './components/ImportDialog'
 import { WidgetsDialog } from './widgets/WidgetsDialog'
 import { ModulesDialog } from './modules/ModulesDialog'
+import { CompendiumHost, openCompendium } from './dnd/Compendium'
+import { CharacterWizardHost } from './dnd/CharacterWizard'
+import { getRoles, showsCanvas } from './dnd/api'
+import { AzgaarImportHost } from './dnd/AzgaarImport'
+import { activeTheme, themeVars as themeVarsOf } from './theme/themes'
+import { ThemeEditorHost } from './theme/ThemeEditor'
+import { BurrowPickerHost } from './burrow/Burrow'
+import { SaveToBurrowHost } from './burrow/Save'
 
 export default function App() {
   const ready = useApp((s) => s.ready)
+  // A #/p/<id> link (from Burrow, a bookmark, another app) opens that page.
+  useEffect(() => {
+    if (!ready) return
+    const openLinked = () => {
+      const m = location.hash.match(/^#\/p\/([\w-]{6,64})$/)
+      if (!m) return
+      history.replaceState(null, '', location.pathname + location.search)
+      if (getState().pages[m[1]]) openPage(m[1], 'replace')
+      else setState({ toast: "That page isn't in this BrainWaves" })
+    }
+    openLinked()
+    window.addEventListener('hashchange', openLinked)
+    return () => window.removeEventListener('hashchange', openLinked)
+  }, [ready])
   const theme = useApp((s) => s.theme)
+  // The theme this mode uses, as CSS variables on the workspace (and the window behind it).
+  const themes = useApp((s) => s.themes)
+  const themeFor = useApp((s) => s.themeFor)
+  const themeStyle = useMemo(() => themeVarsOf(activeTheme(theme, themeFor, themes)) as React.CSSProperties, [theme, themeFor, themes])
+  useEffect(() => void (document.body.style.background = String((themeStyle as Record<string, string>)['--app-bg'] ?? '')), [themeStyle])
   const fontSize = useApp((s) => s.fontSize)
   const sidebarOpen = useApp((s) => s.sidebarOpen)
   const rightOpen = useApp((s) => s.rightOpen)
@@ -57,11 +84,14 @@ export default function App() {
       } else if (k === '/' && !e.shiftKey) {
         e.preventDefault()
         setState({ help: !s.help })
+      } else if (k === 'd' && e.shiftKey) {
+        e.preventDefault()
+        openCompendium()
       } else if (k === 'e' && e.shiftKey) {
         const page = s.activeId ? s.pages[s.activeId] : undefined
         if (page && page.kind !== 'database') {
           e.preventDefault()
-          setState({ edgeless: { ...s.edgeless, [page.id]: !s.edgeless[page.id] } })
+          setState({ edgeless: { ...s.edgeless, [page.id]: !showsCanvas(page.id, s.edgeless, getRoles()) } })
         }
       } else if (k === 'w') {
         if (s.activeId) {
@@ -82,7 +112,7 @@ export default function App() {
   }, [])
 
   return (
-    <main className={`workspace theme-${theme} fs-${fontSize}`}>
+    <main className={`workspace theme-${theme} fs-${fontSize}`} style={themeStyle}>
       <TopBar />
       <div className="app-shell">
         <LeftRail />
@@ -109,6 +139,12 @@ export default function App() {
       {importDialog && <ImportDialog />}
       {widgetsDialog && <WidgetsDialog />}
       {modulesDialog && <ModulesDialog />}
+      <CompendiumHost />
+      <CharacterWizardHost />
+      <AzgaarImportHost />
+      <ThemeEditorHost />
+      <BurrowPickerHost />
+      <SaveToBurrowHost />
       {toast && <div className="toast">{toast}</div>}
     </main>
   )

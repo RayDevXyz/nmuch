@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>BrainWaves · Table</title>
+<link rel="stylesheet" href="/assets/table.css" />
+</head>
+<body>
+<!-- Joining -->
+<section id="join" class="screen">
+  <div class="join-card">
+    <div class="sigil">⚔</div>
+    <h1>Join the table</h1>
+    <p class="muted">Your dungeon master shares a link or a table code.</p>
+    <label>Table code<input id="join-code" autocomplete="off" spellcheck="false" placeholder="e.g. Xk29Pq7Lm4" /></label>
+    <label>Your name<input id="join-name" autocomplete="nickname" placeholder="e.g. Ray" maxlength="40" /></label>
+    <button id="join-go" class="gold">Take a seat</button>
+    <p id="join-error" class="error"></p>
+  </div>
+</section>
+
+<!-- The table -->
+<section id="table" class="screen" hidden>
+  <canvas id="map"></canvas>
+  <header class="bar">
+    <span class="room" id="room-name">Table</span>
+    <span id="dm-status" class="dm off">DM away</span>
+    <span class="grow"></span>
+    <span id="players" class="players"></span>
+  </header>
+  <nav class="tools" aria-label="Tools">
+    <button data-tool="pan" class="active" title="Move around (drag), zoom (wheel / pinch)">✥<span>Look</span></button>
+    <button data-tool="ping" title="Click a spot to ping it for everyone">◎<span>Ping</span></button>
+    <button data-tool="draw" title="Draw for a few seconds">✎<span>Draw</span></button>
+    <button data-tool="move" title="Drag your character to where they should go; the DM accepts or declines">➜<span>Move</span></button>
+  </nav>
+  <aside class="side">
+    <section class="panel" id="chars-panel">
+      <h2>Characters</h2>
+      <div id="chars"></div>
+    </section>
+    <section class="panel">
+      <h2>On the map</h2>
+      <div id="claim"></div>
+      <p id="pending" class="pending" hidden></p>
+    </section>
+    <section class="panel" id="init-panel" hidden>
+      <h2>Initiative <small id="round"></small></h2>
+      <ol id="initiative"></ol>
+    </section>
+    <section class="panel dice">
+      <h2>Dice</h2>
+      <div class="dice-row">
+        <button data-die="d4">d4</button><button data-die="d6">d6</button><button data-die="d8">d8</button><button data-die="d10">d10</button><button data-die="d12">d12</button><button data-die="d20">d20</button><button data-die="d100">d%</button>
+      </div>
+      <div class="dice-expr">
+        <input id="dice-expr" placeholder="2d6+3, d20 adv…" />
+        <button id="dice-roll" class="gold">Roll</button>
+      </div>
+      <ol id="rolls" class="rolls"></ol>
+    </section>
+  </aside>
+  <div id="toast" class="toast" hidden></div>
+</section>
+<div id="modal" class="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true">
+    <button id="modal-close" class="modal-close" aria-label="Close">✕</button>
+    <div id="modal-body"></div>
+  </div>
+</div>
+<script src="/assets/table.js"></script>
+<script src="/assets/characters.js"></script>
+</body>
+</html>

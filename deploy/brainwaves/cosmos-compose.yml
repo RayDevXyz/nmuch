@@ -1,0 +1,33 @@
+# BrainWaves (and its battle map table) for Cosmos Cloud, or any server that pulls prebuilt
+# images. GitHub Actions builds them from this repository: ghcr.io/raydevxyz/nmuch and
+# ghcr.io/raydevxyz/nmuch-table.
+#
+# In Cosmos: ServApps → import a compose file → paste this → install. Then create URLs:
+#   notes.example.com  → http://brainwaves:8080
+#   table.example.com  → http://brainwaves-table:8090   (only if you use the D&D table)
+# No ports are published: Cosmos's reverse proxy reaches the containers directly.
+# Turn OFF Cosmos's own "Authentication required" for both URLs: BrainWaves has its own login,
+# and players must reach the table without one.
+
+services:
+  brainwaves:
+    image: ghcr.io/raydevxyz/nmuch:latest
+    container_name: brainwaves
+    restart: unless-stopped
+    volumes:
+      - brainwaves-data:/data
+    environment:
+      TRUST_PROXY: "true"       # Cosmos terminates HTTPS in front of BrainWaves
+
+  brainwaves-table:
+    image: ghcr.io/raydevxyz/nmuch-table:latest
+    container_name: brainwaves-table
+    restart: unless-stopped
+    volumes:
+      - brainwaves-table-data:/data
+    environment:
+      BW_TABLE_DM_KEY: ""       # set a long random key; you'll enter it in BrainWaves
+
+volumes:
+  brainwaves-data:
+  brainwaves-table-data:

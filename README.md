@@ -82,8 +82,15 @@ crates/bw-api        the command surface the frontend uses (shared by Tauri and 
 crates/bw-devserver  bw-api over HTTP, so the UI can run in a browser during development
 packages/editor      @brainwaves/editor: the Tiptap block engine (schema, nodes, menus)
 apps/desktop         the BrainWaves desktop app (Tauri + React)
-docs/                architecture.md (the plan), spike-01-block-model.md, phase-02-editor.md, phase-03-databases.md
+crates/bw-server     BrainWaves as a hosted web app (login, API tokens): see docs/hosting.md
+crates/bw-table      the D&D battle map table players join: see docs/table.md
+docs/                architecture.md (the plan), spike-01-block-model.md, phase-02-editor.md, phase-03-databases.md,
+                     hosting.md (your VPS), burrow.md (the Burrow integration), dnd.md, table.md, themes.md
 ```
+
+**On your own server:** see [docs/hosting.md](docs/hosting.md): a Docker image
+(`ghcr.io/raydevxyz/nmuch`) for Cosmos Cloud or Docker Compose, with your own login.
+It works with [Burrow](https://github.com/RayDevXyz/burrow): see [docs/burrow.md](docs/burrow.md).
 
 **Windows, from scratch:** double-click `scripts\install-windows.cmd`. It installs everything
 that's missing (Git, the C++ build tools, WebView2, Rust, Node.js, pnpm), installs the

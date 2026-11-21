@@ -1,0 +1,22 @@
+# The BrainWaves table server on your home server.
+#   cd deploy/table && docker compose up -d --build
+# Players open http://<your-server>:8090/join/<table code>.
+services:
+  table:
+    build:
+      context: ../..
+      dockerfile: deploy/table/Dockerfile
+    image: brainwaves-table
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      # The key BrainWaves uses to go live. Set your own (8+ characters) in a .env file next
+      # to this one: BW_TABLE_DM_KEY=... If empty, one is generated and shown in the logs.
+      BW_TABLE_DM_KEY: ${BW_TABLE_DM_KEY:-}
+    volumes:
+      # Rooms and map pictures. A named volume, so the server (not root) can write to it.
+      - table-data:/data
+
+volumes:
+  table-data:

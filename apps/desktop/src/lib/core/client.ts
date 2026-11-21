@@ -34,6 +34,8 @@ async function tauriClient(): Promise<CoreClient> {
   }
 }
 
+let signingOut = false
+
 function devClient(): CoreClient {
   const subs = new Set<(e: CoreEvent) => void>()
   const source = new EventSource('/api/events')
@@ -49,6 +51,11 @@ function devClient(): CoreClient {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(args ?? {}),
       })
+      // Signed out (a hosted BrainWaves, the session ended): back to the sign-in.
+      if (res.status === 401 && !signingOut) {
+        signingOut = true
+        location.reload()
+      }
       if (!res.ok) throw new Error((await res.text()) || `${command} failed (${res.status})`)
       return res.json()
     },

@@ -6,7 +6,9 @@ import { openPage } from '../state/actions'
 import { useApp } from '../state/store'
 import { BindingSetup } from './BindingSetup'
 import { ModuleBlock } from '../modules/ModuleBlock'
+import { DndBlock } from '../dnd/DndBlock'
 import { buildSrcdoc, themeVars } from './runtime'
+import { BurrowCard } from '../burrow/BurrowCard'
 import {
   loadWidget,
   widgetCreateRow,
@@ -37,6 +39,10 @@ export function bindingsComplete(manifest: Manifest, bindings: Record<string, un
 export function WidgetBlock(props: WidgetBlockProps & { pageId: string }) {
   // A third-party module placed in the page uses the same block, as `module:<id>`.
   if (props.widgetId.startsWith('module:')) return <ModuleBlock {...props} moduleId={props.widgetId.slice(7)} />
+  // First-party D&D blocks (compendium cards, …) use it too, as `dnd:<kind>`.
+  if (props.widgetId.startsWith('dnd:')) return <DndBlock {...props} kind={props.widgetId.slice(4)} />
+  // A Burrow bookmark (`burrow:card`).
+  if (props.widgetId === 'burrow:card') return <BurrowCard {...props} />
   return <WidgetInstance {...props} />
 }
 
@@ -117,10 +123,13 @@ function Sandbox({ def, pageId, blockId, settings, editable, onSettings }: Widge
   }, [settingsKey])
 
   // Follow the app's light/dark switch.
+  // Follow theme edits too, not only the dark/light switch.
   const theme = useApp((s) => s.theme)
+  const themes = useApp((s) => s.themes)
+  const themeFor = useApp((s) => s.themeFor)
   useEffect(() => {
     if (started.current) requestAnimationFrame(() => frame.current?.contentWindow?.postMessage({ bw: 1, event: 'theme', theme: themeVars() }, '*'))
-  }, [theme])
+  }, [theme, themes, themeFor])
 
   useEffect(() => {
     const me: Instance = { pageId, blockId }

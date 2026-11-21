@@ -1,3 +1,4 @@
+import type React from 'react'
 import { useEffect, useState } from 'react'
 import * as Y from 'yjs'
 import { uid } from '../lib/id'
@@ -18,18 +19,48 @@ interface Base {
   id: string
   index: string
   text?: string
+  /** Degrees clockwise around the center (shapes, text, pictures). */
+  rotate?: number
+  /** 0.05–1; absent is fully opaque. */
+  opacity?: number
+  /** Can be selected but not moved, resized or deleted. */
+  locked?: boolean
+  /** false: kept, but not drawn (shown dimmed in Layers). */
+  visible?: boolean
+  /** Elements with the same group id are selected and moved together. */
+  group?: string
 }
-export interface ShapeEl extends Base {
+/** How text is set, in text boxes and on shapes. */
+export interface TextStyle {
+  fontSize?: number
+  fontFamily?: FontFamily
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  align?: 'left' | 'center' | 'right'
+}
+export type FontFamily = 'sans' | 'serif' | 'mono' | 'hand' | 'display'
+export const FONTS: Record<FontFamily, { label: string; css: string }> = {
+  sans: { label: 'Sans', css: 'var(--font-sans, Inter, system-ui, sans-serif)' },
+  serif: { label: 'Serif', css: "'EB Garamond', Georgia, 'Times New Roman', serif" },
+  display: { label: 'Display', css: "Cinzel, 'Trajan Pro', Georgia, serif" },
+  mono: { label: 'Mono', css: "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace" },
+  hand: { label: 'Hand', css: "'Comic Neue', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive" },
+}
+export interface ShapeEl extends Base, TextStyle {
   type: 'shape'
   xywh: XYWH
   shape: ShapeKind
+  /** A color name, a #hex, or 'none'. */
   fill?: string
   stroke?: string
+  strokeWidth?: number
+  /** The text's color on the shape. */
+  color?: string
 }
-export interface TextEl extends Base {
+export interface TextEl extends Base, TextStyle {
   type: 'text'
   xywh: XYWH
-  fontSize?: number
   color?: string
 }
 export interface ConnectorEl extends Base {
@@ -43,8 +74,48 @@ export interface FrameEl extends Base {
   xywh: XYWH
   fill?: string
 }
-export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl
-export type Boxed = ShapeEl | TextEl | FrameEl
+/** A picture on the canvas, e.g. a world map (`src` is a data URL kept in the page). */
+export interface ImageEl extends Base {
+  type: 'image'
+  xywh: XYWH
+  src: string
+}
+/** A marker that stands for a page (a location, an NPC's home…); `text` is its label. */
+export interface PinEl extends Base {
+  type: 'pin'
+  xywh: XYWH
+  page: string
+  color?: string
+}
+/** A creature on a battle map; `text` is its name. `hidden` ones are seen by the DM only. */
+export interface TokenEl extends Base {
+  type: 'token'
+  xywh: XYWH
+  page?: string
+  hidden?: boolean
+  player?: boolean
+  hp?: number
+  maxHp?: number
+  ac?: number
+  color?: string
+}
+/** An area of a battle map cleared of fog: its bounds, or a polygon within them. */
+export interface RevealEl extends Base {
+  type: 'reveal'
+  xywh: XYWH
+  points?: [number, number][]
+}
+/** A link card (from Burrow, say); `text` is its title. */
+export interface BookmarkEl extends Base {
+  type: 'bookmark'
+  xywh: XYWH
+  url: string
+  burrowId?: number
+  image?: string
+  site?: string
+}
+export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl | BookmarkEl
+export type Boxed = ShapeEl | TextEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl | BookmarkEl
 /** An element before it has an id and a place in the stacking order. */
 export type NewElement = Element extends infer E ? (E extends Element ? Omit<E, 'id' | 'index'> & { index?: string } : never) : never
 
@@ -70,10 +141,29 @@ export const COLORS: Record<string, string> = {
   pink: '#d667a6',
   red: '#e05a55',
 }
-export const colorOf = (name: string | undefined, fallback = 'var(--muted-foreground)') => (name && COLORS[name]) || fallback
-/** Fills are tints of the color, so the same name works on light and dark backgrounds. */
+const isHex = (c: string | undefined): c is string => !!c && /^#[0-9a-f]{3,8}$/i.test(c)
+/** A color: one of the named ones, or any #hex. */
+export const colorOf = (name: string | undefined, fallback = 'var(--muted-foreground)') => (name && COLORS[name]) || (isHex(name) ? name : fallback)
+/** Named fills are tints of the color, so they work on light and dark backgrounds; a #hex is used as is. */
 export const fillOf = (name: string | undefined) =>
-  name && COLORS[name] ? `color-mix(in srgb, ${COLORS[name]} 24%, var(--editor-bg))` : 'var(--panel)'
+  name === 'none' ? 'transparent' : name && COLORS[name] ? `color-mix(in srgb, ${COLORS[name]} 24%, var(--editor-bg))` : isHex(name) ? name : 'var(--panel)'
+
+/** The CSS for a text style. */
+export function textCss(s: TextStyle, fallbackSize: number): React.CSSProperties {
+  return {
+    fontSize: s.fontSize ?? fallbackSize,
+    fontFamily: s.fontFamily ? FONTS[s.fontFamily]?.css : undefined,
+    fontWeight: s.bold ? 700 : undefined,
+    fontStyle: s.italic ? 'italic' : undefined,
+    textDecoration: s.underline ? 'underline' : undefined,
+    textAlign: s.align,
+  }
+}
+
+/** Elements that turn (pins, tokens, frames and fog stay upright). */
+export const canRotate = (el: Element) => el.type === 'shape' || el.type === 'text' || el.type === 'image'
+/** Whether an element is drawn. */
+export const shown = (el: Element) => el.visible !== false
 
 const surfaceOf = (doc: Y.Doc) => doc.getMap('surface') as Y.Map<Y.Map<unknown>>
 const notesOf = (doc: Y.Doc) => doc.getMap('notes') as Y.Map<Y.Map<unknown>>
@@ -89,7 +179,7 @@ export function readElements(doc: Y.Doc): Element[] {
     const el = { ...m.toJSON(), id } as Element
     if (el.type === 'connector') {
       if (el.source && el.target) out.push(el)
-    } else if ((el.type === 'shape' || el.type === 'text' || el.type === 'frame') && isXYWH(el.xywh)) {
+    } else if (['shape', 'text', 'frame', 'image', 'pin', 'token', 'reveal', 'bookmark'].includes(el.type) && isXYWH((el as Boxed).xywh)) {
       out.push(el)
     }
   })
@@ -105,9 +195,48 @@ export function readNotes(notes: NoteRef[], doc: Y.Doc): CanvasNote[] {
   })
 }
 
+/** Move elements in the stacking order: to the front or back, or one step. */
+export function reorder(doc: Y.Doc, ids: string[], where: 'front' | 'back' | 'forward' | 'backward') {
+  const els = readElements(doc).filter((e) => e.type !== 'frame')
+  const moving = new Set(ids)
+  const rest = els.filter((e) => !moving.has(e.id))
+  const picked = els.filter((e) => moving.has(e.id))
+  if (!picked.length) return
+  let at: number
+  if (where === 'front') at = rest.length
+  else if (where === 'back') at = 0
+  else {
+    // One step: past the next (or previous) element that isn't moving.
+    const first = els.indexOf(picked[0])
+    const last = els.indexOf(picked[picked.length - 1])
+    const neighbour = where === 'forward' ? els.slice(last + 1).find((e) => !moving.has(e.id)) : [...els.slice(0, first)].reverse().find((e) => !moving.has(e.id))
+    if (!neighbour) return
+    at = rest.indexOf(neighbour) + (where === 'forward' ? 1 : 0)
+  }
+  let before = at > 0 ? rest[at - 1].index : null
+  const after = at < rest.length ? rest[at].index : null
+  const patches: Record<string, Record<string, unknown>> = {}
+  for (const e of picked) {
+    const k = keyBetween(before, after)
+    patches[e.id] = { index: k }
+    before = k
+  }
+  updateElements(doc, patches)
+}
+
+/** Put one element right above another (`over`) or at the very bottom (null), for drag-and-drop in Layers. */
+export function placeAbove(doc: Y.Doc, id: string, over: string | null) {
+  const els = readElements(doc).filter((e) => e.type !== 'frame' && e.id !== id)
+  const i = over ? els.findIndex((e) => e.id === over) : -1
+  const before = i >= 0 ? els[i].index : null
+  const after = i + 1 < els.length ? els[i + 1].index : null
+  updateElements(doc, { [id]: { index: keyBetween(before, after) } })
+}
+
 /** The surface's elements, re-read on every change to them. */
 export function useElements(doc: Y.Doc | null): Element[] {
-  const [els, setEls] = useState<Element[]>([])
+  // Read at once, so the first render (and the first zoom-to-fit) already has them.
+  const [els, setEls] = useState<Element[]>(() => (doc ? readElements(doc) : []))
   useEffect(() => {
     if (!doc) return
     const s = surfaceOf(doc)

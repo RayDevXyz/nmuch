@@ -770,3 +770,20 @@ fn import_page_keeps_dates_and_validates() {
     assert!(core.import_page("x", &[1, 2, 3], 0, 0).is_err());
     assert_eq!(core.page_ids().unwrap(), vec![id]);
 }
+
+#[test]
+fn a_page_keeps_its_theme_through_a_rebuild() {
+    let mut core = Core::open_in_memory().unwrap();
+    let page = core.create_page(meta("Moodboard")).unwrap();
+    let patch: PageMetaPatch = serde_json::from_value(json!({ "theme": "midnight" })).unwrap();
+    core.update_page(&page, &patch).unwrap();
+    let theme = |core: &Core| core.list_pages().unwrap().into_iter().find(|p| p.id == page).unwrap().theme;
+    assert_eq!(theme(&core), "midnight");
+    // Only a plain id is kept, never markup.
+    let odd: PageMetaPatch = serde_json::from_value(json!({ "theme": "x</style><b>" })).unwrap();
+    core.update_page(&page, &odd).unwrap();
+    assert_eq!(theme(&core), "xstyleb");
+    core.update_page(&page, &patch).unwrap();
+    core.rebuild_index().unwrap();
+    assert_eq!(theme(&core), "midnight", "the theme lives in the page, not only the index");
+}

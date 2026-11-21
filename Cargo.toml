@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["crates/bw-core", "crates/bw-api", "crates/bw-devserver", "apps/desktop/src-tauri"]
+members = ["crates/bw-core", "crates/bw-api", "crates/bw-devserver", "crates/bw-server", "crates/bw-table", "apps/desktop/src-tauri"]

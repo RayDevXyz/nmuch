@@ -38,6 +38,8 @@ export interface Page {
   trashedAt: number | null
   createdAt: number
   updatedAt: number
+  /** The page's own theme id; empty: follow its parent; 'app': the app's theme. */
+  theme?: string
 }
 
 export interface Ref {
@@ -63,7 +65,7 @@ export interface TagCount {
 }
 
 /** The fields of a page the core stores in its Y.Doc. */
-export type PageMeta = Pick<Page, 'kind' | 'databaseId' | 'title' | 'icon' | 'parentId' | 'key' | 'favorite' | 'archived' | 'trashedAt'>
+export type PageMeta = Pick<Page, 'kind' | 'databaseId' | 'title' | 'icon' | 'parentId' | 'key' | 'favorite' | 'archived' | 'trashedAt' | 'theme'>
 
 export interface BlockInfo {
   id: string

@@ -27,6 +27,8 @@ pub struct PageRow {
     pub trashed_at: Option<i64>,
     pub created_at: i64,
     pub updated_at: i64,
+    /// The page's own theme (empty: follow its parent).
+    pub theme: String,
 }
 
 /// A block in another page that references a page (backlink or mention).
@@ -83,7 +85,7 @@ impl Core {
     pub fn list_pages(&self) -> Result<Vec<PageRow>> {
         let mut stmt = self.conn().prepare(
             "SELECT id, parent_id, title, icon, sort_key, favorite, archived, trashed_at, created_at, updated_at,
-                    kind, database_id
+                    kind, database_id, theme
              FROM page_meta ORDER BY sort_key, id",
         )?;
         let rows = stmt
@@ -101,6 +103,7 @@ impl Core {
                     trashed_at: r.get(7)?,
                     created_at: r.get(8)?,
                     updated_at: r.get(9)?,
+                    theme: r.get(12)?,
                 })
             })?
             .collect::<std::result::Result<_, _>>()?;

@@ -14,19 +14,26 @@ struct CoreState(Arc<Mutex<bw_core::Core>>, bw_api::Context);
 /// kept `brainwaves.db` (moved once, see `adopt_early_workspace`).
 const OLD_IDENTIFIER: &str = "app.nimbus.notes";
 
+/// Runs off the main thread: a call can take a moment (fetching a 5etools file, a big import)
+/// and must not freeze the window meanwhile.
 #[tauri::command]
-fn core_call(
+async fn core_call(
     state: State<'_, CoreState>,
     command: String,
     args: Option<Value>,
 ) -> Result<Value, String> {
-    let mut core = state.0.lock().map_err(|e| e.to_string())?;
-    bw_api::dispatch(
-        &mut core,
-        &state.1,
-        &command,
-        args.unwrap_or(Value::Object(Default::default())),
-    )
+    let (core, ctx) = (state.0.clone(), state.1.clone());
+    let args = args.unwrap_or(Value::Object(Default::default()));
+    tauri::async_runtime::spawn_blocking(move || {
+        // Slow host work (fetching 5etools files) runs without holding the core.
+        if let Some(r) = bw_api::dispatch_unlocked(&core, &command, &args) {
+            return r;
+        }
+        let mut core = core.lock().map_err(|e| e.to_string())?;
+        bw_api::dispatch(&mut core, &ctx, &command, args)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Ask the user for a folder (for a module: the answer becomes the module's to read).

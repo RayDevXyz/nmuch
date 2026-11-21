@@ -17,6 +17,7 @@ export const metaOf = (p: Page): PageMeta => ({
   favorite: p.favorite,
   archived: p.archived,
   trashedAt: p.trashedAt,
+  theme: p.theme ?? '',
 })
 
 function createStorage(c: CoreClient): Storage {

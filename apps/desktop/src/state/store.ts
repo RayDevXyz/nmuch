@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react'
 import type { Page } from '../lib/types'
+import type { ThemeDef } from '../theme/themes'
 
-export type View = 'home' | 'recent' | 'favorites' | 'tags' | 'archive' | 'trash'
+export type View = 'home' | 'recent' | 'favorites' | 'tags' | 'archive' | 'trash' | 'burrow'
 
 export interface OutlineItem {
   id: string
@@ -18,6 +19,11 @@ export interface AppState {
   tabs: string[]
   activeId: string | null
   theme: 'dark' | 'light'
+  /** The user's own themes (see `theme/themes.ts`). */
+  themes: ThemeDef[]
+  /** Which theme each mode uses (built-in or the user's); unset: the mode's own look. */
+  themeFor: Partial<Record<'dark' | 'light', string>>
+  themeEditor: boolean
   sidebarOpen: boolean
   rightOpen: boolean
   expanded: Record<string, boolean>
@@ -46,7 +52,7 @@ export interface AppState {
 const PREFS_KEY = 'brainwaves.prefs.v1'
 /** Preferences saved before the rename to BrainWaves. */
 const OLD_PREFS_KEY = 'nimbus.prefs.v1'
-type Prefs = Pick<AppState, 'view' | 'tabs' | 'activeId' | 'theme' | 'sidebarOpen' | 'rightOpen' | 'expanded' | 'width' | 'fontSize' | 'spellcheck' | 'edgeless'>
+type Prefs = Pick<AppState, 'view' | 'tabs' | 'activeId' | 'theme' | 'themes' | 'themeFor' | 'sidebarOpen' | 'rightOpen' | 'expanded' | 'width' | 'fontSize' | 'spellcheck' | 'edgeless'>
 
 function loadPrefs(): Partial<Prefs> {
   try {
@@ -65,6 +71,9 @@ let state: AppState = {
   tabs: [],
   activeId: null,
   theme: 'dark',
+  themes: [],
+  themeFor: {},
+  themeEditor: false,
   sidebarOpen: true,
   rightOpen: true,
   expanded: {},
@@ -102,9 +111,9 @@ export function setState(patch: Partial<AppState> | ((s: AppState) => Partial<Ap
   listeners.forEach((l) => l())
   clearTimeout(prefsTimer)
   prefsTimer = setTimeout(() => {
-    const { view, tabs, activeId, theme, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless } = state
+    const { view, tabs, activeId, theme, themes, themeFor, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless } = state
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ view, tabs, activeId, theme, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless }))
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ view, tabs, activeId, theme, themes, themeFor, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless }))
     } catch {
       /* storage unavailable */
     }

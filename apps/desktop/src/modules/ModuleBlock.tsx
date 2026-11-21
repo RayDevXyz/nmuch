@@ -141,10 +141,13 @@ function ModuleSandbox({ info, pageId, settings, editable, onSettings }: WidgetB
     if (started.current) frame.current?.contentWindow?.postMessage({ bw: 1, event: 'settings', settings }, '*')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settingsKey])
+  // Follow theme edits too, not only the dark/light switch.
   const theme = useApp((s) => s.theme)
+  const themes = useApp((s) => s.themes)
+  const themeFor = useApp((s) => s.themeFor)
   useEffect(() => {
     if (started.current) requestAnimationFrame(() => frame.current?.contentWindow?.postMessage({ bw: 1, event: 'theme', theme: themeVars() }, '*'))
-  }, [theme])
+  }, [theme, themes, themeFor])
 
   useEffect(() => {
     const subs = new Map<number, { databaseId: string; view: unknown }>()

@@ -42,6 +42,8 @@ import { relativeTime } from '../lib/time'
 import { pageMarkdown } from '../editor/Editor'
 import { IconButton } from './TopBar'
 import { MenuList, Popover, type MenuEntry } from './Popover'
+import { BurrowPanel } from '../burrow/Burrow'
+import { BurrowTagItems } from '../burrow/Tags'
 
 const byKey = (a: Page, b: Page) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
 
@@ -411,6 +413,7 @@ function TagsView() {
               <FlatRow key={p.id} page={p} meta={relativeTime(p.updatedAt)} />
             ))}
           </div>
+          <BurrowTagItems tag={tag} />
         </>
       )}
     </>
@@ -505,6 +508,8 @@ export function Sidebar() {
     )
   } else if (view === 'tags') {
     body = <TagsView />
+  } else if (view === 'burrow') {
+    body = <BurrowPanel />
   } else {
     body = <HomeView childMap={childMap} />
   }

@@ -76,6 +76,20 @@ struct CourseArgs {
     id: String,
 }
 
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+struct DndArgs {
+    id: String,
+    url: String,
+    title: String,
+    name: String,
+    campaign: Option<String>,
+    template: String,
+    arc: String,
+    sheet: Value,
+    key: String,
+}
+
 /// Open a file in its default app. Failing to (no desktop, say) isn't an error for the caller:
 /// the bookkeeping already happened, and the reply says whether the file opened.
 fn open_path(ctx: &Context, path: &std::path::Path) -> Value {
@@ -146,6 +160,92 @@ pub(crate) fn dispatch(
             let c: CourseArgs = args(a)?;
             let path = core.course_open_lesson(&c.id).map_err(e)?;
             Ok(open_path(ctx, &path))
+        }
+
+        // ---- the D&D module (5e content itself is fetched by `fivee.rs`)
+        "dndSource" => ok(core.dnd_source().map_err(e)?),
+        "dndSetSource" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_set_source(&d.url).map_err(e)?)
+        }
+        "dndWorkspace" => ok(core.dnd_workspace().map_err(e)?),
+        "dndCampaigns" => ok(core.dnd_campaigns().map_err(e)?),
+        "dndCampaign" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_campaign(&d.id).map_err(e)?)
+        }
+        "dndCreateCampaign" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_create_campaign(&d.title).map_err(e)?)
+        }
+        "dndAddBeats" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_add_beats(&d.id, &d.template, &d.arc).map_err(e)?)
+        }
+        "dndCreateCharacter" => {
+            let d: DndArgs = args(a)?;
+            let sheet = if d.sheet.is_null() {
+                json!({})
+            } else {
+                d.sheet
+            };
+            ok(core
+                .dnd_create_character(&d.name, sheet, d.campaign.as_deref())
+                .map_err(e)?)
+        }
+        "dndSheet" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_sheet(&d.id).map_err(e)?)
+        }
+        "dndSetSheet" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_set_sheet(&d.id, d.sheet).map_err(e)?)
+        }
+        "dndThemedRoots" => ok(core.dnd_themed_roots().map_err(e)?),
+        "dndRoles" => ok(core.dnd_roles().map_err(e)?),
+        "dndCreateScene" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_create_scene(&d.id, &d.title).map_err(e)?)
+        }
+        "dndScene" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_scene(&d.id).map_err(e)?)
+        }
+        "dndSetScene" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_set_scene(&d.id, d.sheet).map_err(e)?)
+        }
+        "dndScenes" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_scenes(&d.id).map_err(e)?)
+        }
+        "dndTable" => ok(core.dnd_table().map_err(e)?),
+        // The address only: the token stays in the workspace.
+        "burrowConnection" => ok(core.burrow_connection().map_err(e)?.map(|c| json!({ "url": c.url }))),
+        "burrowSetConnection" => {
+            let d: DndArgs = args(a)?;
+            ok(core.burrow_set_connection(&d.url, &d.key).map_err(e)?)
+        }
+        "dndCampaignTable" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_campaign_table(&d.id).map_err(e)?)
+        }
+        "dndSetCampaignTable" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_set_campaign_table(&d.id, d.sheet).map_err(e)?)
+        }
+        "dndSetTable" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_set_table(&d.url, &d.key).map_err(e)?)
+        }
+        "dndImportAzgaar" => {
+            #[derive(Deserialize)]
+            struct A {
+                id: String,
+                world: bw_core::azgaar::AzgaarWorld,
+            }
+            let A { id, world } = args(a)?;
+            ok(core.dnd_import_azgaar(&id, &world).map_err(e)?)
         }
 
         // ---- calls from sandboxed modules

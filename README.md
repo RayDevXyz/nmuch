@@ -85,7 +85,8 @@ apps/desktop         the BrainWaves desktop app (Tauri + React)
 crates/bw-server     BrainWaves as a hosted web app (login, API tokens): see docs/hosting.md
 crates/bw-table      the D&D battle map table players join: see docs/table.md
 docs/                architecture.md (the plan), spike-01-block-model.md, phase-02-editor.md, phase-03-databases.md,
-                     hosting.md (your VPS), burrow.md (the Burrow integration), dnd.md, table.md, themes.md
+                     hosting.md (your VPS), burrow.md (the Burrow integration), android.md, page-headers.md,
+                     dnd.md, table.md, themes.md
 ```
 
 **On your own server:** see [docs/hosting.md](docs/hosting.md): a Docker image

@@ -19,6 +19,7 @@ const GROUPS: [string, [string, string][]][] = [
     'Blocks',
     [
       ['/', 'Insert or convert a block (← → switch tabs: Basic, D&D, Courses…)'],
+      ['Add header', 'Hover the title: a gradient or picture header with breadcrumbs'],
       ['[[', 'Link to a page'],
       ['((', 'Link to a block'],
       ['/database', 'Table, board or gallery (rows are pages)'],

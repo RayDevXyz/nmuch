@@ -21,6 +21,8 @@ import { installedWidgets } from '../widgets/api'
 import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
 import { expandMocs, MocBlock } from '../moc/MocBlock'
+import { PagePropsButton, PagePropsInline } from '../properties/PageProps'
+import { frontMatter, readProps } from '../properties/model'
 import { Canvas } from '../edgeless/Canvas'
 import { dndSlashExtras } from '../dnd/slash'
 import { charactersDb, isThemed, showsCanvas, useRoles } from '../dnd/api'
@@ -49,7 +51,8 @@ export async function pageMarkdown(pageId: string): Promise<string> {
   return withPage(pageId, async (sync) => {
     const notes = await Promise.all(sync.notesJSON(true).map((n) => expandMocs(n, pageId)))
     const blockText = await titles(notes)
-    return toMarkdown(page?.title ?? '', notes, (kind, id) => (kind === 'page' ? titleOf(id) : (blockText.get(id) ?? '')))
+    // Properties come first, as front matter.
+    return frontMatter(readProps(sync.doc).props) + toMarkdown(page?.title ?? '', notes, (kind, id) => (kind === 'page' ? titleOf(id) : (blockText.get(id) ?? '')))
   })
 }
 
@@ -493,9 +496,11 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
               <PanelTop size={13} /> Add header
             </button>
           )}
+          {sync && <PagePropsButton doc={sync.doc} />}
           <PageThemeChip page={page} />
         </div>
         {!header && title}
+        {sync && <PagePropsInline doc={sync.doc} />}
         {page.databaseId && page.databaseId === charactersDb(roles) ? (
           <CharacterSheet pageId={page.id} />
         ) : page.databaseId && roles[page.id] === 'campaign' ? (

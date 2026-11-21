@@ -1197,7 +1197,8 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
 .share-go:disabled { opacity: 0.55; }
 
 /* ---------- page header (a cover with the title) ---------- */
-.ph { position: relative; display: flex; overflow: hidden; color: #fff; flex: none; }
+.ph { position: relative; z-index: 3; display: flex; color: #fff; flex: none; }
+.ph-clip { position: absolute; inset: 0; overflow: hidden; }
 .ph-bg, .ph-dim { position: absolute; inset: 0; }
 .ph-bg { background-color: var(--panel-2); }
 .ph-dim { background: #000; pointer-events: none; }

@@ -29,6 +29,7 @@ import {
   Star,
   Sun,
   Tag,
+  FileStack,
   Trash2,
   Undo2,
   X,
@@ -329,6 +330,7 @@ export function DrawerHead() {
         {chip('recent', <Clock3 />, 'Recent')}
         {chip('favorites', <Star />, 'Favorites')}
         {chip('tags', <Tag />, 'Tags')}
+        {chip('templates', <FileStack />, 'Templates')}
         {chip('burrow', <BookmarkCheck />, 'Burrow')}
         {chip('archive', <Archive />, 'Archive')}
         {chip('trash', <Trash2 />, 'Trash', trash)}

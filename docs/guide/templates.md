@@ -1,6 +1,13 @@
 # Templates
 
-A template is an ordinary page inside the top-level page **Templates**. Its sub-pages are part of the template too. Write it with the full editor: text, tables, databases, a header, properties, maps of content. Wherever the text should change from one use to the next, put a variable in `{{…}}`.
+A template is an ordinary page inside the page **Templates**. Its sub-pages are part of the template too.
+
+Templates have their own place in the left rail: **Templates** (the stacked-pages icon). That keeps them out of the Documents tree. There you can:
+- see your templates and their sub-pages, and open one to edit it;
+- make a new one with **+**;
+- start **New page from a template**.
+
+On a phone, Templates is one of the chips in the page drawer. Write it with the full editor: text, tables, databases, a header, properties, maps of content. Wherever the text should change from one use to the next, put a variable in `{{…}}`.
 
 ## Variables
 

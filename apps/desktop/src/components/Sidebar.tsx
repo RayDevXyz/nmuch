@@ -8,6 +8,7 @@ import {
   Copy,
   ExternalLink,
   FileText,
+  FileStack,
   FolderOpen,
   Folder,
   Hash,
@@ -46,6 +47,8 @@ import { BurrowPanel } from '../burrow/Burrow'
 import { BurrowTagItems } from '../burrow/Tags'
 import { useNarrow } from '../mobile/narrow'
 import { DrawerHead } from '../mobile/MobileChrome'
+import { ensureTemplatesFolder, templatesFolder } from '../templates/apply'
+import { openTemplateDialog } from '../templates/TemplateDialog'
 
 const byKey = (a: Page, b: Page) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
 
@@ -360,6 +363,51 @@ function HomeView({ childMap }: { childMap: Map<string | null, Page[]> }) {
   )
 }
 
+/**
+ * Templates, out of the way of the Documents tree: the pages inside the Templates page, as a
+ * tree of their own (a template's sub-pages are part of it). Open one to edit it.
+ */
+function TemplatesView({ childMap }: { childMap: Map<string | null, Page[]> }) {
+  const pages = useApp((s) => s.pages)
+  const folder = useMemo(() => templatesFolder(), [pages])
+  const list = folder ? (childMap.get(folder.id) ?? []) : []
+  const newTemplate = async () => {
+    const f = await ensureTemplatesFolder()
+    createPage({ parentId: f.id, open: 'replace' })
+  }
+  return (
+    <>
+      <div className="sidebar-heading">
+        <span>Templates</span>
+        <div>
+          <IconButton label="New template" onClick={() => void newTemplate()}>
+            <Plus />
+          </IconButton>
+        </div>
+      </div>
+      <div className="tpl-side">
+        {list.length === 0 ? (
+          <p className="tpl-side-hint">No templates yet. Make one with +, or choose <b>Save as template</b> in a page's ⋯ menu.</p>
+        ) : (
+          <div className="tree">
+            {list.map((p) => (
+              <TreeNode key={p.id} page={p} depth={0} childMap={childMap} />
+            ))}
+          </div>
+        )}
+        <button className="tpl-side-use" onClick={() => openTemplateDialog({ parentId: null })}>
+          <FileStack size={14} /> <span>New page from a template</span> <kbd>Ctrl Shift N</kbd>
+        </button>
+        {folder && (
+          <button className="tpl-side-link" onClick={() => openPage(folder.id, 'replace')}>
+            How templates work
+          </button>
+        )}
+      </div>
+    </>
+  )
+}
+
 function ListView({ title, pages, empty, meta, actions, footer }: { title: string; pages: Page[]; empty: string; meta?: (p: Page) => string; actions?: (p: Page) => React.ReactNode; footer?: React.ReactNode }) {
   return (
     <>
@@ -427,9 +475,11 @@ export function Sidebar() {
   const pages = useApp((s) => s.pages)
   const childMap = useMemo(() => {
     const m = new Map<string | null, Page[]>()
+    // The Templates page has its own place (the Templates view), not the Documents tree.
+    const templates = templatesFolder()?.id
     Object.values(pages).forEach((p) => {
       // Database rows are listed inside their database, not in the tree.
-      if (p.trashedAt != null || p.archived || p.databaseId) return
+      if (p.trashedAt != null || p.archived || p.databaseId || p.id === templates) return
       const parent = p.parentId && pages[p.parentId] && pages[p.parentId].trashedAt == null ? p.parentId : null
       if (!m.has(parent)) m.set(parent, [])
       m.get(parent)!.push(p)
@@ -511,6 +561,8 @@ export function Sidebar() {
     )
   } else if (view === 'tags') {
     body = <TagsView />
+  } else if (view === 'templates') {
+    body = <TemplatesView childMap={childMap} />
   } else if (view === 'burrow') {
     body = <BurrowPanel />
   } else {

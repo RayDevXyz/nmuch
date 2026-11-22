@@ -13,7 +13,7 @@ import { AddPropertyMenu, anchorOf, FilterMenu, PropertyMenu, SortMenu, ViewSett
 import { useDatabase } from './useDatabase'
 import type { DatabaseResult, Property, Row, ViewKind } from './types'
 
-const VIEW_ICON: Record<ViewKind, typeof Table2> = { table: Table2, board: SquareKanban, gallery: LayoutGrid }
+export const VIEW_ICON: Record<ViewKind, typeof Table2> = { table: Table2, board: SquareKanban, gallery: LayoutGrid }
 
 type Menu =
   | { kind: 'prop'; prop: Property; at: Anchor }
@@ -29,12 +29,15 @@ export function DatabaseView({
   viewId,
   onViewChange,
   inline,
+  linked,
   editable = true,
 }: {
   databaseId: string
   viewId?: string
   onViewChange?: (viewId: string) => void
   inline?: boolean
+  /** Shown on a page that isn't the database's own (a linked view). */
+  linked?: boolean
   editable?: boolean
 }) {
   const [localView, setLocalView] = useState<string | undefined>(viewId)
@@ -75,6 +78,7 @@ export function DatabaseView({
       {inline && (
         <button className="db-heading" onClick={(e) => openPage(databaseId, e.ctrlKey || e.metaKey ? 'tab' : 'replace')} title="Open the database as a page">
           <span>{result.icon || '🗂️'}</span> {result.title || 'Untitled database'}
+          {linked && <small className="db-linked" title="This database lives on another page; edits here show there too">↗ Linked</small>}
         </button>
       )}
       <div className="db-bar">

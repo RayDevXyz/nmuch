@@ -24,6 +24,7 @@ import { expandMocs, MocBlock } from '../moc/MocBlock'
 import { templateCall, templateSlashExtras } from '../templates/editor'
 import { pickCalloutStyle } from '../callouts/CalloutStyle'
 import { FormulaInline } from '../formulas/Formula'
+import { pickDatabaseView } from '../database/LinkDatabase'
 import { PagePropsButton, PagePropsInline } from '../properties/PageProps'
 import { frontMatter, readProps } from '../properties/model'
 import { Canvas } from '../edgeless/Canvas'
@@ -332,8 +333,16 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
         return { databaseId: db.id, viewId: def.views[0]?.id ?? '' }
       },
       DatabaseBlock: ({ databaseId, viewId, editable, onViewChange }) => (
-        <DatabaseView databaseId={databaseId} viewId={viewId} onViewChange={onViewChange} editable={editable} inline />
+        <DatabaseView
+          databaseId={databaseId}
+          viewId={viewId}
+          onViewChange={onViewChange}
+          editable={editable}
+          inline
+          linked={getState().pages[databaseId]?.parentId !== pageId}
+        />
       ),
+      pickDatabaseView: () => pickDatabaseView(pageId),
       WidgetBlock: (props) => <WidgetBlock {...props} pageId={pageId} />,
       MocBlock: (props) => <MocBlock {...props} pageId={pageId} />,
       templateCall: (text) => templateCall(text, pageId),
@@ -342,7 +351,13 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
       // A bookmark dragged from the Burrow panel becomes a card.
       dropContent: (data) => {
         const b = droppedBookmark(data)
-        return b ? cardContent(b) : null
+        if (b) return cardContent(b)
+        // A page dragged from the sidebar: a database shows here (a linked view); a page is linked.
+        const dragged = data.getData('application/x-brainwaves-page')
+        const page = dragged ? getState().pages[dragged] : null
+        if (!page || page.id === pageId) return null
+        if (page.kind === 'database') return [{ type: 'database', attrs: { databaseId: page.id, viewId: '' } }]
+        return [{ type: 'pageLink', attrs: { pageId: page.id } }]
       },
       // A getter: the slash menu reads it on every keystroke, so newly installed widgets show up.
       get slashExtras() {

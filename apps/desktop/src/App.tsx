@@ -12,6 +12,7 @@ import { HelpModal } from './components/HelpModal'
 import { SyncDialog } from './sync/SyncDialog'
 import { openTemplateDialog, TemplateDialog } from './templates/TemplateDialog'
 import { CalloutStyleMenu } from './callouts/CalloutStyle'
+import { LinkDatabaseDialog } from './database/LinkDatabase'
 import { ImportDialog } from './components/ImportDialog'
 import { WidgetsDialog } from './widgets/WidgetsDialog'
 import { ModulesDialog } from './modules/ModulesDialog'
@@ -173,6 +174,7 @@ export default function App() {
       <SyncDialog />
       <TemplateDialog />
       <CalloutStyleMenu />
+      <LinkDatabaseDialog />
       {widgetsDialog && <WidgetsDialog />}
       {modulesDialog && <ModulesDialog />}
       <CompendiumHost />

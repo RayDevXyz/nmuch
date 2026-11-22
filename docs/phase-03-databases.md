@@ -305,3 +305,18 @@ The build order continues with **phase 4: the widget data API**. Most of it alre
 - `setValue` / `createRow` is `db.mutate(rowId, patch)`.
 
 What remains is the widget packaging and the per-widget access declarations.
+
+## Linked databases: one database, shown on other pages
+
+A database lives on one page, but you can show it on as many pages as you like:
+- **`/linked database`:** pick a database. Then pick either **A new view just for this page** or one of the database's views.
+  - **A new view just for this page:** a copy of its first view, named after the page. Its filters, sorts and grouping change only that view.
+  - **One of the database's views:** a shared view. Changing its filters or sorts changes it everywhere it's shown.
+- **Drag a database from the sidebar** into a page: it shows there too. Dragging an ordinary page in adds a link to it.
+
+**How a linked database behaves:**
+- **Same rows everywhere:** the rows stay in the database. Adding a row, editing a cell or renaming a row in a linked view changes the database, and every other place shows the change.
+- **The label:** a linked database's heading has a small **↗ Linked** label. Click the heading to open the database itself.
+- **Removing it** from a page never deletes the database.
+
+**Under the hood:** it's the same `database` block, which holds the database's id and the view's id (`viewId`; empty means the first view). "Linked" just means the database's page isn't this page. See `apps/desktop/src/database/LinkDatabase.tsx`.

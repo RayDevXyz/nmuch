@@ -40,6 +40,7 @@ export type SlashId =
   | 'page'
   | 'database'
   | 'databasePage'
+  | 'linkedDatabase'
   | 'table'
   | 'moc'
   | 'formula'
@@ -74,6 +75,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'columns3', label: '3 columns', desc: 'Three columns side by side', icon: Columns3, keywords: 'columns layout side split three grid' },
   { id: 'columns4', label: '4 columns', desc: 'Four columns side by side', icon: Columns4, keywords: 'columns layout side split four grid' },
   { id: 'database', label: 'Database', desc: 'Table, board or gallery in this page', icon: Table2, keywords: 'table board kanban gallery inline db' },
+  { id: 'linkedDatabase', label: 'Linked database', desc: 'Show an existing database here', icon: Table2, keywords: 'linked database view existing table board gallery embed show other' },
   { id: 'databasePage', label: 'Database page', desc: 'A new database as its own page', icon: Table2, keywords: 'table board full page db' },
   { id: 'formula', label: 'Formula', desc: 'A live value: a property, a database total, some logic', icon: Sigma, keywords: 'formula value property database calc sum count if logic inline =' },
   { id: 'moc', label: 'Map of content', desc: 'Links to pages that stay up to date', icon: MapIcon, keywords: 'moc index overview toc contents links hub sub-pages children tag' },
@@ -146,6 +148,11 @@ export function runSlash(editor: Editor, id: SlashId, range?: Range) {
     case 'image':
       chain().run()
       return pickImages(editor)
+    case 'linkedDatabase': {
+      chain().run()
+      void maybeHost(editor)?.pickDatabaseView?.().then((r) => r && editor.chain().focus().insertDatabase(r.databaseId, r.viewId).run())
+      return true
+    }
     case 'database':
     case 'databasePage': {
       chain().run()

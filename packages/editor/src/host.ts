@@ -50,6 +50,8 @@ export interface EditorHost {
    * database becomes a sub-page of it); otherwise a database page linked from here.
    */
   createDatabase?(opts: { inline: boolean }): Promise<{ databaseId: string; viewId: string }>
+  /** Pick an existing database (and a view) to show here: `/linked database`. */
+  pickDatabaseView?(): Promise<{ databaseId: string; viewId: string } | null>
   /** Renders an inline database block (the editor only stores which database and view). */
   DatabaseBlock?: ComponentType<DatabaseBlockProps>
   /** Renders a widget block (sandboxed by the host; the core checks its data access). */

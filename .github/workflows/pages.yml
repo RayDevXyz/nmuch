@@ -1,0 +1,41 @@
+name: Publish the website
+
+# The promotion site in site/, with the screenshots from docs/images, on GitHub Pages.
+# Once: Settings → Pages → Build and deployment → Source: GitHub Actions.
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "docs/images/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Put the site together
+        run: |
+          mkdir -p _site/images
+          cp -r site/. _site/
+          # Only the screenshots the page uses.
+          for img in $(grep -o 'images/[a-z0-9-]*\.png' site/index.html | sort -u); do cp "docs/$img" "_site/$img"; done
+          touch _site/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

@@ -31,6 +31,6 @@ export const BLOCK_TYPES = [
 
 export type BlockTypeName = (typeof BLOCK_TYPES)[number]
 
-export const INLINE_TYPES = ['ref', 'hardBreak'] as const
+export const INLINE_TYPES = ['ref', 'hardBreak', 'formula'] as const
 
 export type RefKind = 'page' | 'block'

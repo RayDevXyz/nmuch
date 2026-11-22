@@ -63,7 +63,8 @@ export function collectVars(texts: Iterable<string>): Variable[] {
   const out = new Map<string, Variable>()
   for (const t of texts) {
     for (const m of t.matchAll(VAR)) {
-      if (m[1] || isBuiltin(m[2])) continue
+      // `{{= …}}` is a formula (a live value), not a template field.
+      if (m[1] || isBuiltin(m[2]) || m[2].trim().startsWith('=')) continue
       if (/^template\s*:/i.test(m[2].trim())) continue
       const v = parseVar(m[2])
       if (!v.name) continue
@@ -142,6 +143,7 @@ export function render(text: string, ctx: Context): string {
   if (!text.includes('{{')) return text
   return text.replace(VAR, (all, esc: string, raw: string) => {
     if (esc) return all.slice(1)
+    if (raw.trim().startsWith('=')) return all
     if (/^template\s*:/i.test(raw.trim())) return all
     const b = isBuiltin(raw) ? builtin(raw, ctx) : null
     if (b !== null) return b

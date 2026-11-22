@@ -65,6 +65,7 @@ const DOC: JSONContent = {
         { type: 'tableRow', attrs: { id: 'tr2' }, content: [{ type: 'tableCell', attrs: { id: 'td1', colspan: 1, rowspan: 1, colwidth: null }, content: [p('td1p', t('Ada', ['bold']))] }] },
       ],
     },
+    p('pf', t('Read '), { type: 'formula', attrs: { expr: '[[Books]].count(Read)' } }, t(' books')),
     p('p2', t('link', ['link'])),
   ],
 }

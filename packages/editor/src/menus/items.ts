@@ -9,6 +9,7 @@ import {
   Columns3,
   Columns4,
   Map as MapIcon,
+  Sigma,
   Heading1,
   Heading2,
   Heading3,
@@ -41,6 +42,7 @@ export type SlashId =
   | 'databasePage'
   | 'table'
   | 'moc'
+  | 'formula'
   | 'columns2'
   | 'columns3'
   | 'columns4'
@@ -73,6 +75,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'columns4', label: '4 columns', desc: 'Four columns side by side', icon: Columns4, keywords: 'columns layout side split four grid' },
   { id: 'database', label: 'Database', desc: 'Table, board or gallery in this page', icon: Table2, keywords: 'table board kanban gallery inline db' },
   { id: 'databasePage', label: 'Database page', desc: 'A new database as its own page', icon: Table2, keywords: 'table board full page db' },
+  { id: 'formula', label: 'Formula', desc: 'A live value: a property, a database total, some logic', icon: Sigma, keywords: 'formula value property database calc sum count if logic inline =' },
   { id: 'moc', label: 'Map of content', desc: 'Links to pages that stay up to date', icon: MapIcon, keywords: 'moc index overview toc contents links hub sub-pages children tag' },
   { id: 'page', label: 'Sub-page', desc: 'Nest a new page inside this one', icon: FileText, keywords: 'page subpage child document link' },
 ]
@@ -157,6 +160,8 @@ export function runSlash(editor: Editor, id: SlashId, range?: Range) {
     case 'columns3':
     case 'columns4':
       return chain().insertColumns(Number(id.slice(-1))).run()
+    case 'formula':
+      return chain().insertFormula('').run()
     case 'moc':
       return chain().insertMoc({ source: 'children' }).run()
     case 'page': {

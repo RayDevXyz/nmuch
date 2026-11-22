@@ -7,6 +7,7 @@ function inline(nodes: JSONContent[] | undefined, titleOf: TitleOf): string {
   return (nodes ?? [])
     .map((n) => {
       if (n.type === 'hardBreak') return '\n'
+      if (n.type === 'formula') return `{{= ${n.attrs?.expr ?? ''}}}`
       if (n.type === 'ref') {
         const t = titleOf(n.attrs?.kind ?? 'page', n.attrs?.target ?? '')
         return n.attrs?.kind === 'block' ? `((${t}))` : `[[${t}]]`

@@ -22,6 +22,8 @@ import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
 import { expandMocs, MocBlock } from '../moc/MocBlock'
 import { templateCall, templateSlashExtras } from '../templates/editor'
+import { pickCalloutStyle } from '../callouts/CalloutStyle'
+import { FormulaInline } from '../formulas/Formula'
 import { PagePropsButton, PagePropsInline } from '../properties/PageProps'
 import { frontMatter, readProps } from '../properties/model'
 import { Canvas } from '../edgeless/Canvas'
@@ -335,6 +337,8 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
       WidgetBlock: (props) => <WidgetBlock {...props} pageId={pageId} />,
       MocBlock: (props) => <MocBlock {...props} pageId={pageId} />,
       templateCall: (text) => templateCall(text, pageId),
+      pickCalloutStyle,
+      FormulaInline: (props) => <FormulaInline {...props} pageId={pageId} />,
       // A bookmark dragged from the Burrow panel becomes a card.
       dropContent: (data) => {
         const b = droppedBookmark(data)

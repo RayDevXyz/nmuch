@@ -15,7 +15,7 @@ pub const REF_MARK: char = '\u{FFFC}';
 /// Bump when the projection's tables or contents change: an index of another version is
 /// dropped and rebuilt from the log on open. 3 = databases (`page_meta.kind`/`database_id`).
 /// 5 = page themes (`page_meta.theme`).
-pub const INDEX_VERSION: i64 = 5;
+pub const INDEX_VERSION: i64 = 6;
 
 const CREATE_PROJECTION: &str = r#"
     CREATE TABLE IF NOT EXISTS index_version (v INTEGER NOT NULL);
@@ -196,6 +196,11 @@ pub(crate) fn project_page(
                 ins_tag.execute(params![b.id, b.page_id, tag])?;
             }
         }
+    }
+
+    // Tags from the page's "Tags" property belong to the page itself (its root block).
+    for tag in &snap.property_tags {
+        ins_tag.execute(params![snap.page_id, snap.page_id, tag])?;
     }
 
     tx.execute(

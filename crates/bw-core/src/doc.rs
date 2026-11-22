@@ -1007,11 +1007,13 @@ pub fn snapshot(doc: &Doc, page_id: &str) -> Result<PageSnapshot> {
     let db_props = doc.get_or_insert_map(keys::DB_PROPERTIES);
     let db_views = doc.get_or_insert_map(keys::DB_VIEWS);
     let surface = doc.get_or_insert_map(keys::SURFACE);
+    let page_props = doc.get_or_insert_map(keys::PAGE_PROPERTIES);
     let txn = doc.transact();
     if page.get(&txn, keys::ID).is_none() {
         return Err(Error::PageNotFound(page_id.to_string()));
     }
     let meta = read_meta(&txn, &page);
+    let property_tags = read_property_tags(&txn, &page_props);
     let props_of = |id: &str| -> BTreeMap<String, serde_json::Value> {
         match props.get(&txn, id) {
             Some(Out::YMap(m)) => m
@@ -1104,7 +1106,36 @@ pub fn snapshot(doc: &Doc, page_id: &str) -> Result<PageSnapshot> {
         meta,
         blocks,
         database,
+        property_tags,
     })
+}
+
+/// Tags given in the page's properties: the values of a property named "Tags" or "Tag"
+/// (multi-select, select or text; text is split at commas). Lower-cased like `#tags`, with a
+/// leading `#` dropped and spaces turned into `-`, so `Sci Fi` and `#sci-fi` are one tag.
+fn read_property_tags<T: ReadTxn>(txn: &T, props: &MapRef) -> Vec<String> {
+    let mut out: Vec<String> = vec![];
+    for (_, v) in props.iter(txn) {
+        let Out::Any(a) = v else { continue };
+        let p = to_json(&a);
+        let name = p["name"].as_str().unwrap_or("").trim().to_lowercase();
+        if name != "tags" && name != "tag" {
+            continue;
+        }
+        let values: Vec<String> = match (&p["type"], &p["value"]) {
+            (_, serde_json::Value::Array(vs)) => vs.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
+            (t, serde_json::Value::String(s)) if t == "text" => s.split(',').map(str::to_string).collect(),
+            (_, serde_json::Value::String(s)) => vec![s.clone()],
+            _ => vec![],
+        };
+        for v in values {
+            let tag = v.trim().trim_start_matches('#').trim().split_whitespace().collect::<Vec<_>>().join("-").to_lowercase();
+            if !tag.is_empty() && !out.contains(&tag) {
+                out.push(tag);
+            }
+        }
+    }
+    out
 }
 
 /// Columns and views of a database page. Entries that don't parse (written by a newer

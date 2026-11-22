@@ -52,7 +52,7 @@ Open the settings with the gear in its top-right corner. The choices:
 
 | Setting | Options |
 |---|---|
-| Show | sub-pages of this page (default) · pages with a tag · rows of a database · all pages |
+| Show | sub-pages of this page (default) · pages with a tag (in the text or in a Tags property) · rows of a database · all pages |
 | Levels | 1–3: nest sub-pages of sub-pages (for sub-pages and all pages) |
 | Sort | as in the sidebar · A–Z · last updated · created |
 | Group | none · first letter · parent page |

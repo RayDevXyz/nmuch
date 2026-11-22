@@ -4,7 +4,7 @@ import type * as Y from 'yjs'
 import { Popover } from '../components/Popover'
 import { Chip, PropIcon } from '../database/cells'
 import { COLORS } from '../database/types'
-import { openExternal } from '../lib/storage'
+import { db, openExternal } from '../lib/storage'
 import { addProp, moveProp, PROP_TYPES, removeProp, setShowProps, updateProp, usePageProps, type PageProp, type PagePropType } from './model'
 
 const colorOf = (p: PageProp, v: string) => COLORS[Math.max(0, (p.options ?? []).indexOf(v)) % COLORS.length]
@@ -51,7 +51,13 @@ function Choices({ doc, p }: { doc: Y.Doc; p: PageProp }) {
     if (!t) return
     updateProp(doc, p.id, { value: multi ? [...new Set([...vals, t])] : t })
   }
-  const unused = (p.options ?? []).filter((o) => !vals.includes(o))
+  // A "Tags" property is the page's tags: suggest the workspace's tags too.
+  const isTags = /^tags?$/i.test(p.name.trim())
+  const [known, setKnown] = useState<string[]>([])
+  useEffect(() => {
+    if (isTags) db().tags().then((ts) => setKnown(ts.map((t) => t.tag)), () => {})
+  }, [isTags])
+  const unused = [...new Set([...(p.options ?? []), ...known])].filter((o) => !vals.some((v) => v.toLowerCase() === o.toLowerCase()))
   return (
     <div className="pp-choices">
       {vals.map((v) => (
@@ -69,7 +75,7 @@ function Choices({ doc, p }: { doc: Y.Doc; p: PageProp }) {
             onChange={(e) => {
               const t = e.target.value
               // Picking from the suggestions fills the box with an exact choice: take it at once.
-              if ((p.options ?? []).includes(t) && t !== text) return add(t)
+              if (unused.includes(t) && t !== text) return add(t)
               setText(t)
             }}
             onKeyDown={(e) => e.key === 'Enter' && add(text)}

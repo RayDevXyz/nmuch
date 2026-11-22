@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Archive, BookmarkCheck, CircleHelp, Clock3, Home, PanelLeft, Search, Star, Tag, Trash2 } from 'lucide-react'
+import { Archive, BookmarkCheck, CircleHelp, Clock3, FileStack, Home, PanelLeft, Search, Star, Tag, Trash2 } from 'lucide-react'
 import { setView } from '../state/actions'
 import { setState, useApp, type View } from '../state/store'
 import { IconButton } from './TopBar'
@@ -34,6 +34,7 @@ export function LeftRail() {
         {item('favorites', <Star />, 'Favorites', favCount)}
         <div className="nav-divider" />
         {item('tags', <Tag />, 'Tags')}
+        {item('templates', <FileStack />, 'Templates')}
         {item('archive', <Archive />, 'Archive')}
         {item('trash', <Trash2 />, 'Trash', trashCount)}
         <div className="nav-divider" />

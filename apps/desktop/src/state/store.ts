@@ -44,6 +44,8 @@ export interface AppState {
   importDialog: boolean
   /** The "Sync with a server" dialog (desktop app). */
   syncDialog: boolean
+  /** The template form, and what to do with its result. */
+  templateDialog: import('../templates/TemplateDialog').TemplateRequest | null
   widgetsDialog: boolean
   modulesDialog: boolean
   /** request for the editor to scroll to / focus a block once a page is open */
@@ -93,6 +95,7 @@ let state: AppState = {
   help: false,
   importDialog: false,
   syncDialog: false,
+  templateDialog: null,
   widgetsDialog: false,
   modulesDialog: false,
   reveal: null,

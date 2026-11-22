@@ -10,6 +10,7 @@ import { RightPanel } from './components/RightPanel'
 import { QuickFind } from './components/QuickFind'
 import { HelpModal } from './components/HelpModal'
 import { SyncDialog } from './sync/SyncDialog'
+import { openTemplateDialog, TemplateDialog } from './templates/TemplateDialog'
 import { ImportDialog } from './components/ImportDialog'
 import { WidgetsDialog } from './widgets/WidgetsDialog'
 import { ModulesDialog } from './modules/ModulesDialog'
@@ -102,6 +103,10 @@ export default function App() {
       } else if (k === 'n' && !e.shiftKey) {
         e.preventDefault()
         createPage({ open: 'tab' })
+      } else if (k === 'n' && e.shiftKey) {
+        // Ctrl+Shift+N: a new page from a template.
+        e.preventDefault()
+        openTemplateDialog({ parentId: null })
       } else if (e.code === 'Backslash') {
         e.preventDefault()
         if (e.shiftKey) setState({ rightOpen: !s.rightOpen })
@@ -165,6 +170,7 @@ export default function App() {
       {help && <HelpModal />}
       {importDialog && <ImportDialog />}
       <SyncDialog />
+      <TemplateDialog />
       {widgetsDialog && <WidgetsDialog />}
       {modulesDialog && <ModulesDialog />}
       <CompendiumHost />

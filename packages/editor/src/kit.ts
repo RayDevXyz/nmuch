@@ -17,6 +17,7 @@ import { PageLink } from './nodes/page-link'
 import { Ref } from './nodes/ref'
 import { MarkdownPaste } from './nodes/markdown-paste'
 import { Tags } from './nodes/tags'
+import { TemplateCall } from './nodes/template-call'
 import { BlockRefSuggestion, PageLinkSuggestion, SlashCommands } from './menus/suggestions'
 
 export interface KitOptions {
@@ -64,7 +65,7 @@ export function editorExtensions({ fragment, host }: KitOptions): Extensions {
         return ''
       },
     }),
-    ...(host ? [SlashCommands, PageLinkSuggestion, BlockRefSuggestion, MarkdownPaste] : []),
+    ...(host ? [SlashCommands, PageLinkSuggestion, BlockRefSuggestion, MarkdownPaste, TemplateCall] : []),
     ...(fragment ? [Collaboration.configure({ fragment })] : []),
   ]
 }

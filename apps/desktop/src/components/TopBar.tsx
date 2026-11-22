@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { refreshModules } from '../modules/api'
-import { ChevronDown, CircleHelp, Download, FilePlus2, HardDrive, KeyRound, Menu, Moon, Palette, Smartphone, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle, RefreshCw } from 'lucide-react'
+import { ChevronDown, CircleHelp, Download, FilePlus2, FileStack, HardDrive, KeyRound, Menu, Moon, Palette, Smartphone, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle, RefreshCw } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
@@ -8,6 +8,7 @@ import { MenuList, Popover } from './Popover'
 import { activeTheme, BUILTIN } from '../theme/themes'
 import { AccountDialog } from '../auth/Account'
 import { SyncChip } from '../sync/SyncDialog'
+import { openTemplateDialog } from '../templates/TemplateDialog'
 import { hostedUser } from '../state/hosted'
 import { useInstall } from '../mobile/pwa'
 
@@ -207,6 +208,7 @@ export function TopBar() {
             onDone={() => setMenu(null)}
             items={[
               { label: 'New page', icon: <FilePlus2 size={14} />, hint: 'Ctrl N', onSelect: () => createPage() },
+              { label: 'New page from template…', icon: <FileStack size={14} />, hint: 'Ctrl Shift N', onSelect: () => openTemplateDialog({ parentId: null }) },
               { label: 'Quick find', icon: <Search size={14} />, hint: 'Ctrl K', onSelect: () => setState({ quickFind: true }) },
               'sep',
               {

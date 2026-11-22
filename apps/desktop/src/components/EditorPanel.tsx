@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react'
 import { showsCanvas, useRoles } from '../dnd/api'
-import { Archive, ArchiveRestore, ChevronRight, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, BookmarkCheck, Palette, Plus, Shapes, Star, Table2, Trash2, X } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronRight, FileStack, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, BookmarkCheck, Palette, Plus, Shapes, Star, Table2, Trash2, X } from 'lucide-react'
 import { ancestors, closeTab, convertPage, createPage, duplicatePage, openPage, setArchived, toggleFavorite, trashPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
 import { Editor, pageMarkdown } from '../editor/Editor'
 import { IconButton } from './TopBar'
 import { MenuList, Popover, type MenuEntry } from './Popover'
 import { openPageThemeMenu, usePageThemeStyle } from '../theme/PageTheme'
+import { saveAsTemplate } from '../templates/apply'
+import { openTemplateDialog } from '../templates/TemplateDialog'
 import { openSaveToBurrow } from '../burrow/Save'
 import { useNarrow } from '../mobile/narrow'
 import { MobileHeader } from '../mobile/MobileChrome'
@@ -227,12 +229,14 @@ export function EditorPanel() {
               { label: 'Page theme…', icon: <Palette size={14} />, onSelect: () => setTimeout(openPageThemeMenu) },
               { label: 'Save to Burrow…', icon: <BookmarkCheck size={14} />, onSelect: () => openSaveToBurrow(page.id) },
               { label: 'Add sub-page', icon: <Plus size={14} />, onSelect: () => createPage({ parentId: page.id }) },
+              { label: 'Add sub-page from template…', icon: <FileStack size={14} />, onSelect: () => openTemplateDialog({ parentId: page.id }) },
               ...(page.databaseId
                 ? []
                 : page.kind === 'database'
                   ? [{ label: 'Turn into page', icon: <FileText size={14} />, onSelect: () => void convertPage(page.id, 'page') }]
                   : [{ label: 'Turn into database', icon: <Table2 size={14} />, onSelect: () => void convertPage(page.id, 'database') }]),
               { label: 'Duplicate page', icon: <Copy size={14} />, onSelect: () => duplicatePage(page.id) },
+              { label: 'Save as template', icon: <FileStack size={14} />, onSelect: () => void saveAsTemplate(page.id) },
               'sep',
               page.archived
                 ? { label: 'Unarchive', icon: <ArchiveRestore size={14} />, onSelect: () => setArchived(page.id, false) }

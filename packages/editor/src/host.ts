@@ -54,6 +54,11 @@ export interface EditorHost {
   DatabaseBlock?: ComponentType<DatabaseBlockProps>
   /** Renders a widget block (sandboxed by the host; the core checks its data access). */
   WidgetBlock?: ComponentType<WidgetBlockProps>
+  /**
+   * A line `{{template: Name | Field: value}}` + Enter: use that template. Return null when the
+   * line isn't one; otherwise a promise of the blocks to put in its place (null: leave it).
+   */
+  templateCall?(text: string): Promise<JSONContent[] | null> | null
   /** Renders a map of content: a live list of links to pages, from its settings. */
   MocBlock?: ComponentType<MocBlockProps>
   /** Extra `/` commands the app adds (templates, module blocks). */

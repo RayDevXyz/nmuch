@@ -60,7 +60,7 @@ export function ModulesDialog() {
         </div>
         <p>
           Modules add logic that works on your pages and files. Each one can only do what it lists below, once you approve it,
-          and only in folders you choose for it. See <code>docs/modules.md</code> to write your own.
+          and only in folders you choose for it. See <code>docs/develop/modules.md</code> to write your own.
         </p>
         <div className="widgets-list">
           {modules.map((m) => (

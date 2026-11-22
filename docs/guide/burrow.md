@@ -25,7 +25,7 @@ anything in Burrow.
 If both run in Cosmos, BrainWaves can reach Burrow by its container address
 (`http://burrow:3000`) when they share a network, or by its public address.
 
-![Burrow bookmarks in a page](images/burrow-page.png)
+![Burrow bookmarks in a page](../images/burrow-page.png)
 
 ### Using it
 
@@ -44,12 +44,12 @@ If both run in Cosmos, BrainWaves can reach Burrow by its container address
 - **Tags**: the BrainWaves **Tags** view lists, under a tag's pages, the Burrow bookmarks with the
   same tag (Burrow's nested tags too: `#research` includes `#research/web`).
 
-![Save to Burrow](images/burrow-save.png)
+![Save to Burrow](../images/burrow-save.png)
 
 ## Connect BrainWaves to Burrow (the other way)
 
 This part is a change to Burrow itself, in
-[`integrations/burrow/`](../integrations/burrow/) as a patch for the Burrow repository. Apply it
+[`integrations/burrow/`](../../integrations/burrow/) as a patch for the Burrow repository. Apply it
 once (see that folder's README), then:
 
 1. In BrainWaves: **Settings → Account and API tokens… → New token** (name it "Burrow").
@@ -58,7 +58,7 @@ once (see that folder's README), then:
 Burrow's tag pages then show **In BrainWaves** with the pages that have the same tag; each opens
 the page in BrainWaves (`#/p/<id>`).
 
-![BrainWaves pages on a Burrow tag page](images/burrow-tag-strip.png)
+![BrainWaves pages on a Burrow tag page](../images/burrow-tag-strip.png)
 
 ## How it's built
 

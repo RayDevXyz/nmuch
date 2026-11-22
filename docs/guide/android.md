@@ -5,7 +5,7 @@ an icon on the home screen, its own full-screen window, and a place in the **sha
 Chrome, YouTube, Reddit and other apps. It works on the notes on your server, so the phone,
 the browser and the desktop see the same pages.
 
-![BrainWaves on a phone: the menu, a page, sharing a link, the Inbox](images/android.png)
+![BrainWaves on a phone: the menu, a page, sharing a link, the Inbox](../images/android.png)
 
 ## Install it
 

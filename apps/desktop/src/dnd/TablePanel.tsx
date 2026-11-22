@@ -43,7 +43,7 @@ export function LiveSection({ live, title, sceneId, onShow }: { live: Live; titl
     return (
       <section className="sc-sec">
         <h3>Table server</h3>
-        <p className="sc-hint">Where your table runs (see the Docker setup in docs/table.md) and its DM key.</p>
+        <p className="sc-hint">Where your table runs (see the Docker setup in docs/guide/table.md) and its DM key.</p>
         <input className="sc-input" placeholder="http://192.168.1.20:8090" value={server} onChange={(e) => setServer(e.target.value)} />
         <input className="sc-input" type="password" placeholder="DM key" value={key} onChange={(e) => setKey(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && void save()} />
         <div className="sc-row">

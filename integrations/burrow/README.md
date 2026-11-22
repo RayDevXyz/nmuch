@@ -9,7 +9,7 @@ repository. It adds:
 - **`#/b/<id>`** links that open a bookmark (BrainWaves' "In Burrow" buttons use them).
 
 Burrow's server calls BrainWaves with the token, so the token never reaches the browser. See
-[`docs/burrow.md`](../../docs/burrow.md) for the whole integration.
+[`docs/guide/burrow.md`](../../docs/guide/burrow.md) for the whole integration.
 
 ## Apply it
 

@@ -39,7 +39,7 @@ export function WidgetsDialog() {
         </div>
         <p>
           Widgets are small apps you put in a page with <code>/</code>. Each one runs in a sandbox and only sees the
-          databases and columns you connect it to. See <code>docs/widgets.md</code> to write your own.
+          databases and columns you connect it to. See <code>docs/develop/widgets.md</code> to write your own.
         </p>
         <div className="widgets-list">
           {widgets.map((w) => (

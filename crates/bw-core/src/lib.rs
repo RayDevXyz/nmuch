@@ -9,7 +9,7 @@
 //! - [`widgets`]: widget definitions and the access-checked widget data API.
 //! - [`Core`]: the single writer that ties them together.
 //!
-//! See `docs/spike-01-block-model.md` and `docs/phase-02-editor.md`.
+//! See `docs/design/spike-01-block-model.md` and `docs/design/phase-02-editor.md`.
 
 pub mod azgaar;
 pub mod burrow;

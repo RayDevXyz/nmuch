@@ -8,7 +8,7 @@ No account and no cloud: everything is stored in one SQLite file on your machine
 
 This is the app shell of BrainWaves. Its data lives in the BrainWaves Rust core (`crates/bw-core`):
 every edit is a Yjs update in a SQLite log, and the search/backlink/tag index is rebuilt from it.
-See `docs/phase-02-editor.md` at the repository root.
+See `docs/design/phase-02-editor.md` at the repository root.
 
 Prerequisites: Node 20+, pnpm, Rust (via rustup), and the usual Tauri setup
 (Microsoft C++ Build Tools on Windows; WebView2 ships with Windows 10/11).

@@ -13,9 +13,9 @@
 **Builds on:** [Phase 3](phase-03-databases.md).
 **Plan:** step 4 of the build order in [architecture.md](architecture.md).
 
-**Want to write a widget?** [widgets.md](widgets.md) is the authoring guide.
+**Want to write a widget?** [widgets.md](../develop/widgets.md) is the authoring guide.
 
-![Widgets in a page](images/phase4-widgets.png)
+![Widgets in a page](../images/phase4-widgets.png)
 
 *One page with three widgets: a chart of courses by status, the course dashboard, and quick add.
 All are connected to the Course tracker databases from phase 3. Adding a lesson in quick add
@@ -132,7 +132,7 @@ One subtle issue came up in testing:
 3. Only columns of fitting types are offered. Obvious ones are picked for you.
 4. **+ New** creates a database with exactly the columns the widget needs.
 
-![Setup screen](images/phase4-setup.png)
+![Setup screen](../images/phase4-setup.png)
 
 **Change the connection later.** Hover a widget, then click the sliders icon in its top-right
 corner.
@@ -141,7 +141,7 @@ corner.
 file…** adds an `.html` widget. Custom widgets can be uninstalled; blocks that use them stay in
 their pages and say the widget isn't installed.
 
-![A custom widget installed from a file](images/phase4-custom.png)
+![A custom widget installed from a file](../images/phase4-custom.png)
 
 *Top: the custom test widget from section 7, installed from an `.html` file. It reports that storage and the parent page are blocked. Below it: the built-in Chart and Course dashboard.*
 

@@ -4,7 +4,7 @@ A campaign manager for the dungeon master, character sheets for the players, and
 The content comes from your own self-hosted **5etools**. Campaign pages and character sheets get
 a dark fantasy look of their own; the rest of BrainWaves keeps its normal style.
 
-![A campaign](images/dnd-3-campaign.png)
+![A campaign](../images/dnd-3-campaign.png)
 
 ---
 
@@ -30,7 +30,7 @@ rules (CORS) don't get in the way. It only fetches files under `data/` from that
 
 ## 2. The compendium
 
-![The compendium](images/dnd-1-compendium.png)
+![The compendium](../images/dnd-1-compendium.png)
 
 - **Search** across everything at once, or narrow it with the category chips.
 - **Read** an entry: monsters get a full stat block; spells, items, races, classes (with their
@@ -43,7 +43,7 @@ rules (CORS) don't get in the way. It only fetches files under `data/` from that
 - **Cards can be folded** with the arrow above them, and **📖** opens the card's entry in the
   compendium.
 
-![A stat block in a page](images/dnd-7-card.png)
+![A stat block in a page](../images/dnd-7-card.png)
 
 ---
 
@@ -98,7 +98,7 @@ and a table sorted by arc and order.
 
 ### World maps
 
-![A world map](images/dnd-6-map.png)
+![A world map](../images/dnd-6-map.png)
 
 Open **World map** from the campaign page (it opens as a canvas). Then:
 
@@ -127,7 +127,7 @@ the import window takes you there). Then, in its **Export** menu, save two files
 **2. Import it.** On the campaign page, or on the World map itself, press **Import Azgaar world**.
 Choose the JSON and the picture, choose which settlements to bring in, and press **Import world**.
 
-![Importing a world](images/dnd-azgaar-import.png)
+![Importing a world](../images/dnd-azgaar-import.png)
 
 | In Azgaar | Becomes in the campaign |
 |---|---|
@@ -145,7 +145,7 @@ Locations list useful; **All** brings in every hamlet.
 - Double-click any pin to open its page. Add NPCs there, link story beats, write about it: it's
   an ordinary page.
 
-![The imported world](images/dnd-azgaar-map.png)
+![The imported world](../images/dnd-azgaar-map.png)
 
 **4. Change the world and import again.** Rename a city, move a border, add a landmark in Azgaar,
 then import again:
@@ -180,7 +180,7 @@ Type **`/character`** in any page (or press **New character** on the Characters 
 The character gets a page with the **sheet** at the top, and room for backstory and notes below
 it.
 
-![A character sheet](images/dnd-5-sheet.png)
+![A character sheet](../images/dnd-5-sheet.png)
 
 - **Status:** HP, XP and hit-dice bars.
   - Type an amount, then **Damage**, **Heal** or **Temp** (temporary hit points absorb damage
@@ -205,7 +205,7 @@ it.
 - **Level up:** adds the average hit points for your hit die plus your Constitution modifier.
   Spell slots, proficiency bonus and features follow from the new level.
 
-![Spells on the sheet](images/dnd-8-sheet-spells.png)
+![Spells on the sheet](../images/dnd-8-sheet-spells.png)
 
 The **Characters** database shows every character's race, class, level, HP and AC. Its **Party**
 view is a gallery. A character's **Campaign** puts it in that campaign's party.
@@ -309,5 +309,5 @@ BrainWaves' module system (phase 6) runs the D&D module as a first-party module,
 - **5etools `_mod` edits** (used by some variant monsters and items) aren't applied. The copy's
   own fields win.
 - **Multiclassing** isn't modelled.
-- **Encounters and initiative tracking** for the table aren't here yet. They would fit naturally
-  next to sessions.
+- **Encounters** (prepared groups of monsters) aren't modelled yet. Initiative is tracked on a
+  battle map's table: see [the table](table.md).

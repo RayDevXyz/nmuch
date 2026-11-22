@@ -225,6 +225,12 @@ impl NewBlock {
         Self::el(node::MOC, vec![("settings", Any::from(settings.to_string()))], vec![])
     }
 
+    /// Columns side by side, each with one paragraph.
+    pub fn columns(texts: &[&str]) -> XNode {
+        let cols = texts.iter().map(|t| Self::el(node::COLUMN, vec![], vec![Self::paragraph(t)])).collect();
+        Self::el(node::COLUMNS, vec![("widths", Any::from(""))], cols)
+    }
+
     /// A simple table; the first row is the header row.
     pub fn table(rows: &[&[&str]]) -> XNode {
         let rows = rows
@@ -873,7 +879,7 @@ impl<'a, 'doc> BlockTxn<'a, 'doc> {
             }
             // A table cell must hold a block: leave it an empty paragraph.
             (Container::Block(e), Some(pb))
-                if e.len(&*self.txn) == 0 && [node::TABLE_HEADER, node::TABLE_CELL].contains(&pb.tag().as_ref()) =>
+                if e.len(&*self.txn) == 0 && [node::TABLE_HEADER, node::TABLE_CELL, node::COLUMN].contains(&pb.tag().as_ref()) =>
             {
                 write_xnode(self.txn, e, 0, &NewBlock::paragraph(""));
             }

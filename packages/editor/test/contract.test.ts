@@ -50,6 +50,14 @@ const DOC: JSONContent = {
     },
     { type: 'moc', attrs: { id: 'moc1', settings: '{"source":"children"}' } },
     {
+      type: 'columns',
+      attrs: { id: 'cols1', widths: '1,2' },
+      content: [
+        { type: 'column', attrs: { id: 'col1' }, content: [p('col1p', t('Left'))] },
+        { type: 'column', attrs: { id: 'col2' }, content: [p('col2p', t('Right'))] },
+      ],
+    },
+    {
       type: 'table',
       attrs: { id: 'tb1' },
       content: [

@@ -12,6 +12,7 @@ import { Callout } from './nodes/callout'
 import { Database } from './nodes/database'
 import { Widget } from './nodes/widget'
 import { Moc } from './nodes/moc'
+import { Column, Columns } from './nodes/columns'
 import { Image } from './nodes/image'
 import { PageLink } from './nodes/page-link'
 import { Ref } from './nodes/ref'
@@ -46,6 +47,8 @@ export function schemaExtensions(): Extensions {
     Database,
     Widget,
     Moc,
+    Columns,
+    Column,
     // Simple tables: a header row and plain cells. Columns can be resized by dragging.
     TableKit.configure({ table: { resizable: true, cellMinWidth: 60, lastColumnResizable: true, allowTableNodeSelection: true } }),
     Ref,

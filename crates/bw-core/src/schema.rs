@@ -106,6 +106,9 @@ pub mod node {
     pub const TABLE_ROW: &str = "tableRow";
     pub const TABLE_HEADER: &str = "tableHeader";
     pub const TABLE_CELL: &str = "tableCell";
+    /// Columns side by side: `columns` > `column` > blocks. attrs: `widths` ("1,2,1"; empty: equal).
+    pub const COLUMNS: &str = "columns";
+    pub const COLUMN: &str = "column";
 
     /// Inline reference. attrs: `kind` ("page" | "block"), `target` (id).
     pub const REF: &str = "ref";
@@ -129,9 +132,10 @@ pub mod node {
     /// Mirror of the ProseMirror content expressions: may `child` appear inside `parent`?
     /// `parent == NOTE` means the top level of a note.
     pub fn allows(parent: &str, child: &str) -> bool {
-        let block = !is_inline(child) && ![LIST_ITEM, TASK_ITEM, TABLE_ROW, TABLE_HEADER, TABLE_CELL].contains(&child);
+        let block = !is_inline(child) && ![LIST_ITEM, TASK_ITEM, TABLE_ROW, TABLE_HEADER, TABLE_CELL, COLUMN].contains(&child);
         match parent {
-            NOTE | BLOCKQUOTE | LIST_ITEM | TASK_ITEM | TABLE_HEADER | TABLE_CELL => block,
+            NOTE | BLOCKQUOTE | LIST_ITEM | TASK_ITEM | TABLE_HEADER | TABLE_CELL | COLUMN => block,
+            COLUMNS => child == COLUMN,
             BULLET_LIST | ORDERED_LIST => child == LIST_ITEM,
             TASK_LIST => child == TASK_ITEM,
             TABLE => child == TABLE_ROW,

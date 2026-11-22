@@ -21,6 +21,8 @@ export const BLOCK_TYPES = [
   'database',
   'widget',
   'moc',
+  'columns',
+  'column',
   'table',
   'tableRow',
   'tableHeader',

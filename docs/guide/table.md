@@ -5,9 +5,9 @@ stands where, what's still hidden in the fog. **The table** is a small server yo
 home server. Players open its link in any browser (laptop, tablet, phone) and see the battle map
 live, with only what you've revealed.
 
-![The DM's battle map in BrainWaves](images/table-dm.png)
+![The DM's battle map in BrainWaves](../images/table-dm.png)
 
-![What a player sees](images/table-player.png)
+![What a player sees](../images/table-player.png)
 
 What players can do at the table:
 
@@ -122,7 +122,7 @@ While you're live:
 - **Dice**: your rolls are **secret** by default (only you see them). Untick *secret* to roll
   in the open.
 
-![A move request waiting for the DM](images/table-request.png)
+![A move request waiting for the DM](../images/table-request.png)
 
 **End** closes your connection; the room stays, so **Go live** later re-opens the same room with
 the same link. Players who stay connected see "DM away" in the meantime.
@@ -134,7 +134,7 @@ short form: a name, race, class, background and alignment, their ability scores,
 skills, and a backstory if they like. The options come from your 5etools, limited by the
 campaign's rules. Nothing joins the campaign until you approve it.
 
-![Building a character on the table site](images/table-character-new.png)
+![Building a character on the table site](../images/table-character-new.png)
 
 **The rules** are in the campaign's **Players' table** panel, under **Character rules**:
 
@@ -157,7 +157,7 @@ many skills, and so on).
 - **Send back** needs a note telling the player what to change. They see the note, edit the
   character and resend it.
 
-![Reviewing a submitted character](images/table-character-review.png)
+![Reviewing a submitted character](../images/table-character-review.png)
 
 **Seeing their character.** Players click their character to see the sheet: scores, saves and
 skills with their bonuses, hit points, AC, spells, equipment and backstory. The sheet stays in
@@ -165,7 +165,7 @@ BrainWaves, and players see your changes (damage, a level up) within a few secon
 also open the other party members' sheets. When you put their character's token on the map
 you're showing, their page picks that token for them.
 
-![A player's character sheet on the table site](images/table-character-sheet.png)
+![A player's character sheet on the table site](../images/table-character-sheet.png)
 
 Players are known by their browser: the table site keeps a random id there, so their
 characters are waiting when they come back. A player who switches to another browser or device

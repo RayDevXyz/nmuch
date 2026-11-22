@@ -3,7 +3,7 @@
 The theme editor restyles the whole app as you edit it: the app itself is the preview. Open it
 from **Settings → Theme editor…** or the app menu (BrainWaves ▾ → **Theme editor**).
 
-![Editing a dark theme](images/theme-editor-dark.png)
+![Editing a dark theme](../images/theme-editor-dark.png)
 
 ## Picking and making themes
 
@@ -28,7 +28,7 @@ from **Settings → Theme editor…** or the app menu (BrainWaves ▾ → **Them
   text, the accent, and text on accent buttons, against the WCAG AA levels. A low one is
   marked in red.
 
-![A light theme imported from a file](images/theme-editor-light.png)
+![A light theme imported from a file](../images/theme-editor-light.png)
 
 ## Choosing quickly
 
@@ -49,7 +49,7 @@ it), and **Page theme…** in its ⋯ menu.
 - The choice is stored in the page, so it syncs and survives restarts. A theme of your own
   that another computer doesn't have falls back to the parent's, or the app's.
 
-![A page in its own theme](images/page-theme.png)
+![A page in its own theme](../images/page-theme.png)
 
 ## Sharing themes
 

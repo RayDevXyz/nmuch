@@ -5,7 +5,7 @@ app and its server (`bw-server`), your own login, and your workspace in a Docker
 it in any browser at your own address, e.g. `https://notes.example.com`. The desktop app keeps
 working as before, with its own local workspace.
 
-![The first visit: make your account](images/hosted-setup.png)
+![The first visit: make your account](../images/hosted-setup.png)
 
 ## On a VPS with Cosmos Cloud
 
@@ -21,7 +21,7 @@ rebuild the table image by hand, open **Actions → Build & publish the table im
 2. **Point your domain** at the VPS: a DNS **A record** for `notes.example.com` (and
    `table.example.com` if you use the table).
 3. In Cosmos, open **ServApps**, **import a compose file**, and paste
-   [`deploy/brainwaves/cosmos-compose.yml`](../deploy/brainwaves/cosmos-compose.yml). Set
+   [`deploy/brainwaves/cosmos-compose.yml`](../../deploy/brainwaves/cosmos-compose.yml). Set
    `BW_TABLE_DM_KEY` to a long random key, or delete the `brainwaves-table` service if you don't
    use the D&D table.
 4. In Cosmos **URLs**, create:

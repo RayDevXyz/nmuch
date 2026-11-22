@@ -4,7 +4,7 @@ Any page can have a **header**: a gradient, a color or a picture across the top,
 icon, title and a subtitle on it, and links to move around: where the page is (breadcrumbs) and
 its sub-pages.
 
-![A header with its sub-pages, on a computer and on a phone](images/page-header.png)
+![A header with its sub-pages, on a computer and on a phone](../images/page-header.png)
 
 ## Add one
 
@@ -20,7 +20,7 @@ The title stays editable inside the header, like anywhere else.
 
 ## Settings
 
-![Editing a header](images/page-header-editor.png)
+![Editing a header](../images/page-header-editor.png)
 
 **Background**
 - **Gradient**: twelve ready-made ones (Aurora, Sunset, Ocean, Forest, …), or your own two or
@@ -41,7 +41,7 @@ The title stays editable inside the header, like anywhere else.
 - **Sub-pages**: the page's sub-pages, as links under the title (up to 12).
 - **Both**, or **None**.
 
-![A picture header with breadcrumbs](images/page-header-picture.png)
+![A picture header with breadcrumbs](../images/page-header-picture.png)
 
 ## How it's built
 

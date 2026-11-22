@@ -13,9 +13,9 @@ folder and the folder watcher running.
 **Builds on:** [Phase 5](phase-05-edgeless.md).
 **Plan:** step 6 of the build order in [architecture.md](architecture.md).
 
-**Using courses?** [courses.md](courses.md) is the how-to. **Writing a module?** [modules.md](modules.md) is the authoring guide.
+**Using courses?** [courses.md](../guide/courses.md) is the how-to. **Writing a module?** [modules.md](../develop/modules.md) is the authoring guide.
 
-![A course imported from a folder](images/phase6-course.png)
+![A course imported from a folder](../images/phase6-course.png)
 
 *"Rust Basics" was imported from a folder. Its lessons come from the files on disk. Opening
 "Welcome" (▶ in the File column) set *Last watched* and moved the course to *In progress*.*
@@ -117,14 +117,14 @@ A third-party module is one HTML file with a manifest, installed from **Settings
 Install from file…**. It runs in the same sandbox as widgets: scripts only, no network, no
 access to the app. You place it in a page with `/` and its name; that block is its user interface.
 
-![Settings → Modules](images/phase6-modules.png)
+![Settings → Modules](../images/phase6-modules.png)
 
 *Courses is built in and approved, and has one folder. Folder index has just been installed: it
 lists what it will be able to do, and does nothing until approved.*
 
-![The example module at work](images/phase6-module.png)
+![The example module at work](../images/phase6-module.png)
 
-*The example module, [`folder-index.html`](examples/folder-index.html), after approval and
+*The example module, [`folder-index.html`](../develop/examples/folder-index.html), after approval and
 choosing a folder. It lists the folder live (`notes.txt` appeared while it was open), and **Save as
 database** creates a database it owns, with a row per file.*
 

@@ -11,7 +11,7 @@ import { approveModule, chooseFolderFor, describeCapability, moduleCall, moduleI
 /**
  * What runs inside a module's sandbox: the `bw` client. Everything is a message to the host,
  * which adds the module's id (from the module it started, never from the message) and the
- * core checks it against the capabilities the user approved. See docs/modules.md.
+ * core checks it against the capabilities the user approved. See docs/develop/modules.md.
  */
 const CLIENT = `(() => {
   let seq = 0, readyResolve

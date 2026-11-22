@@ -49,12 +49,4 @@ Click a formula to edit it. The editor shows the result as you type, plus exampl
 - **Data:** `data.ts` reads page properties and database cells, with a cache that's cleared on every core event.
 - **Templates:** they leave `{{= … }}` alone, so a template can contain formulas.
 
-# Callout colours and styles
-
-Hover over a callout and click the colour dot in its corner. The menu has:
-- **Looks:** ready-made icon and colour pairs: Note, Info, Tip, Warning, Danger and Quote, plus your own saved styles.
-- **Colour:** the theme's accent, nine colours, or any colour from the picker.
-- **Style:** Soft (a light fill), Outline, Bar (a stripe on the left) or Solid. On a solid callout, the text turns black or white, whichever reads better.
-- **Save as a style:** names the current look so you can use it on other callouts. Saved styles are kept on this device. Each callout stores its own colour and style, so it looks the same everywhere.
-
-**In the page schema:** the callout's attributes are `icon`, `color` ('' or a hex colour) and `variant` (`soft`, `outline`, `bar` or `solid`).
+See also: [databases](databases.md) and [page properties](page-properties.md), where the values come from.

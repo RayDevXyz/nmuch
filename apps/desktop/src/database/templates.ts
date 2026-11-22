@@ -12,7 +12,7 @@ export interface CourseTracker {
  * - Lessons: Name, Course, Order, Section, Done, Duration (min), File, Last watched, Missing.
  *
  * Both databases become sub-pages of `parentId`. They start empty: **Import folder** on the
- * Courses database adds courses (see docs/courses.md).
+ * Courses database adds courses (see docs/guide/courses.md).
  */
 export async function createCourseTracker(parentId: string | null): Promise<CourseTracker> {
   const t = await courseSetup(parentId)

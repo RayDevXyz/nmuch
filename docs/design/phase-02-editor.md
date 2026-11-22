@@ -14,7 +14,7 @@
 **Builds on:** [Spike 1](spike-01-block-model.md) (update log + index).
 **Plan:** step 2 of the build order in [architecture.md](architecture.md).
 
-![The Nimbus app running on bw-core and Tiptap](images/phase2-app.png)
+![The Nimbus app running on bw-core and Tiptap](../images/phase2-app.png)
 
 *Everything in this screenshot comes from the new stack:*
 - *The page is a Y.Doc loaded from the Rust update log.*
@@ -322,7 +322,7 @@ UPDATE_FIXTURES=1 pnpm --filter @brainwaves/editor test
 
 | Slash menu | `[[` page link | `((` block ref |
 |---|---|---|
-| ![](images/phase2-slash.png) | ![](images/phase2-link.png) | ![](images/phase2-blockref.png) |
+| ![](../images/phase2-slash.png) | ![](../images/phase2-link.png) | ![](../images/phase2-blockref.png) |
 
 ---
 
@@ -405,7 +405,7 @@ Changing the identifier moves the data folder, for example on Windows from
 
 ### 12.2 The Nimbus import
 
-![Imported Nimbus page](images/phase2-import.png)
+![Imported Nimbus page](../images/phase2-import.png)
 
 ```text
 nimbus.db (read-only) ──► bw-api/nimbus.rs ──nimbusPages / nimbusBlocks──► lib/nimbus-import.ts

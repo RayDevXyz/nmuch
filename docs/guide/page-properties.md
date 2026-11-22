@@ -40,7 +40,8 @@ A property named **Tags** (or **Tag**) holds the page's tags. It can be a multi-
 
 Tags are matched without the `#` and ignoring case, and spaces become dashes, so "Sci Fi" and `#sci-fi` are the same tag. A Tags property also suggests the tags already used in the workspace.
 
-## Limits
+## Using values elsewhere
 
-Search and the map of content don't use other property values yet.
+- [Formulas](formulas.md) can read any property: `Status`, `prop("Due date")`, `[[Dune]].Rating`.
+- Search and maps of content use only the Tags property, not the other values.
 - Database rows keep their own columns, which come from their database. A row can have page properties too.

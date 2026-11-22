@@ -1,114 +1,84 @@
 # BrainWaves
 
-**A modular, block-based, local-first workspace.**
+**A local-first workspace for notes, databases and canvases.**
 
-An extensible, local-first knowledge management environment designed to combine structured block editing with powerful custom workflows. Inspired by tools like **Obsidian** and **SiYuan**, this platform bridges the gap between note-taking, plugin customization, and full-featured local app modules.
+You write in pages made of blocks. Pages link to each other, can carry properties, and can become databases with table, board and gallery views. Any page can also open as a canvas. Your data lives in one SQLite file on your computer, or on your own server, never in someone else's cloud. Modules add whole workflows on top: following a course, or running a Dungeons & Dragons campaign with live battle maps.
 
----
+![A page with a header](docs/images/page-header.png)
 
-## 🌟 Introduction
+## What it does
 
-Modern productivity tools often force a choice between local privacy, structured block editing, and workflow-specific capabilities. 
+**Writing**
+- Block editor: the `/` menu, Markdown shortcuts and drag handles.
+- Links: `[[page links]]`, `((block references))`, backlinks and a graph.
+- Content blocks: tables, columns, callouts with your own colours, images, code.
+- Page headers with pictures or gradients, breadcrumbs and sub-page navigation.
+- Page properties, shown in a pop-up or under the title.
+- Templates with fields to fill in and sub-pages: a form, or `{{template: …}}` typed in a page.
+- Formulas: live values in your text, such as `{{= [[Books]].count(Read = true)}}`.
 
-This project provides a **local-first, highly extensible workspace** built around granular block editing and modular logic. Beyond standard templates, widgets, and lightweight plugins, it introduces **Modules**—standalone, data-driven applications that execute complex logic directly over your local notes and files. 
+**Organising**
+- Databases: typed columns, relations and rollups; table, board and gallery views with filters, sorting and grouping.
+- Rows are pages: any page can become a database, and a database can be shown on other pages.
+- Maps of content: lists of pages that keep themselves up to date.
+- Tags (`#tag`, or a Tags property), quick find, full-text search.
 
-Whether you are tracking learning progress through an integrated Course Module, managing dynamic project pipelines, or orchestrating local file systems, the platform empowers you to tailor your environment entirely to your needs while keeping full ownership of your data.
+**Canvas:** an edgeless board with notes, shapes, connectors, frames and pictures. It has a side panel, smart guides, layers, groups and presenting. A page can be split into parts and laid out freely.
 
----
+**Everywhere**
+- **Desktop app** (Windows, macOS, Linux; built with Tauri).
+- **Self-hosted web app** with your own login, installable on Android.
+- **Two-way sync** between the two, which works offline.
+- A theme editor, and a theme per page.
 
-## ✨ Feature List
+**Extending**
+- **Widgets:** small HTML apps connected to your databases.
+- **Modules:** larger add-ons with their own data and blocks.
+- **Built-in modules:** Courses, and Dungeons & Dragons with a compendium, campaigns, character sheets, world maps and a battle-map table for players.
+- **Burrow:** the [Burrow](https://github.com/RayDevXyz/burrow) bookmark manager is built in.
 
-### Core Block-Based & Local-First Features (Inspired by SiYuan & Obsidian)
+## Getting started
 
-- **Granular Block Architecture**: Everything is a block (paragraphs, headings, code snippets, widgets, lists). Move, fold, link, and reference at the block level.
-- **Local-First & Data Sovereignty**: All data is stored locally in human-readable formats (e.g., Markdown/JSON/SQLite) for maximum privacy, longevity, and offline capability.
-- **Bi-Directional Linking & Block References**: Effortlessly connect concepts using `[[links]]` or directly embedding reference blocks across documents.
-- **Graph Visualization**: Interactive graph views to visualize connections between notes, blocks, tags, and modules.
-- **Flexible Layouts & Canvas**: Support for multi-window splitting, tabbed navigation, and visual canvas layouts.
+**Windows, from scratch:** double-click `scripts\install-windows.cmd`. It installs whatever is missing (Git, the C++ build tools, WebView2, Rust, Node.js and pnpm), installs the project's packages and compiles it once.
 
----
-
-## 🏗️ Architecture & Ecosystem
-
-The system uses a tiered approach to customization, allowing users and developers to extend functionality at different levels of complexity.
-
-```
-+-------------------------------------------------------------------+
-|                           USER INTERFACE                          |
-|    [ Block Editor ]   [ Graph View ]   [ Canvas ]   [ Dashboards ] |
-+-------------------------------------------------------------------+
-                                  |
-+-------------------------------------------------------------------+
-|                          EXTENSION LAYER                          |
-|  [ Templates ]  |  [ Widgets ]  |  [ Plugins ]  |   [ MODULES ]    |
-+-------------------------------------------------------------------+
-                                  |
-+-------------------------------------------------------------------+
-|                            CORE SYSTEM                            |
-|     - Local Data Store (Markdown / JSON / SQLite DB)              |
-|     - Block Graph Engine & Indexer                                |
-|     - Event Bus & Lifecycle Manager                               |
-|     - Extension Sandbox Runtime                                   |
-+-------------------------------------------------------------------+
-```
-
-### Extension Ecosystem Spectrum
-
-1. **Templates**
-   - Pure structural scaffolding for pages or blocks with variable substitution.
-   - *Example:* Daily logs, meeting agendas, project charters.
-
-2. **Widgets**
-   - Embedded UI components rendered inline within the editor canvas.
-   - *Example:* Interactive sliders, embedded calculators, audio players.
-
-3. **Plugins**
-   - Extensions that hook into editor events, command palettes, and shortcut handlers to adjust behavior or UI themes.
-   - *Example:* Custom keybindings, syntax highlighters, exporter tools.
-
-4. **Modules (Application Level)**
-   - High-level logic providers that aggregate, index, state-manage, and process local block data to build tailored workflows.
-   - **Course Module**: Ingests local course folders/files, builds interactive learning tracks, manages video/text playlists, and saves progression states directly into block metadata.
-   - **Project Management Module**: Parses task blocks across the vault to construct Kanban boards, Gantt charts, and resource allocation dashboards.
-   - **File Organization Module**: Automates local file sorting, tagging, rule-based archiving, and metadata management.
-
----
-
-## 🚀 Getting Started
-
-```
-crates/bw-core       Rust core: block model on yrs, SQLite update log (truth), rebuildable SQL index
-crates/bw-api        the command surface the frontend uses (shared by Tauri and the dev server)
-crates/bw-devserver  bw-api over HTTP, so the UI can run in a browser during development
-packages/editor      @brainwaves/editor: the Tiptap block engine (schema, nodes, menus)
-apps/desktop         the BrainWaves desktop app (Tauri + React)
-crates/bw-server     BrainWaves as a hosted web app (login, API tokens): see docs/hosting.md
-crates/bw-table      the D&D battle map table players join: see docs/table.md
-docs/                architecture.md (the plan), spike-01-block-model.md, phase-02-editor.md, phase-03-databases.md,
-                     hosting.md (your VPS), burrow.md (the Burrow integration), android.md, page-headers.md,
-                     dnd.md, table.md, themes.md
-```
-
-**On your own server:** see [docs/hosting.md](docs/hosting.md): a Docker image
-(`ghcr.io/raydevxyz/nmuch`) for Cosmos Cloud or Docker Compose, with your own login.
-It works with [Burrow](https://github.com/RayDevXyz/burrow): see [docs/burrow.md](docs/burrow.md).
-On Android it installs as an app with a place in the share menu: see [docs/android.md](docs/android.md).
-
-**Windows, from scratch:** double-click `scripts\install-windows.cmd`. It installs everything
-that's missing (Git, the C++ build tools, WebView2, Rust, Node.js, pnpm), installs the
-project's packages and compiles it once. Options: `-Run` starts the app afterwards, `-Build`
-builds the installer, `-Check` runs the tests.
+| Option | What it does |
+|---|---|
+| `-Run` | starts the app afterwards |
+| `-Build` | builds the installer |
+| `-Check` | runs the tests |
 
 ```powershell
 scripts\install-windows.cmd -Run
 ```
 
-**Already have the tools:**
+**If you already have the tools** (Rust, Node.js 20+ and pnpm):
 
 ```bash
 pnpm install
-cargo test --workspace && pnpm -r test     # tests
-cd apps/desktop && pnpm tauri dev          # desktop app
+cd apps/desktop && pnpm tauri dev          # the desktop app
+cargo test --workspace && pnpm -r test     # the tests
 ```
 
-See `apps/desktop/README.md` for running the UI in a browser.
+`apps/desktop/README.md` explains running the app in a browser during development.
+
+**On your own server:** a Docker image (`ghcr.io/raydevxyz/nmuch`) for Cosmos Cloud or Docker Compose. See [docs/guide/hosting.md](docs/guide/hosting.md).
+
+## Documentation
+
+Everything is in [docs/](docs/README.md): guides for each feature, how to write widgets and modules, and the design notes.
+
+## Repository layout
+
+```
+apps/desktop         the app: React + TypeScript UI, and the Tauri desktop shell (src-tauri)
+apps/table           the players' page of the battle-map table
+packages/editor      @brainwaves/editor: the Tiptap block editor (schema, nodes, menus)
+crates/bw-core       the Rust core: pages as Yjs documents, an SQLite update log, a rebuildable index
+crates/bw-api        the commands the UI calls, shared by every host
+crates/bw-server     BrainWaves as a hosted web app (login, API tokens, sync)
+crates/bw-devserver  the core over HTTP, to run the UI in a browser during development
+crates/bw-table      the battle-map table server
+deploy/              Docker Compose and Cosmos Cloud setups
+integrations/burrow  the Burrow side of the integration
+docs/                guides, developer docs and design notes
+```

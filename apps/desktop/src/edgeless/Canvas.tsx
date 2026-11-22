@@ -42,6 +42,7 @@ import {
   type XYWH,
 } from './model'
 import { ZoomBar, type Tool } from './chrome'
+import { mergeNotes, splitAtCursor, splitByHeadings } from './split'
 import { ContextBar } from './ContextBar'
 import { alignBoxes, angleTo, distributeBoxes, resizeTurned, snapBox, snapEdges, turnedBounds, type Guide } from './geometry'
 import { DRAG_TYPE, presetById, rememberUpload, SidePanel, type PanelTab, type Preset } from './SidePanel'
@@ -104,7 +105,19 @@ export interface CanvasProps {
 export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEditor, scene = false }: CanvasProps) {
   const root = useRef<HTMLDivElement>(null)
   const elements = useElements(doc)
-  const notes = useNoteLayouts(doc, noteRefs)
+  const allNotes = useNoteLayouts(doc, noteRefs)
+  // Notes on their way out: unmounted first (closing their editors), deleted on the next frame.
+  // Deleting a note whose editor is still bound to it breaks the editor.
+  const [retiring, setRetiring] = useState<Set<string>>(new Set())
+  const notes = useMemo(() => (retiring.size ? allNotes.filter((n) => !retiring.has(n.id)) : allNotes), [allNotes, retiring])
+  useEffect(() => {
+    if (!retiring.size) return
+    const t = requestAnimationFrame(() => {
+      deleteItems(doc, retiring)
+      setRetiring(new Set())
+    })
+    return () => cancelAnimationFrame(t)
+  }, [retiring, doc])
   const [vp, setVp] = useState<Viewport>(() => viewports.get(pageId) ?? { x: -40, y: -40, z: 1 })
   const [selected, setSelected] = useState<string[]>([])
   const [tool, setToolState] = useState<Tool>('select')
@@ -176,9 +189,16 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   )
   /** A selection grows to whole groups. */
   const withGroups = (ids: string[]): string[] => {
-    const groups = new Set(ids.map((id) => byId.get(id)?.group).filter(Boolean))
+    const groupOf = (id: string) => byId.get(id)?.group ?? notes.find((n) => n.id === id)?.group
+    const groups = new Set(ids.map(groupOf).filter(Boolean))
     if (!groups.size) return ids
-    return [...new Set([...ids, ...elements.filter((e) => e.group && groups.has(e.group)).map((e) => e.id)])]
+    return [
+      ...new Set([
+        ...ids,
+        ...elements.filter((e) => e.group && groups.has(e.group)).map((e) => e.id),
+        ...notes.filter((n) => n.group && groups.has(n.group)).map((n) => n.id),
+      ]),
+    ]
   }
   /** What smart guides line up with: everything drawn that isn't moving. */
   const snapTargets = (moving: Set<string>): Rect[] => {
@@ -768,18 +788,46 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     if (locked.length) toast(`${locked.length === 1 ? 'A locked item stays' : 'Locked items stay'}: unlock to delete`)
     const ids = selected.filter((id) => !byId.get(id)?.locked)
     if (ids.filter(isNote).length >= notes.length) toast('A page keeps at least one note')
-    deleteItems(doc, new Set(ids))
+    const noteIds = ids.filter(isNote)
+    deleteItems(doc, new Set(ids.filter((id) => !isNote(id))))
+    if (noteIds.length) setRetiring(new Set(noteIds.slice(0, Math.max(0, notes.length - 1))))
     setSelected(selected.filter((id) => byId.get(id)?.locked))
   }
+  const selectedNotes = () => notes.filter((n) => selected.includes(n.id))
   function group() {
     const els = selectedEls().filter((x) => x.type !== 'connector')
-    if (els.length < 2) return toast('Select two or more things to group')
+    const ns = selectedNotes()
+    if (els.length + ns.length < 2) return toast('Select two or more things to group')
     const g = `g${Math.random().toString(36).slice(2, 10)}`
-    updateElements(doc, Object.fromEntries(els.map((x) => [x.id, { group: g }])))
+    doc.transact(() => {
+      updateElements(doc, Object.fromEntries(els.map((x) => [x.id, { group: g }])))
+      setNoteLayout(doc, Object.fromEntries(ns.map((n) => [n.id, { group: g }])))
+    }, CANVAS)
     toast('Grouped: Ctrl+click picks one item inside')
   }
   function ungroup() {
-    updateElements(doc, Object.fromEntries(selectedEls().filter((x) => x.group).map((x) => [x.id, { group: undefined }])))
+    doc.transact(() => {
+      updateElements(doc, Object.fromEntries(selectedEls().filter((x) => x.group).map((x) => [x.id, { group: undefined }])))
+      setNoteLayout(doc, Object.fromEntries(selectedNotes().filter((n) => n.group).map((n) => [n.id, { group: null }])))
+    }, CANVAS)
+  }
+  // ---------- splitting a page into parts, and merging them back
+  function splitNote(how: 'cursor' | 'headings') {
+    const n = selectedNotes()[0]
+    const ed = n && editors.current.get(n.id)
+    if (!n || !ed) return
+    const r = how === 'cursor' ? splitAtCursor(doc, n, ed) : splitByHeadings(doc, n, ed)
+    if (typeof r === 'object' && 'error' in r) return toast(r.error)
+    const made = Array.isArray(r) ? r : [r]
+    setSelected([n.id, ...made])
+    toast(made.length === 1 ? 'Split in two: drag the parts apart' : `Split into ${made.length + 1} parts`)
+  }
+  function mergeSelectedNotes() {
+    const r = mergeNotes(doc, selectedNotes(), editors.current)
+    if ('error' in r) return toast(r.error)
+    setRetiring(new Set(r.remove))
+    setSelected([r.keep])
+    toast('Merged into one note')
   }
   function lock(on: boolean) {
     updateElements(doc, Object.fromEntries(selectedEls().map((x) => [x.id, { locked: on || undefined }])))
@@ -1057,6 +1105,9 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           left={leftInset}
           items={selectedEls()}
           note={singleNote && selected.length === 1 ? singleNote : undefined}
+          notes={selectedNotes()}
+          onSplit={splitNote}
+          onMerge={mergeSelectedNotes}
           onPatch={(patch) =>
             updateElements(
               doc,

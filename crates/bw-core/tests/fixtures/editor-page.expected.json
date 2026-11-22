@@ -35,7 +35,9 @@
       "depth": 2,
       "text": "Callout text",
       "attrs": {
-        "icon": "✨"
+        "icon": "✨",
+        "color": "",
+        "variant": "soft"
       },
       "refs": []
     },
@@ -243,6 +245,48 @@
       "refs": []
     },
     {
+      "id": "cols1",
+      "type": "columns",
+      "depth": 2,
+      "text": "",
+      "attrs": {
+        "widths": "1,2"
+      },
+      "refs": []
+    },
+    {
+      "id": "col1",
+      "type": "column",
+      "depth": 3,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "col1p",
+      "type": "paragraph",
+      "depth": 4,
+      "text": "Left",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "col2",
+      "type": "column",
+      "depth": 3,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "col2p",
+      "type": "paragraph",
+      "depth": 4,
+      "text": "Right",
+      "attrs": {},
+      "refs": []
+    },
+    {
       "id": "tb1",
       "type": "table",
       "depth": 2,
@@ -301,6 +345,14 @@
       "type": "paragraph",
       "depth": 5,
       "text": "Ada",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "pf",
+      "type": "paragraph",
+      "depth": 2,
+      "text": "Read  books",
       "attrs": {},
       "refs": []
     },

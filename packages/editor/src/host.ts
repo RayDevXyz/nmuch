@@ -54,6 +54,15 @@ export interface EditorHost {
   DatabaseBlock?: ComponentType<DatabaseBlockProps>
   /** Renders a widget block (sandboxed by the host; the core checks its data access). */
   WidgetBlock?: ComponentType<WidgetBlockProps>
+  /**
+   * A line `{{template: Name | Field: value}}` + Enter: use that template. Return null when the
+   * line isn't one; otherwise a promise of the blocks to put in its place (null: leave it).
+   */
+  templateCall?(text: string): Promise<JSONContent[] | null> | null
+  /** Open a callout's colour and style menu; `apply` is called with each change as it's made. */
+  pickCalloutStyle?(anchor: DOMRect, current: CalloutLook, apply: (patch: Partial<CalloutLook>) => void): void
+  /** Renders a formula: evaluates it live, and edits it. */
+  FormulaInline?: ComponentType<FormulaInlineProps>
   /** Renders a map of content: a live list of links to pages, from its settings. */
   MocBlock?: ComponentType<MocBlockProps>
   /** Extra `/` commands the app adds (templates, module blocks). */
@@ -85,6 +94,20 @@ export interface SlashExtra {
   group?: string
   /** Runs after the typed `/query` has been removed. */
   run(editor: Editor): void
+}
+
+export interface FormulaInlineProps {
+  expr: string
+  editable: boolean
+  onChange(expr: string): void
+  onDelete(): void
+}
+
+export interface CalloutLook {
+  icon: string
+  /** '' (the theme's accent) or a hex colour. */
+  color: string
+  variant: 'soft' | 'outline' | 'bar' | 'solid' | string
 }
 
 export interface MocBlockProps {

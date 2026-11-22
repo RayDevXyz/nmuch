@@ -21,6 +21,8 @@ export interface AppState {
   theme: 'dark' | 'light'
   /** The user's own themes (see `theme/themes.ts`). */
   themes: ThemeDef[]
+  /** Callout looks the user saved ("Save as a style" in a callout's menu). */
+  calloutStyles: { name: string; icon: string; color: string; variant: string }[]
   /** Which theme each mode uses (built-in or the user's); unset: the mode's own look. */
   themeFor: Partial<Record<'dark' | 'light', string>>
   themeEditor: boolean
@@ -44,6 +46,8 @@ export interface AppState {
   importDialog: boolean
   /** The "Sync with a server" dialog (desktop app). */
   syncDialog: boolean
+  /** The template form, and what to do with its result. */
+  templateDialog: import('../templates/TemplateDialog').TemplateRequest | null
   widgetsDialog: boolean
   modulesDialog: boolean
   /** request for the editor to scroll to / focus a block once a page is open */
@@ -54,7 +58,7 @@ export interface AppState {
 const PREFS_KEY = 'brainwaves.prefs.v1'
 /** Preferences saved before the rename to BrainWaves. */
 const OLD_PREFS_KEY = 'nimbus.prefs.v1'
-type Prefs = Pick<AppState, 'view' | 'tabs' | 'activeId' | 'theme' | 'themes' | 'themeFor' | 'sidebarOpen' | 'rightOpen' | 'expanded' | 'width' | 'fontSize' | 'spellcheck' | 'edgeless'>
+type Prefs = Pick<AppState, 'view' | 'tabs' | 'activeId' | 'theme' | 'themes' | 'calloutStyles' | 'themeFor' | 'sidebarOpen' | 'rightOpen' | 'expanded' | 'width' | 'fontSize' | 'spellcheck' | 'edgeless'>
 
 function loadPrefs(): Partial<Prefs> {
   try {
@@ -74,6 +78,7 @@ let state: AppState = {
   activeId: null,
   theme: 'dark',
   themes: [],
+  calloutStyles: [],
   themeFor: {},
   themeEditor: false,
   sidebarOpen: true,
@@ -93,6 +98,7 @@ let state: AppState = {
   help: false,
   importDialog: false,
   syncDialog: false,
+  templateDialog: null,
   widgetsDialog: false,
   modulesDialog: false,
   reveal: null,
@@ -114,9 +120,9 @@ export function setState(patch: Partial<AppState> | ((s: AppState) => Partial<Ap
   listeners.forEach((l) => l())
   clearTimeout(prefsTimer)
   prefsTimer = setTimeout(() => {
-    const { view, tabs, activeId, theme, themes, themeFor, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless } = state
+    const { view, tabs, activeId, theme, themes, calloutStyles, themeFor, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless } = state
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ view, tabs, activeId, theme, themes, themeFor, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless }))
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ view, tabs, activeId, theme, themes, calloutStyles, themeFor, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless }))
     } catch {
       /* storage unavailable */
     }

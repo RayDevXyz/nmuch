@@ -50,6 +50,14 @@ const DOC: JSONContent = {
     },
     { type: 'moc', attrs: { id: 'moc1', settings: '{"source":"children"}' } },
     {
+      type: 'columns',
+      attrs: { id: 'cols1', widths: '1,2' },
+      content: [
+        { type: 'column', attrs: { id: 'col1' }, content: [p('col1p', t('Left'))] },
+        { type: 'column', attrs: { id: 'col2' }, content: [p('col2p', t('Right'))] },
+      ],
+    },
+    {
       type: 'table',
       attrs: { id: 'tb1' },
       content: [
@@ -57,6 +65,7 @@ const DOC: JSONContent = {
         { type: 'tableRow', attrs: { id: 'tr2' }, content: [{ type: 'tableCell', attrs: { id: 'td1', colspan: 1, rowspan: 1, colwidth: null }, content: [p('td1p', t('Ada', ['bold']))] }] },
       ],
     },
+    p('pf', t('Read '), { type: 'formula', attrs: { expr: '[[Books]].count(Read)' } }, t(' books')),
     p('p2', t('link', ['link'])),
   ],
 }

@@ -32,6 +32,9 @@ import {
   Trash2,
   Underline,
   Ungroup,
+  Scissors,
+  Rows3,
+  Combine,
   Unlock,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -61,6 +64,12 @@ interface Props {
   onDelete: () => void
   onDisplay: (d: 'both' | 'edgeless') => void
   onOpenPage?: () => void
+  /** Notes in the selection. */
+  notes?: CanvasNote[]
+  /** Split the one selected note: at the cursor, or at each heading. */
+  onSplit?: (how: 'cursor' | 'headings') => void
+  /** Merge the selected notes into one. */
+  onMerge?: () => void
   /** Room kept free on the left (the side panel). */
   left: number
 }
@@ -84,23 +93,60 @@ export function ContextBar(p: Props) {
   const texty = of('shape', 'text')
   const first = <K extends string>(k: K): unknown => (items.find((i) => k in i) as Record<string, unknown> | undefined)?.[k]
   const locked = items.length > 0 && items.every((i) => i.locked)
-  const grouped = items.some((i) => i.group)
+  const ns = p.notes ?? []
+  const grouped = items.some((i) => i.group) || ns.some((n) => n.group)
+  const total = items.length + ns.length
   const toggle = (m: string) => setMenu((x) => (x === m ? null : m))
   const fontSize = Number(first('fontSize') ?? (texty[0]?.type === 'text' ? 20 : 14))
 
-  if (!items.length && p.note)
+  if (!items.length && ns.length) {
+    const style = { left: `calc(50% + ${p.left / 2}px)`, maxWidth: `calc(100% - ${p.left + 24}px)` }
+    // Keep the note's cursor: the buttons mustn't take the focus from its editor.
+    const keep = (e: React.MouseEvent) => e.preventDefault()
     return (
-      <div className="cv-context" ref={bar} style={{ left: `calc(50% + ${p.left / 2}px)`, maxWidth: `calc(100% - ${p.left + 24}px)` }} onPointerDown={(e) => e.stopPropagation()}>
-        <span className="cv-context-label">Note</span>
-        <button className={`cv-doc-toggle ${p.note.display === 'both' ? 'on' : ''}`} onClick={() => p.onDisplay(p.note!.display === 'both' ? 'edgeless' : 'both')}>
-          <FileText size={13} /> {p.note.display === 'both' ? 'In document' : 'Canvas only'}
-        </button>
+      <div className="cv-context" ref={bar} style={style} onPointerDown={(e) => e.stopPropagation()} onMouseDown={keep}>
+        <span className="cv-context-label">{ns.length === 1 ? 'Note' : `${ns.length} notes`}</span>
+        {p.note && (
+          <button className={`cv-doc-toggle ${p.note.display === 'both' ? 'on' : ''}`} onClick={() => p.onDisplay(p.note!.display === 'both' ? 'edgeless' : 'both')}>
+            <FileText size={13} /> {p.note.display === 'both' ? 'In document' : 'Canvas only'}
+          </button>
+        )}
+        {ns.length === 1 && p.onSplit && (
+          <>
+            <span className="cv-sep" />
+            <Btn label="Split at the cursor: the rest becomes its own part" onClick={() => p.onSplit!('cursor')}>
+              <Scissors size={15} />
+            </Btn>
+            <Btn label="Split at each heading into parts" onClick={() => p.onSplit!('headings')}>
+              <Rows3 size={15} />
+            </Btn>
+          </>
+        )}
+        {ns.length > 1 && p.onMerge && (
+          <>
+            <span className="cv-sep" />
+            <Btn label="Merge into one note" onClick={p.onMerge}>
+              <Combine size={15} />
+            </Btn>
+          </>
+        )}
+        {ns.length > 1 && !grouped && (
+          <Btn label="Group (Ctrl G)" onClick={p.onGroup}>
+            <Group size={15} />
+          </Btn>
+        )}
+        {grouped && (
+          <Btn label="Ungroup (Ctrl Shift G)" onClick={p.onUngroup}>
+            <Ungroup size={15} />
+          </Btn>
+        )}
         <span className="cv-sep" />
         <Btn label="Delete (Del)" onClick={p.onDelete}>
           <Trash2 size={15} />
         </Btn>
       </div>
     )
+  }
   if (!items.length) return null
 
   return (
@@ -274,7 +320,7 @@ export function ContextBar(p: Props) {
               </div>
             )}
           </div>
-          {items.length > 1 && !grouped && (
+          {total > 1 && !grouped && (
             <Btn label="Group (Ctrl G)" onClick={p.onGroup}>
               <Group size={15} />
             </Btn>

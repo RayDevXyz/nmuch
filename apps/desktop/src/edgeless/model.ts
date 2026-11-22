@@ -125,6 +125,8 @@ export interface CanvasNote {
   ref: NoteRef
   xywh: XYWH | null
   display: 'both' | 'edgeless'
+  /** Notes (and elements) with the same group move and get selected together. */
+  group?: string
 }
 
 /** Changes made on the canvas: what canvas undo tracks (note text has its own undo). */
@@ -191,7 +193,8 @@ export function readNotes(notes: NoteRef[], doc: Y.Doc): CanvasNote[] {
   return notes.map((ref) => {
     const m = map.get(ref.id)
     const xywh = m?.get('xywh')
-    return { id: ref.id, ref, xywh: isXYWH(xywh) ? xywh : null, display: m?.get('display') === 'edgeless' ? 'edgeless' : 'both' }
+    const group = m?.get('group')
+    return { id: ref.id, ref, xywh: isXYWH(xywh) ? xywh : null, display: m?.get('display') === 'edgeless' ? 'edgeless' : 'both', ...(typeof group === 'string' && group ? { group } : {}) }
   })
 }
 
@@ -274,31 +277,37 @@ export function updateElements(doc: Y.Doc, patches: Record<string, Record<string
   }, CANVAS)
 }
 
-export function setNoteLayout(doc: Y.Doc, layouts: Record<string, { xywh?: XYWH; display?: 'both' | 'edgeless' }>) {
+export function setNoteLayout(doc: Y.Doc, layouts: Record<string, { xywh?: XYWH; display?: 'both' | 'edgeless'; group?: string | null }>) {
   doc.transact(() => {
     for (const [id, l] of Object.entries(layouts)) {
       const m = notesOf(doc).get(id)
       if (!(m instanceof Y.Map)) continue
       if (l.xywh) m.set('xywh', l.xywh)
       if (l.display) m.set('display', l.display)
+      if (l.group === null) m.delete('group')
+      else if (l.group) m.set('group', l.group)
     }
   }, CANVAS)
 }
 
-/** A new note at `xywh`, after the existing ones in doc order. Returns its id. */
-export function addNote(doc: Y.Doc, xywh: XYWH, display: 'both' | 'edgeless'): string {
+/**
+ * A new note at `xywh`: after the existing ones in doc order, or right after note `after` (so a
+ * note split in two still reads in order in the document). Returns its id.
+ */
+export function addNote(doc: Y.Doc, xywh: XYWH, display: 'both' | 'edgeless', after?: string): string {
   const id = uid()
   const notes = notesOf(doc)
-  let last = ''
-  notes.forEach((m) => {
-    const o = String(m.get('order') ?? '')
-    if (o > last) last = o
-  })
+  const orders: string[] = []
+  notes.forEach((m) => orders.push(String(m.get('order') ?? '')))
+  orders.sort()
+  const at = after ? String(notes.get(after)?.get('order') ?? '') : ''
+  const prev = at || orders[orders.length - 1] || null
+  const next = at ? (orders.find((o) => o > at) ?? null) : null
   doc.transact(() => {
     const m = new Y.Map<unknown>()
     notes.set(id, m)
     m.set('id', id)
-    m.set('order', keyBetween(last || null, null))
+    m.set('order', keyBetween(prev, next))
     m.set('xywh', xywh)
     m.set('display', display)
     const content = new Y.XmlFragment()

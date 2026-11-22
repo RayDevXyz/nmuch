@@ -106,10 +106,15 @@ pub mod node {
     pub const TABLE_ROW: &str = "tableRow";
     pub const TABLE_HEADER: &str = "tableHeader";
     pub const TABLE_CELL: &str = "tableCell";
+    /// Columns side by side: `columns` > `column` > blocks. attrs: `widths` ("1,2,1"; empty: equal).
+    pub const COLUMNS: &str = "columns";
+    pub const COLUMN: &str = "column";
 
     /// Inline reference. attrs: `kind` ("page" | "block"), `target` (id).
     pub const REF: &str = "ref";
     pub const HARD_BREAK: &str = "hardBreak";
+    /// A live value in the text. attrs: `expr` (the formula). The app evaluates it.
+    pub const FORMULA: &str = "formula";
 
     /// Synthetic flavours used in the index for the page itself and its notes.
     pub const PAGE: &str = "page";
@@ -117,7 +122,7 @@ pub mod node {
     /// Edgeless elements are indexed as `surface.<type>` (`surface.shape`, `surface.frame`, …).
     pub const SURFACE_PREFIX: &str = "surface.";
 
-    pub const INLINE: [&str; 2] = [REF, HARD_BREAK];
+    pub const INLINE: [&str; 3] = [REF, HARD_BREAK, FORMULA];
 
     /// Blocks whose content is inline text.
     pub const TEXTBLOCKS: [&str; 4] = [PARAGRAPH, HEADING, CODE_BLOCK, CALLOUT];
@@ -129,9 +134,10 @@ pub mod node {
     /// Mirror of the ProseMirror content expressions: may `child` appear inside `parent`?
     /// `parent == NOTE` means the top level of a note.
     pub fn allows(parent: &str, child: &str) -> bool {
-        let block = !is_inline(child) && ![LIST_ITEM, TASK_ITEM, TABLE_ROW, TABLE_HEADER, TABLE_CELL].contains(&child);
+        let block = !is_inline(child) && ![LIST_ITEM, TASK_ITEM, TABLE_ROW, TABLE_HEADER, TABLE_CELL, COLUMN].contains(&child);
         match parent {
-            NOTE | BLOCKQUOTE | LIST_ITEM | TASK_ITEM | TABLE_HEADER | TABLE_CELL => block,
+            NOTE | BLOCKQUOTE | LIST_ITEM | TASK_ITEM | TABLE_HEADER | TABLE_CELL | COLUMN => block,
+            COLUMNS => child == COLUMN,
             BULLET_LIST | ORDERED_LIST => child == LIST_ITEM,
             TASK_LIST => child == TASK_ITEM,
             TABLE => child == TABLE_ROW,

@@ -7,6 +7,7 @@ function inline(nodes: JSONContent[] | undefined, titleOf: TitleOf): string {
   return (nodes ?? [])
     .map((n) => {
       if (n.type === 'hardBreak') return '\n'
+      if (n.type === 'formula') return `{{= ${n.attrs?.expr ?? ''}}}`
       if (n.type === 'ref') {
         const t = titleOf(n.attrs?.kind ?? 'page', n.attrs?.target ?? '')
         return n.attrs?.kind === 'block' ? `((${t}))` : `[[${t}]]`
@@ -44,6 +45,9 @@ function block(n: JSONContent, titleOf: TitleOf, indent: string): string[] {
       return [`${indent}![${n.attrs?.caption ?? ''}](${n.attrs?.src ?? ''})`]
     case 'pageLink':
       return [`${indent}[[${titleOf('page', n.attrs?.pageId ?? '')}]]`]
+    case 'columns':
+      // Markdown has no columns: one column after the other.
+      return kids.flatMap((col) => (col.content ?? []).flatMap((k) => ['', ...block(k, titleOf, indent)])).slice(1)
     case 'table': {
       // GitHub-style table: the first row is the header row.
       const cell = (c: JSONContent) => (c.content ?? []).map((b) => inline(b.content, titleOf)).join(' ').replace(/\|/g, '\\|').replace(/\n/g, ' ')

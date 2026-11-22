@@ -66,3 +66,15 @@ When the page is copied as Markdown, the map becomes a bulleted list of `[[page]
 **Limit:** the links are worked out live, so the index doesn't store them. They don't appear as backlinks or in the graph.
 
 **In the page schema:** the node is `moc`, and its attribute `settings` is a JSON string (see `apps/desktop/src/moc/MocBlock.tsx`, `MocSettings`).
+
+## Columns
+
+Type `/columns` and pick **2 columns**, **3 columns** or **4 columns**. If the line you're on has text, it moves into the first column. Each column holds any blocks: text, lists, images, tables, databases. You can drag blocks in and out of columns with the block handle.
+
+- **Resize:** drag the line between two columns.
+- **Add a column:** click the **+** at the right of the row (up to 5).
+- **Remove a column:** empty it, then press **Backspace** at its start. When one column is left, the row turns back into plain blocks.
+- **Phone:** columns stack on narrow screens.
+- **Markdown:** "Copy as Markdown" writes the columns one after the other.
+
+**In the page schema:** `columns` (attribute `widths`: relative widths such as `1,2`) > `column` > blocks. Both sides of the schema list them, and the contract fixtures cover them.

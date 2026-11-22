@@ -14,6 +14,7 @@ import {
   type ThemeColors,
   type ThemeDef,
 } from './themes'
+import { fromVsCode, isVsCodeTheme, parseJsonc, themesFromVsix } from './vscode'
 
 /**
  * The theme editor: a drawer on the right that restyles the whole app as you edit, so the app
@@ -91,16 +92,29 @@ function ThemeEditor() {
     if (current.builtin || !confirm(`Delete the theme “${current.name}”?`)) return
     setState((s) => ({ themes: s.themes.filter((x) => x.id !== current.id), themeFor: { ...s.themeFor, [current.base]: undefined } }))
   }
+  /** A theme file: BrainWaves' own, or a VS Code colour theme. */
   const importText = (text: string) => {
-    let parsed: ReturnType<typeof parseTheme> = null
+    let json: unknown = null
     try {
-      parsed = parseTheme(JSON.parse(text))
+      json = parseJsonc(text)
     } catch {
-      /* not JSON */
+      return toast("That isn't a theme file (it isn't JSON)")
     }
-    if (!parsed) return toast("That isn't a BrainWaves theme")
+    const own = !!json && typeof json === 'object' && (json as { format?: unknown }).format === 'brainwaves-theme'
+    const parsed = !own && isVsCodeTheme(json) ? fromVsCode(json) : parseTheme(json)
+    if (!parsed) return toast("That isn't a BrainWaves or VS Code theme")
     const t = addTheme(parsed)
-    toast(`Imported ${t.name}`)
+    toast(own || !isVsCodeTheme(json) ? `Imported ${t.name}` : `Imported the VS Code theme ${t.name}`)
+  }
+  /** A VS Code extension (.vsix): every colour theme in it. */
+  const importVsix = async (f: File) => {
+    try {
+      const themes = await themesFromVsix(await f.arrayBuffer())
+      const made = themes.map(addTheme)
+      toast(made.length === 1 ? `Imported ${made[0].name}` : `Imported ${made.length} themes: ${made.map((t) => t.name).join(', ')}`)
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e))
+    }
   }
   const download = () => {
     const blob = new Blob([exportTheme(current)], { type: 'application/json' })
@@ -129,7 +143,7 @@ function ThemeEditor() {
             </button>
           ))}
         </div>
-        <p className="te-hint">Each mode keeps its own theme; the dark/light switch moves between them.</p>
+        <p className="te-hint">Each mode keeps its own theme; the dark/light switch moves between them. <b>Import</b> also takes VS Code themes: a theme's .json, or a whole extension's .vsix.</p>
 
         <div className="te-themes">
           {list.map((t) => (
@@ -171,7 +185,7 @@ function ThemeEditor() {
             <button onClick={() => void navigator.clipboard.writeText(exportTheme(current)).then(() => toast('Theme copied'), () => toast("Couldn't copy"))} title="Copy the theme's file to the clipboard">
               <Copy size={13} /> Copy
             </button>
-            <button onClick={() => file.current?.click()} title="Import a theme file">
+            <button onClick={() => file.current?.click()} title="Import a theme: a BrainWaves theme, or a VS Code theme (.json or the extension's .vsix)">
               <Upload size={13} /> Import
             </button>
             <button onClick={() => void navigator.clipboard.readText().then(importText, () => toast("Couldn't read the clipboard"))} title="Import a theme you copied">
@@ -186,12 +200,14 @@ function ThemeEditor() {
           <input
             ref={file}
             type="file"
-            accept=".json,application/json"
+            accept=".json,.jsonc,.vsix,application/json"
             hidden
             onChange={(e) => {
               const f = e.target.files?.[0]
               e.target.value = ''
-              if (f) void f.text().then(importText)
+              if (!f) return
+              if (/\.vsix$/i.test(f.name)) void importVsix(f)
+              else void f.text().then(importText)
             }}
           />
         </section>

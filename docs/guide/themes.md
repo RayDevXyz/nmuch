@@ -86,3 +86,33 @@ Color keys: `appBg`, `panel`, `panel2`, `hover`, `line`, `editorBg`, `codeBg`, `
 - Your themes and which theme each mode uses are saved with the app's preferences (on this
   computer; export a theme to take it elsewhere).
 - Campaign pages keep their own D&D look on top of the theme.
+
+## VS Code themes
+
+**Import** in the theme editor also takes VS Code colour themes:
+- **A theme file** (`.json`): VS Code's comments and trailing commas are fine. **Paste** works too, for a theme you copied.
+- **A whole extension** (`.vsix`): every colour theme in it is imported at once. On the [VS Code Marketplace](https://marketplace.visualstudio.com/vscode), an extension's page has **Download Extension** in its sidebar.
+
+VS Code's colours are mapped onto BrainWaves' own. The main ones:
+
+| BrainWaves | From VS Code |
+|---|---|
+| Page background | `editor.background` |
+| Window | `activityBar.background`, `titleBar.activeBackground` |
+| Panels | `sideBar.background` |
+| Inputs | `input.background` |
+| Hover | `list.hoverBackground` |
+| Borders | `panel.border`, `sideBar.border` |
+| Code | `textCodeBlock.background` |
+| Text | `editor.foreground`, `descriptionForeground`, `editorLineNumber.foreground` |
+| Accent | `textLink.foreground`, `button.background`, `focusBorder`, picked so it reads well |
+| Warm, success, danger | `editorWarning.foreground`, `terminal.ansiGreen`, `errorForeground` |
+
+**What gets filled in:**
+- **Gaps:** anything a theme leaves out is worked out from the colours it does set.
+- **See-through colours** are blended into solid ones.
+- **Themes inside an extension** that build on another theme (`"include"`) get that base too, and names like `%themeLabel%` are looked up.
+
+An imported theme is an ordinary BrainWaves theme. You can adjust it in the editor, export it, or set it as a page's theme. Fonts keep BrainWaves' defaults; VS Code themes don't set fonts.
+
+**Tested with** all ten of VS Code's built-in themes, imported as their `.vsix`: Dark Modern, Light Modern, Dark+, Light+, the 2026 themes, the Visual Studio ones and both high-contrast themes.

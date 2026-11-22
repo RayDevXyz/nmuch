@@ -1,6 +1,6 @@
 # BrainWaves
 
-**A local-first workspace for notes, databases and canvases.**
+**A local-first workspace for notes, databases and canvases.** · [Website](https://raydevxyz.github.io/nmuch/) · [Docs](docs/README.md)
 
 You write in pages made of blocks. Pages link to each other, can carry properties, and can become databases with table, board and gallery views. Any page can also open as a canvas. Your data lives in one SQLite file on your computer, or on your own server, never in someone else's cloud. Modules add whole workflows on top: following a course, or running a Dungeons & Dragons campaign with live battle maps.
 

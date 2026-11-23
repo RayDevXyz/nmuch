@@ -32,8 +32,7 @@ import {
   FileStack,
   Trash2,
   Undo2,
-  X,
-} from 'lucide-react'
+  X, FolderKanban } from 'lucide-react'
 import { ancestors, closeTab, createPage, openPage, setView, toggleFavorite } from '../state/actions'
 import { getState, setState, useApp, type View } from '../state/store'
 import type { Page } from '../lib/types'
@@ -331,6 +330,7 @@ export function DrawerHead() {
         {chip('favorites', <Star />, 'Favorites')}
         {chip('tags', <Tag />, 'Tags')}
         {chip('templates', <FileStack />, 'Templates')}
+        {chip('para', <FolderKanban />, 'PARA')}
         {chip('burrow', <BookmarkCheck />, 'Burrow')}
         {chip('archive', <Archive />, 'Archive')}
         {chip('trash', <Trash2 />, 'Trash', trash)}

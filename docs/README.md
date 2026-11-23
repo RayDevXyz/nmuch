@@ -16,6 +16,7 @@
 - [The canvas](guide/canvas.md): a page as a board of notes, shapes and pictures; splitting a page into parts
 
 **Modules**
+- [PARA](guide/para.md): an Inbox to capture into, and Projects, Areas, Resources and an Archive to sort it into
 - [Courses](guide/courses.md): follow a course from a folder of lessons and track your progress
 - [Dungeons & Dragons](guide/dnd.md): the compendium, campaigns, characters and world maps
 - [The table](guide/table.md): battle maps your players join from their own devices

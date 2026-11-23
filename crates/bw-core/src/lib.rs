@@ -23,6 +23,7 @@ pub mod error;
 pub mod events;
 pub mod index;
 pub mod modules;
+pub mod para;
 pub mod query;
 pub mod schema;
 mod store;

@@ -156,7 +156,7 @@ bw.openPage(id)                  // navigate the app to a page
 
 ## 5. First-party modules
 
-Modules that ship with the app, like **Courses**, are Rust in `bw-core` (see `course.rs`).
+Modules that ship with the app, like **Courses** and **PARA**, are Rust in `bw-core` (see `course.rs`, `para.rs`).
 - **The same checks apply.** The Course module creates its databases through
   `module_create_database`, reads folders through `fs_list`, and opens files through
   `fs_open_check`.

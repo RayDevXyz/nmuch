@@ -78,6 +78,16 @@ struct CourseArgs {
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase", default)]
+struct ParaArgs {
+    id: String,
+    parent_id: Option<String>,
+    reason: Option<String>,
+    promote: bw_core::para::Promote,
+    links: bw_core::para::Links,
+}
+
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
 struct DndArgs {
     id: String,
     url: String,
@@ -139,6 +149,40 @@ pub(crate) fn dispatch(
         }
 
         // ---- the Course module
+        // ---- PARA (first-party; see bw_core::para)
+        "paraSetup" => {
+            let p: ParaArgs = args(a)?;
+            ok(core.para_setup(p.parent_id.as_deref()).map_err(e)?)
+        }
+        "paraSpaces" => ok(core.para_spaces().map_err(e)?),
+        "paraSpace" => {
+            let p: ParaArgs = args(a)?;
+            ok(core.para_space(&p.id).map_err(e)?)
+        }
+        "paraOverview" => {
+            let p: ParaArgs = args(a)?;
+            ok(core.para_overview(&p.id).map_err(e)?)
+        }
+        "paraPromote" => {
+            let p: ParaArgs = args(a)?;
+            ok(core.para_promote(&p.id, &p.promote).map_err(e)?)
+        }
+        "paraProcess" => {
+            let p: ParaArgs = args(a)?;
+            ok(core.para_process(&p.id, &p.links).map_err(e)?)
+        }
+        "paraArchive" => {
+            let p: ParaArgs = args(a)?;
+            ok(core.para_archive(&p.id, p.reason.as_deref()).map_err(e)?)
+        }
+        "paraUnarchive" => {
+            let p: ParaArgs = args(a)?;
+            ok(core.para_unarchive(&p.id).map_err(e)?)
+        }
+        "paraReviewed" => {
+            let p: ParaArgs = args(a)?;
+            ok(core.para_reviewed(&p.id).map_err(e)?)
+        }
         "courseSetup" => {
             let c: CourseArgs = args(a)?;
             ok(core.course_setup(c.parent_id.as_deref()).map_err(e)?)

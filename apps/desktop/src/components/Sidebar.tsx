@@ -50,6 +50,7 @@ import { useNarrow } from '../mobile/narrow'
 import { DrawerHead } from '../mobile/MobileChrome'
 import { ensureTemplatesFolder, templatesFolder } from '../templates/apply'
 import { openTemplateDialog } from '../templates/TemplateDialog'
+import { ParaView } from '../para/ParaView'
 
 const byKey = siblingOrder
 
@@ -564,6 +565,8 @@ export function Sidebar() {
     body = <TagsView />
   } else if (view === 'templates') {
     body = <TemplatesView childMap={childMap} />
+  } else if (view === 'para') {
+    body = <ParaView />
   } else if (view === 'burrow') {
     body = <BurrowPanel />
   } else {

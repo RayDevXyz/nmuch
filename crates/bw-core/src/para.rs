@@ -104,6 +104,11 @@ pub struct Space {
     /// `resourceProjects` (on Resources) and their other sides `areaResources`,
     /// `projectResources`.
     pub columns: BTreeMap<String, String>,
+    /// The page template for each role's new items (`inbox`, `projects`, `areas`,
+    /// `resources` → a page in the Templates folder). The app makes and applies them; a role
+    /// that is missing has none (the user deleted it), and an empty map means none were made.
+    #[serde(default)]
+    pub templates: BTreeMap<String, PageId>,
 }
 
 impl Space {
@@ -687,6 +692,7 @@ impl Core {
             resources,
             views,
             columns,
+            templates: BTreeMap::new(),
         };
         let s = |v: &str| Value::String(v.to_string());
         self.module_set_props(
@@ -735,6 +741,29 @@ impl Core {
             }
         }
         Err(not())
+    }
+
+    /// Remember the page templates of a space (see [`Space::templates`]).
+    pub fn para_set_templates(
+        &mut self,
+        page_id: &str,
+        templates: &BTreeMap<String, PageId>,
+    ) -> Result<Space> {
+        let mut space = self.para_space(page_id)?;
+        if let Some(k) = templates
+            .keys()
+            .find(|k| !["inbox", "projects", "areas", "resources"].contains(&k.as_str()))
+        {
+            return Err(Error::Invalid(format!("{k} is not a PARA role")));
+        }
+        space.templates = templates.clone();
+        let cfg = serde_json::to_value(&space).map_err(|e| Error::Malformed(e.to_string()))?;
+        self.module_set_props(
+            MODULE_ID,
+            &space.hub.clone(),
+            &BTreeMap::from([(CONFIG.to_string(), cfg)]),
+        )?;
+        Ok(space)
     }
 
     /// Every PARA space, oldest first.
@@ -1236,6 +1265,18 @@ mod tests {
         c.para_unarchive("p").unwrap();
         assert!(!c.snapshot("p").unwrap().meta.archived);
         assert_eq!(c.para_overview(&s.hub).unwrap().archive.len(), 1);
+    }
+
+    #[test]
+    fn templates_are_remembered() {
+        let mut c = core();
+        let s = c.para_setup(None).unwrap();
+        assert!(s.templates.is_empty());
+        let t = BTreeMap::from([("projects".to_string(), "tpl-p".to_string())]);
+        c.para_set_templates(&s.inbox, &t).unwrap();
+        assert_eq!(c.para_space(&s.hub).unwrap().templates, t);
+        let bad = BTreeMap::from([("nope".to_string(), "x".to_string())]);
+        assert!(c.para_set_templates(&s.hub, &bad).is_err());
     }
 
     #[test]

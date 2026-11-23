@@ -15,6 +15,8 @@ export interface Space {
   views: Record<ParaRole, Record<string, string>>
   /** Relation columns (`noteProjects`, `projectArea`, …). */
   columns: Record<string, string>
+  /** The page template of each role's new items (see `templates.ts`). */
+  templates?: Partial<Record<ParaRole, string>>
 }
 
 export interface AreaHealth {
@@ -130,6 +132,16 @@ export function useSpaces(): Space[] | null {
     if (!spaces && !loading) void refreshSpaces()
   }, [])
   return s
+}
+
+/** The same, outside React: from the spaces already read (null if not read yet). */
+export async function paraRoleOf(databaseId: string): Promise<{ space: Space; role: ParaRole } | null> {
+  const all = spaces ?? (await refreshSpaces())
+  for (const space of all) {
+    const role = (['inbox', 'projects', 'areas', 'resources'] as ParaRole[]).find((r) => space[r] === databaseId)
+    if (role) return { space, role }
+  }
+  return null
 }
 
 /** The space a database belongs to, and its role there. */

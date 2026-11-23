@@ -8,6 +8,7 @@ import { Cell, FileOpener, PropIcon, visibleProps } from './cells'
 import { useCourseActions } from '../modules/course'
 import { clearAsk, useAskedView, useParaRole } from '../para/api'
 import { paraShown, ParaRowActions } from '../para/ParaRow'
+import { newParaItem } from '../para/templates'
 import { useRoles } from '../dnd/api'
 import { openCharacterWizard } from '../dnd/CharacterWizard'
 import { dndSlashExtras } from '../dnd/slash'
@@ -63,8 +64,10 @@ export function DatabaseView({
   const view = result.view
 
   const addRow = async (values: Record<string, unknown> = {}) => {
-    await createRow(databaseId, uid(), '', values)
+    const id = uid()
+    await createRow(databaseId, id, '', values)
     await refresh()
+    void newParaItem(databaseId, id)
   }
 
   const addView = async (type: ViewKind) => {

@@ -84,6 +84,7 @@ struct ParaArgs {
     reason: Option<String>,
     promote: bw_core::para::Promote,
     links: bw_core::para::Links,
+    templates: BTreeMap<String, String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -179,6 +180,10 @@ pub(crate) fn dispatch(
             let p: ParaArgs = args(a)?;
             ok(core.para_unarchive(&p.id).map_err(e)?)
         }
+        "paraSetTemplates" => {
+            let p: ParaArgs = args(a)?;
+            ok(core.para_set_templates(&p.id, &p.templates).map_err(e)?)
+        }
         "paraReviewed" => {
             let p: ParaArgs = args(a)?;
             ok(core.para_reviewed(&p.id).map_err(e)?)
@@ -265,7 +270,10 @@ pub(crate) fn dispatch(
         }
         "dndTable" => ok(core.dnd_table().map_err(e)?),
         // The address only: the token stays in the workspace.
-        "burrowConnection" => ok(core.burrow_connection().map_err(e)?.map(|c| json!({ "url": c.url }))),
+        "burrowConnection" => ok(core
+            .burrow_connection()
+            .map_err(e)?
+            .map(|c| json!({ "url": c.url }))),
         "burrowSetConnection" => {
             let d: DndArgs = args(a)?;
             ok(core.burrow_set_connection(&d.url, &d.key).map_err(e)?)

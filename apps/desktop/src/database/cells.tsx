@@ -1,3 +1,4 @@
+import { newParaItem } from '../para/templates'
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowUpRight,
@@ -431,6 +432,7 @@ function RelationPicker({
     if (!title) return
     const id = uid()
     await createRow(target, id, title)
+    void newParaItem(target, id)
     setRows((r) => [...r, { id, title, icon: '' }])
     toggle(id)
     setQ('')

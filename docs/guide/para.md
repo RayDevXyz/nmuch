@@ -80,6 +80,27 @@ An archived item leaves the lists, the sidebar tree and the PARA panel, but link
 working: it stays in backlinks and the graph, shown muted. Restore it from the **Archive** list in
 the PARA panel, the database's **Archive** view, or **Restore** on the item itself.
 
+## 8. Page templates
+
+Every new item starts from a template, so you don't face an empty page:
+
+| Template | What's in it |
+|---|---|
+| **PARA · Note** | When it was captured, *Why it matters*, *Next step* (a to-do) |
+| **PARA · Project** | An *Outcome* callout, *Next actions* and *Milestones* (to-dos), *Notes*, *Resources & links*, *Wrap-up* |
+| **PARA · Area** | A *Standard* callout, a *Review checklist*, *Recurring* to-dos, *Notes* |
+| **PARA · Resource** | *Summary*, *Key points*, *Sources*, *Where I used it* |
+
+They are made when you set PARA up (or the first time you open the PARA panel, for a space made
+before templates existed) and live in the **Templates** folder like any other template. Edit them
+there (**Edit the page templates** in the PARA panel) and new items follow your version. Template
+syntax works too, e.g. `{{date:dddd D MMMM}}`; see [Templates](templates.md).
+
+A template is applied when an item is made in the app: the capture box, **New** in a PARA database,
+or a new row made from a relation cell (say, a new area picked from a project's *Area*). A page
+that already has text is never overwritten. A note promoted to a project keeps its text and gets
+the project template added below it. Delete a template to stop using it for that kind of item.
+
 ## Good to know
 
 - Everything is ordinary databases: add columns, views and filters as you like. Keep the columns

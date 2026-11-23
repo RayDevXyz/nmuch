@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { applyParaTemplate, ensureParaTemplates } from './templates'
 import { Archive, ArchiveRestore, CalendarCheck, Check, Inbox, Rocket } from 'lucide-react'
 import { createRow } from '../database/api'
 import { uid } from '../lib/id'
 import { getState, toast, useApp } from '../state/store'
-import { openPage } from '../state/actions'
+import { openPage, setView } from '../state/actions'
 import { askView, dueText, HEALTH, message, openParaDialog, paraReviewed, paraSetup, paraUnarchive, REASONS, useOverview, useSpaces, type ParaRole, type Space } from './api'
 
 const reasonName = Object.fromEntries(REASONS)
@@ -41,6 +42,7 @@ function Setup() {
           setBusy(true)
           try {
             const s = await paraSetup(null)
+            await ensureParaTemplates(s).catch(() => {})
             openWhenKnown(s.hub)
             toast('PARA is set up')
           } catch (e) {
@@ -67,7 +69,9 @@ function Capture({ space }: { space: Space }) {
         if (!title) return
         setText('')
         try {
-          await createRow(space.inbox, uid(), title, { inboxStatus: 'inbox' })
+          const id = uid()
+          await createRow(space.inbox, id, title, { inboxStatus: 'inbox' })
+          void applyParaTemplate(space, 'inbox', id).catch(() => {})
         } catch (err) {
           setText(title)
           toast(`Could not capture: ${message(err)}`)
@@ -82,6 +86,10 @@ function Capture({ space }: { space: Space }) {
 
 function SpacePanel({ space }: { space: Space }) {
   const o = useOverview(space)
+  // Spaces made before PARA had templates get them once.
+  useEffect(() => {
+    if (!space.templates || !Object.keys(space.templates).length) void ensureParaTemplates(space).catch(() => {})
+  }, [space])
   const [showArchive, setShowArchive] = useState(false)
   const overdue = o?.areas.filter((a) => a.overdue) ?? []
   const nav = (role: ParaRole, icon: string, name: string, count?: number, warn?: number, view?: string) => (
@@ -198,6 +206,9 @@ function SpacePanel({ space }: { space: Space }) {
 
       <button className="tpl-side-link" onClick={() => openPage(space.hub, 'replace')}>
         Open the PARA page
+      </button>
+      <button className="tpl-side-link" onClick={() => setView('templates')}>
+        Edit the page templates
       </button>
     </>
   )

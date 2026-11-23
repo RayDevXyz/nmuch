@@ -56,7 +56,7 @@ Import every course you have, one folder each.
 The Course module can only read folders **you picked**. It never moves, renames or deletes your
 files.
 
-To see or remove the folders it has, go to **⚙ → Modules… → Courses**.
+To see or remove the folders it has, go to **Settings** (⚙ at the bottom of the left rail) **→ Modules… → Courses**.
 
 ## Troubleshooting
 

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { PanelRight } from 'lucide-react'
 import { closeTab, createPage, init, openPage } from './state/actions'
 import { getState, setState, useApp } from './state/store'
-import { TopBar } from './components/TopBar'
 import { LeftRail } from './components/LeftRail'
 import { Sidebar } from './components/Sidebar'
 import { EditorPanel } from './components/EditorPanel'
@@ -146,7 +145,6 @@ export default function App() {
 
   return (
     <main className={`workspace theme-${theme} fs-${fontSize} ${narrow ? 'is-narrow' : ''}`} style={themeStyle}>
-      {!narrow && <TopBar />}
       <div className="app-shell">
         {!narrow && <LeftRail />}
         {sidebarOpen && <Sidebar />}

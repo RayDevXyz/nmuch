@@ -49,7 +49,7 @@ const host = (url: string | null) => {
   }
 }
 
-/** The chip in the top bar: synced / syncing / offline, opens the dialog. */
+/** The chip next to search, right of the tabs: synced / syncing / offline, opens the dialog. */
 export function SyncChip() {
   const st = useSyncStatus()
   if (!st?.connected) return null

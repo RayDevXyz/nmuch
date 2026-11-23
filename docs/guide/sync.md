@@ -20,7 +20,7 @@ The desktop app keeps its workspace on your computer and syncs it with your Brai
 - every 30 seconds, to pick up changes made elsewhere;
 - when you click **Sync now** in the same dialog.
 
-**Status chip:** a chip in the top bar shows **Synced**, **Syncing** or **Not synced**. **Not synced** means, for example, that you're offline or the token was removed. Click the chip to see why.
+**Status chip:** a chip next to the search icon, right of the open tabs, shows **Synced**, **Syncing** or **Not synced**. **Not synced** means, for example, that you're offline or the token was removed. Click the chip to see why.
 
 **What syncs:** all pages and everything in them. That includes text, tables, databases and their rows, the canvas, headers, page properties, the trash, and deleting forever.
 

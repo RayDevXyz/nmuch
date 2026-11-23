@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { showsCanvas, useRoles } from '../dnd/api'
-import { Archive, ArchiveRestore, ChevronRight, FileStack, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, BookmarkCheck, Palette, Plus, Shapes, Star, Table2, Trash2, X } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronRight, Search, FileStack, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, BookmarkCheck, Palette, Plus, Shapes, Star, Table2, Trash2, X } from 'lucide-react'
 import { ancestors, closeTab, convertPage, createPage, duplicatePage, openPage, setArchived, toggleFavorite, trashPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
 import { Editor, pageMarkdown } from '../editor/Editor'
@@ -12,6 +12,7 @@ import { openTemplateDialog } from '../templates/TemplateDialog'
 import { openSaveToBurrow } from '../burrow/Save'
 import { useNarrow } from '../mobile/narrow'
 import { MobileHeader } from '../mobile/MobileChrome'
+import { SyncChip } from '../sync/SyncDialog'
 
 function Tab({ id }: { id: string }) {
   const page = useApp((s) => s.pages[id])
@@ -138,57 +139,67 @@ export function EditorPanel() {
             <Plus />
           </button>
         </div>
-        {page && (
-          <div className="editor-actions">
-            {page.kind !== 'database' && (
-              <div className="mode-switch" role="group" aria-label="View">
-                <button
-                  className={!edgeless ? 'active' : ''}
-                  title="Document (Ctrl Shift E)"
-                  aria-pressed={!edgeless}
-                  onClick={() => setState((s) => ({ edgeless: { ...s.edgeless, [page.id]: false } }))}
-                >
-                  <FileText size={14} />
-                </button>
-                <button
-                  className={edgeless ? 'active' : ''}
-                  title="Canvas (Ctrl Shift E)"
-                  aria-pressed={edgeless}
-                  onClick={() => setState((s) => ({ edgeless: { ...s.edgeless, [page.id]: true } }))}
-                >
-                  <Shapes size={14} />
-                </button>
-              </div>
-            )}
-            <IconButton label={page.favorite ? 'Remove from favorites' : 'Add to favorites'} active={page.favorite} onClick={() => toggleFavorite(page.id)}>
-              <Star className={page.favorite ? 'star-on' : ''} />
-            </IconButton>
-            <IconButton
-              label="Copy as Markdown"
-              onClick={async () => {
-                await navigator.clipboard?.writeText(await pageMarkdown(page.id))
-                toast('Page copied as Markdown')
-              }}
-            >
-              <ClipboardCopy />
-            </IconButton>
-            <IconButton
-              label="More options"
-              active={!!more}
-              onClick={(e) => {
-                const r = e.currentTarget.getBoundingClientRect()
-                setMore({ x: r.right - 220, y: r.bottom })
-              }}
-            >
-              <MoreHorizontal />
-            </IconButton>
-          </div>
-        )}
+        <div className="tabs-end">
+          <SyncChip />
+          <IconButton label="Search (Ctrl K)" onClick={() => setState({ quickFind: true })}>
+            <Search />
+          </IconButton>
+        </div>
       </div>
       )}
       {page && activeId ? (
         <>
-          {!narrow && <Breadcrumb pageId={activeId} />}
+          {!narrow && (
+            <div className="crumb-bar">
+              <Breadcrumb pageId={activeId} />
+          {page && (
+            <div className="editor-actions">
+              {page.kind !== 'database' && (
+                <div className="mode-switch" role="group" aria-label="View">
+                  <button
+                    className={!edgeless ? 'active' : ''}
+                    title="Document (Ctrl Shift E)"
+                    aria-pressed={!edgeless}
+                    onClick={() => setState((s) => ({ edgeless: { ...s.edgeless, [page.id]: false } }))}
+                  >
+                    <FileText size={14} />
+                  </button>
+                  <button
+                    className={edgeless ? 'active' : ''}
+                    title="Canvas (Ctrl Shift E)"
+                    aria-pressed={edgeless}
+                    onClick={() => setState((s) => ({ edgeless: { ...s.edgeless, [page.id]: true } }))}
+                  >
+                    <Shapes size={14} />
+                  </button>
+                </div>
+              )}
+              <IconButton label={page.favorite ? 'Remove from favorites' : 'Add to favorites'} active={page.favorite} onClick={() => toggleFavorite(page.id)}>
+                <Star className={page.favorite ? 'star-on' : ''} />
+              </IconButton>
+              <IconButton
+                label="Copy as Markdown"
+                onClick={async () => {
+                  await navigator.clipboard?.writeText(await pageMarkdown(page.id))
+                  toast('Page copied as Markdown')
+                }}
+              >
+                <ClipboardCopy />
+              </IconButton>
+              <IconButton
+                label="More options"
+                active={!!more}
+                onClick={(e) => {
+                  const r = e.currentTarget.getBoundingClientRect()
+                  setMore({ x: r.right - 220, y: r.bottom })
+                }}
+              >
+                <MoreHorizontal />
+              </IconButton>
+            </div>
+          )}
+            </div>
+          )}
           <Editor key={activeId} pageId={activeId} scrollRef={scrollRef} />
         </>
       ) : (

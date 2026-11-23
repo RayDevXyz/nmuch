@@ -28,6 +28,7 @@ import {
   duplicatePage,
   emptyTrash,
   movePage,
+  siblingOrder,
   openPage,
   restorePage,
   setArchived,
@@ -50,7 +51,7 @@ import { DrawerHead } from '../mobile/MobileChrome'
 import { ensureTemplatesFolder, templatesFolder } from '../templates/apply'
 import { openTemplateDialog } from '../templates/TemplateDialog'
 
-const byKey = (a: Page, b: Page) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+const byKey = siblingOrder
 
 function PageIcon({ page, size = 14 }: { page: Page; size?: number }) {
   return page.icon ? <span className="doc-emoji">{page.icon}</span> : <FileText size={size} className="doc-fallback" />

@@ -92,9 +92,14 @@ impl Core {
 
     /// Create a page with an id chosen by the caller (the UI picks ids so it can show the
     /// page before the write returns).
-    pub fn create_page_with_id(&mut self, page_id: &str, meta: PageMeta) -> Result<PageId> {
+    pub fn create_page_with_id(&mut self, page_id: &str, mut meta: PageMeta) -> Result<PageId> {
         if store::page_exists(&self.conn, page_id)? {
             return Err(Error::Invalid(format!("page {page_id} already exists")));
+        }
+        // A page needs a sort key to be placed among its siblings (and dragged between them):
+        // one made without one goes after the others.
+        if meta.key.is_empty() {
+            meta.key = self.key_after_siblings(meta.parent_id.as_deref())?;
         }
         let doc = Doc::new();
         doc::init_page(&doc, page_id, &meta);
@@ -435,6 +440,16 @@ impl Core {
         self.docs.clear();
     }
 
+    /// A sort key after every sibling under `parent` (`None`: the top level).
+    fn key_after_siblings(&self, parent: Option<&str>) -> Result<String> {
+        let last: Option<String> = self.conn.query_row(
+            "SELECT MAX(sort_key) FROM page_meta WHERE parent_id IS ?1",
+            [parent],
+            |r| r.get(0),
+        )?;
+        Ok(key_after(&last.unwrap_or_default()))
+    }
+
     /// Run `f` on a page's live doc (loaded from the log if needed).
     pub(crate) fn with_doc<R>(&mut self, page_id: &str, f: impl FnOnce(&Doc) -> R) -> Result<R> {
         self.ensure_loaded(page_id)?;
@@ -457,5 +472,45 @@ impl Core {
             self.docs.insert(page_id.to_string(), doc);
         }
         Ok(())
+    }
+}
+
+/// The fractional sort key right after `a` (the same keys as `apps/desktop/src/lib/fractional.ts`
+/// makes with `keyBetween(a, null)`: base-62 digits, short, never ending in '0').
+pub(crate) fn key_after(a: &str) -> String {
+    const DIGITS: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    let first = a.as_bytes().first().copied();
+    let da = first.and_then(|c| DIGITS.iter().position(|&d| d == c)).unwrap_or(0);
+    let db = DIGITS.len();
+    if db - da > 1 {
+        return (DIGITS[((da + db) as f64 * 0.5).round() as usize] as char).to_string();
+    }
+    let rest = if a.is_empty() { "" } else { &a[1..] };
+    format!("{}{}", DIGITS[da] as char, key_after(rest))
+}
+
+#[cfg(test)]
+mod key_tests {
+    use super::key_after;
+
+    #[test]
+    fn keys_after_match_the_app() {
+        // The same keys as the app's keyBetween(k, null): V l t x z …
+        let mut seq = vec![];
+        let mut k = String::new();
+        for _ in 0..5 {
+            k = key_after(&k);
+            seq.push(k.clone());
+        }
+        assert_eq!(seq, ["V", "l", "t", "x", "z"]);
+        let mut k = String::new();
+        for _ in 0..200 {
+            let next = key_after(&k);
+            assert!(next > k, "{next} > {k}");
+            assert!(!next.ends_with('0'));
+            k = next;
+        }
+        // The app's keyBetween gives the same after 200 pages in a row.
+        assert_eq!(k, "z".repeat(40));
     }
 }

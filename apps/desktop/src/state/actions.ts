@@ -1,4 +1,4 @@
-import { keyBetween } from '../lib/fractional'
+import { keyBetween, keysBetween } from '../lib/fractional'
 import { registerBuiltinWidgets } from '../widgets/builtin'
 import { refreshModules } from '../modules/api'
 import { uid } from '../lib/id'
@@ -39,11 +39,15 @@ export function flushWrites(): Promise<void> {
 
 export const isLive = (p: Page | undefined) => !!p && p.trashedAt == null
 
+/** Sibling order: by key; equal keys (pages made by the core, or by two synced devices at once) by age. */
+export const siblingOrder = (a: Page, b: Page) =>
+  a.key < b.key ? -1 : a.key > b.key ? 1 : a.createdAt - b.createdAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
+
 export function childrenOf(parentId: string | null, opts: { archived?: boolean } = {}): Page[] {
   const { pages } = getState()
   return Object.values(pages)
     .filter((p) => p.parentId === parentId && p.trashedAt == null && (opts.archived || !p.archived))
-    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+    .sort(siblingOrder)
 }
 
 export function descendants(id: string, all = false): string[] {
@@ -369,10 +373,23 @@ export function movePage(id: string, targetId: string | null, pos: 'before' | 'a
     const target = s.pages[targetId]
     if (!target) return
     parentId = target.parentId
-    const sibs = childrenOf(parentId, { archived: true }).filter((p) => p.id !== id)
+    let sibs = childrenOf(parentId, { archived: true }).filter((p) => p.id !== id)
+    // A page goes between its neighbours' keys, so they must differ and be in order. Pages made by
+    // the core have no key, and two synced devices can pick the same one: renumber the siblings
+    // first, keeping the order they show in.
+    if (sibs.some((p, k) => !p.key || (k > 0 && sibs[k - 1].key >= p.key))) {
+      const fresh = keysBetween(null, null, sibs.length)
+      sibs = sibs.map((p, k) => {
+        const renumbered = { ...p, key: fresh[k] }
+        putPage(renumbered)
+        return renumbered
+      })
+    }
     const i = sibs.findIndex((p) => p.id === targetId)
-    const before = pos === 'before' ? sibs[i - 1] : target
-    const after = pos === 'before' ? target : sibs[i + 1]
+    // The target as it is now (renumbered above, maybe), not as it was.
+    const here = sibs[i] ?? target
+    const before = pos === 'before' ? sibs[i - 1] : here
+    const after = pos === 'before' ? here : sibs[i + 1]
     key = keyBetween(before?.key ?? null, after?.key ?? null)
   }
   putPage({ ...page, parentId, key, updatedAt: Date.now() })

@@ -42,7 +42,7 @@ let signingOut = false
  * reverse proxy. (`pushUpdate`, the editor's typing, is left out: the editor already shows it.)
  */
 const WRITES =
-  /^(create|update|delete|remove|set|convert|install|import|rebuild|approve|grant|revoke|widgetMutate|widgetCreateRow|course(Import|Setup|Sync)|dnd(Add|Create|Import|Set)|burrowSave)/
+  /^(create|update|delete|remove|set|convert|install|import|rebuild|approve|grant|revoke|widgetMutate|widgetCreateRow|course(Import|Setup|Sync)|dnd(Add|Create|Import|Set)|burrowSave|para(Setup|Promote|Process|Archive|Unarchive|Reviewed))/
 
 function devClient(): CoreClient {
   const subs = new Set<(e: CoreEvent) => void>()

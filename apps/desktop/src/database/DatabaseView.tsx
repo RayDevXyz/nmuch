@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowUpDown, ChevronDown, Filter as FilterIcon, FolderInput, LayoutGrid, Play, Plus, RefreshCw, Settings2, Sparkles, SquareKanban, Table2 } from 'lucide-react'
 import { MenuList, Popover } from '../components/Popover'
 import { uid } from '../lib/id'
@@ -6,6 +6,8 @@ import { openPage } from '../state/actions'
 import { createRow, removeView, setValue, setView } from './api'
 import { Cell, FileOpener, PropIcon, visibleProps } from './cells'
 import { useCourseActions } from '../modules/course'
+import { clearAsk, useAskedView, useParaRole } from '../para/api'
+import { paraShown, ParaRowActions } from '../para/ParaRow'
 import { useRoles } from '../dnd/api'
 import { openCharacterWizard } from '../dnd/CharacterWizard'
 import { dndSlashExtras } from '../dnd/slash'
@@ -48,6 +50,13 @@ export function DatabaseView({
   const dndRole = useRoles()[databaseId]
   const close = () => setMenu(null)
   const choose = (id: string) => (onViewChange ? onViewChange(id) : setLocalView(id))
+  // Opened from the PARA panel on one of its views.
+  const asked = useAskedView(databaseId)
+  useEffect(() => {
+    if (!asked || inline || onViewChange) return
+    setLocalView(asked.viewId)
+    clearAsk()
+  }, [asked, inline, onViewChange])
 
   if (error) return <div className="db-error">Could not load this database: {error}</div>
   if (!result) return <div className="db-loading">Loading…</div>
@@ -375,9 +384,13 @@ function GalleryView({ result, editable, onAdd }: { result: DatabaseResult; edit
 export function RowProperties({ rowId, databaseId }: { rowId: string; databaseId: string }) {
   const { result } = useDatabase(databaseId, undefined, { id: '', name: '', type: 'table', order: '', filters: [], sorts: [] })
   const course = useCourseActions(databaseId)
+  const para = useParaRole(databaseId)
+  const [more, setMore] = useState(false)
   const row = result?.rows.find((r) => r.id === rowId)
   if (!result || !row) return null
-  const props = result.properties.filter((p) => p.id !== 'title')
+  const all = result.properties.filter((p) => p.id !== 'title')
+  const props = para && !more ? all.filter((p) => paraShown(para.role, para.space, p, row)) : all
+  const hidden = all.length - props.length
   const file = typeof row.values.file === 'string' && row.values.missing !== true
   return (
     <FileOpener.Provider value={course?.role === 'lessons' ? course.openLesson : null}>
@@ -396,6 +409,7 @@ export function RowProperties({ rowId, databaseId }: { rowId: string; databaseId
             <RefreshCw size={13} /> Sync with folder
           </button>
         )}
+        {para && <ParaRowActions rowId={rowId} space={para.space} role={para.role} />}
       </div>
       {props.map((p) => (
         <div key={p.id} className="db-row-prop">
@@ -407,6 +421,11 @@ export function RowProperties({ rowId, databaseId }: { rowId: string; databaseId
           </div>
         </div>
       ))}
+      {para && (hidden > 0 || more) && (
+        <button className="db-row-more" onClick={() => setMore(!more)}>
+          {more ? 'Fewer properties' : `${props.length ? `${hidden} more` : `Properties (${hidden})`}`}
+        </button>
+      )}
     </div>
     </FileOpener.Provider>
   )

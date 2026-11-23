@@ -164,7 +164,22 @@ impl Core {
         // Filters and sorts.
         rows.retain(|row| view.filters.iter().all(|f| matches_filter(&def, row, f)));
         for s in view.sorts.iter().rev() {
-            if let Some(p) = def.property(&s.property) {
+            // When the row was made or last changed: not columns, but sortable like one.
+            let stamp = match s.property.as_str() {
+                "createdAt" => Some((|r: &Row| r.created_at) as fn(&Row) -> i64),
+                "updatedAt" => Some((|r: &Row| r.updated_at) as fn(&Row) -> i64),
+                _ => None,
+            };
+            if let (Some(at), None) = (stamp, def.property(&s.property)) {
+                rows.sort_by(|a, b| {
+                    let o = at(a).cmp(&at(b));
+                    if s.desc {
+                        o.reverse()
+                    } else {
+                        o
+                    }
+                });
+            } else if let Some(p) = def.property(&s.property) {
                 rows.sort_by(|a, b| {
                     let o = compare(p, a.values.get(&p.id), b.values.get(&p.id), &related);
                     if s.desc {

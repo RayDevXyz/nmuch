@@ -1,3 +1,4 @@
+import { ParaHub } from '../para/ParaView'
 import { NoteEditor, outlineOf, statsOf, toMarkdown, type EditorHost, type RefKind, type SlashExtra } from '@brainwaves/editor'
 import type { Editor as TiptapEditor } from '@tiptap/core'
 import { Selection } from '@tiptap/pm/state'
@@ -529,6 +530,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
         ) : (
           page.databaseId && <RowProperties rowId={page.id} databaseId={page.databaseId} />
         )}
+        <ParaHub pageId={page.id} />
         {page.kind === 'database' ? (
           <>
             {dbText && sync && (

@@ -62,7 +62,7 @@ function GraphView({ links, mode }: { links: Link[]; mode: 'local' | 'all' }) {
         add.forEach((a) => ids.add(a))
       }
     } else {
-      ids = new Set(Object.values(pages).filter((p) => p.trashedAt == null && !p.archived && !p.databaseId).map((p) => p.id))
+      ids = new Set(Object.values(pages).filter((p) => p.trashedAt == null && !p.databaseId).map((p) => p.id))
     }
     const deg = new Map<string, number>()
     const es = edges.filter((e) => ids.has(e.s) && ids.has(e.t))
@@ -125,7 +125,7 @@ function GraphView({ links, mode }: { links: Link[]; mode: 'local' | 'all' }) {
               const r = (n.id === activeId ? 11 : 4.5 + Math.sqrt(n.deg) * 2.4) * Math.min(k, 1.6)
               return (
                 <g key={n.id} transform={`translate(${n.x},${n.y})`} onMouseEnter={() => setHover(n.id)} onMouseLeave={() => setHover(null)} onClick={(e) => openPage(n.id, e.ctrlKey || e.metaKey ? 'tab' : 'replace')} className="graph-node">
-                  <circle r={r} className={`${n.id === activeId ? 'node-main' : ''} ${hover === n.id ? 'hot' : ''}`} strokeWidth={2 * k} />
+                  <circle r={r} className={`${n.id === activeId ? 'node-main' : ''} ${hover === n.id ? 'hot' : ''} ${pages[n.id]?.archived ? 'archived' : ''}`} strokeWidth={2 * k} />
                   {showLabel(n) && (
                     <text y={r + 10 * k} textAnchor="middle" className="graph-labels" style={{ fontSize: 8 * k }}>
                       {n.title.length > 22 ? n.title.slice(0, 21) + '…' : n.title}
@@ -159,7 +159,7 @@ function RefList({ refs, pages, icon }: { refs: Ref[]; pages: Record<string, Pag
     <>
       {groups.map(([pid, rs]) => (
         <div className="ref-group" key={pid}>
-          <button className="backlink-row" onClick={(e) => openPage(pid, e.ctrlKey || e.metaKey ? 'tab' : 'replace')}>
+          <button className={`backlink-row ${pages[pid].archived ? 'archived' : ''}`} title={pages[pid].archived ? 'Archived' : undefined} onClick={(e) => openPage(pid, e.ctrlKey || e.metaKey ? 'tab' : 'replace')}>
             {icon}
             <span>{pages[pid].icon ? pages[pid].icon + ' ' : ''}{pages[pid].title || 'Untitled'}</span>
           </button>

@@ -75,6 +75,7 @@ impl Core {
         core.register_course_module()?;
         core.register_dnd_module()?;
         core.register_burrow_module()?;
+        core.register_para_module()?;
         Ok(core)
     }
 

@@ -36,7 +36,7 @@ On a phone, Templates is one of the chips in the page drawer. Write it with the 
 
 ## Using a template
 
-- **New page from template…**: in the top bar's ⋯ menu, or with **Ctrl Shift N**. The form asks for the title and each field. The new page and its sub-pages are created and the new page opens.
+- **New page from template…**: in the app menu (the BrainWaves icon at the top of the left rail), or with **Ctrl Shift N**. The form asks for the title and each field. The new page and its sub-pages are created and the new page opens.
 - **Add sub-page from template…**: in a page's ⋯ menu. The same form; the new page goes under the current one.
 - **`/template`** in a page, or `/` followed by the template's name. You choose:
   - **As a sub-page:** a new page, linked where the cursor is.

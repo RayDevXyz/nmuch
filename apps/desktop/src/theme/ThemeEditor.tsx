@@ -32,7 +32,7 @@ const GROUPS: { title: string; keys: [keyof ThemeColors, string, string][] }[] =
     title: 'Surfaces',
     keys: [
       ['appBg', 'Window', 'Behind everything'],
-      ['panel', 'Panels', 'Top bar, sidebars, menus'],
+      ['panel', 'Panels', 'Rail, sidebars, tab bar, menus'],
       ['panel2', 'Raised', 'Inputs, chips, cards'],
       ['hover', 'Hover', 'Under the pointer, selected rows'],
       ['line', 'Borders', 'Lines between things'],

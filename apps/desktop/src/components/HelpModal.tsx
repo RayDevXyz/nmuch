@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { setState } from '../state/store'
 
-const GROUPS: [string, [string, string][]][] = [
+export const GROUPS: [string, [string, string][]][] = [
   [
     'General',
     [
@@ -26,6 +26,8 @@ const GROUPS: [string, [string, string][]][] = [
       ['/course', 'Course tracker: courses, lessons, progress'],
       ['Enter / Shift Enter', 'New block / line break'],
       ['Tab / Shift Tab', 'Indent / outdent list item'],
+      ['/toggle or >>', 'Toggle: a line that folds away what is under it'],
+      ['Ctrl Enter', 'Fold / unfold the toggle, heading or list item you are in'],
       ['Ctrl Alt 0–3', 'Text / Heading 1–3'],
       ['Ctrl Shift 7 8 9', 'Numbered / bullet / to-do'],
       ['Ctrl Shift B', 'Quote'],
@@ -101,6 +103,7 @@ const GROUPS: [string, [string, string][]][] = [
       ['[] ', 'To-do'],
       ['>', 'Quote'],
       ['!>', 'Callout'],
+      ['>>', 'Toggle'],
       ['```', 'Code block'],
       ['---', 'Divider'],
     ],

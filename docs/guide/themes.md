@@ -32,7 +32,7 @@ from **Settings → Theme editor…** or the app menu (BrainWaves ▾ → **Them
 
 ## Choosing quickly
 
-**Settings** (the ⚙ in the top bar) has a **Dark theme** and a **Light theme** picker, so you can
+**Settings** (the ⚙ at the bottom of the left rail) has a **Dark theme** and a **Light theme** picker, so you can
 switch themes without opening the editor.
 
 ## A page's own theme

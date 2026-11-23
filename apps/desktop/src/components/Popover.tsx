@@ -25,17 +25,24 @@ export function Popover({ x, y, anchorTop, onClose, children, className, keepFoc
   useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    const r = el.getBoundingClientRect()
-    const vw = window.innerWidth
-    const vh = window.innerHeight
-    let left = Math.min(x, vw - r.width - 8)
-    left = Math.max(8, left)
-    let top = y + 4
-    if (top + r.height > vh - 8) {
-      const up = (anchorTop ?? y) - r.height - 4
-      top = up > 8 ? up : Math.max(8, vh - r.height - 8)
+    const place = () => {
+      const r = el.getBoundingClientRect()
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+      let left = Math.min(x, vw - r.width - 8)
+      left = Math.max(8, left)
+      let top = y + 4
+      if (top + r.height > vh - 8) {
+        const up = (anchorTop ?? y) - r.height - 4
+        top = up > 8 ? up : Math.max(8, vh - r.height - 8)
+      }
+      setPos((p) => (p.left === left && p.top === top && p.ready ? p : { left, top, ready: true }))
     }
-    setPos({ left, top, ready: true })
+    place()
+    // Content that loads late (a path, a list) changes the size: place it again.
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place)
+    ro?.observe(el)
+    return () => ro?.disconnect()
   }, [x, y, anchorTop])
 
   useEffect(() => {

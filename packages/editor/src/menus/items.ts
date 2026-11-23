@@ -8,6 +8,7 @@ import {
   Columns2,
   Columns3,
   Columns4,
+  ListCollapse,
   Map as MapIcon,
   Sigma,
   Heading1,
@@ -47,6 +48,7 @@ export type SlashId =
   | 'columns2'
   | 'columns3'
   | 'columns4'
+  | 'toggle'
 
 export interface SlashItem {
   id: SlashId
@@ -67,6 +69,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'todo', label: 'To-do', desc: 'Track tasks with a checkbox', icon: CheckSquare, keywords: 'task check checkbox todo []', hint: '[]' },
   { id: 'quote', label: 'Quote', desc: 'Capture a quote', icon: MessageSquareQuote, keywords: 'blockquote citation >', hint: '>' },
   { id: 'callout', label: 'Callout', desc: 'Make writing stand out', icon: Lightbulb, keywords: 'note info tip warning box', hint: '!>' },
+  { id: 'toggle', label: 'Toggle', desc: 'A line that folds away what is under it', icon: ListCollapse, keywords: 'toggle collapse fold expand details accordion dropdown >>', hint: '>>' },
   { id: 'code', label: 'Code', desc: 'Code snippet', icon: Code2, keywords: 'snippet pre programming ```', hint: '```' },
   { id: 'divider', label: 'Divider', desc: 'Visual separator', icon: Minus, keywords: 'hr line separator rule ---', hint: '---' },
   { id: 'image', label: 'Image', desc: 'Upload an image', icon: Image, keywords: 'picture photo img upload' },
@@ -100,7 +103,7 @@ export function filterSlash(q: string): SlashItem[] {
 }
 
 /** Block types offered by "Turn into" in the block menu. */
-export const TURN_INTO: SlashId[] = ['text', 'h1', 'h2', 'h3', 'bullet', 'numbered', 'todo', 'quote', 'callout', 'code']
+export const TURN_INTO: SlashId[] = ['text', 'h1', 'h2', 'h3', 'bullet', 'numbered', 'todo', 'toggle', 'quote', 'callout', 'code']
 
 export const slashItem = (id: SlashId) => SLASH_ITEMS.find((i) => i.id === id)!
 
@@ -163,6 +166,8 @@ export function runSlash(editor: Editor, id: SlashId, range?: Range) {
       })
       return true
     }
+    case 'toggle':
+      return chain().setToggle().run()
     case 'columns2':
     case 'columns3':
     case 'columns4':

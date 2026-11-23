@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { refreshModules } from '../modules/api'
-import { ChevronDown, CircleHelp, Download, FilePlus2, FileStack, HardDrive, KeyRound, Menu, Moon, Palette, Smartphone, Search, Settings, Sparkles, Star, Sun, Blocks, Puzzle, RefreshCw } from 'lucide-react'
+import { CircleHelp, Clock3, Download, FilePlus2, FileStack, HardDrive, KeyRound, Moon, Palette, Smartphone, Search, Sun, Blocks, Puzzle, RefreshCw } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
 import { MenuList, Popover } from './Popover'
 import { activeTheme, BUILTIN } from '../theme/themes'
 import { AccountDialog } from '../auth/Account'
-import { SyncChip } from '../sync/SyncDialog'
 import { openTemplateDialog } from '../templates/TemplateDialog'
 import { hostedUser } from '../state/hosted'
 import { useInstall } from '../mobile/pwa'
@@ -32,7 +31,7 @@ function Seg<T extends string>({ value, options, onChange }: { value: T; options
   )
 }
 
-export function SettingsPanel({ x, y, onClose, onAccount }: { x: number; y: number; onClose: () => void; onAccount: () => void }) {
+export function SettingsPanel({ x, y, anchorTop, onClose, onAccount }: { x: number; y: number; anchorTop?: number; onClose: () => void; onAccount: () => void }) {
   const theme = useApp((s) => s.theme)
   const themes = useApp((s) => s.themes)
   const themeFor = useApp((s) => s.themeFor)
@@ -45,7 +44,7 @@ export function SettingsPanel({ x, y, onClose, onAccount }: { x: number; y: numb
     db().location().then(setLoc).catch(() => setLoc(''))
   }, [])
   return (
-    <Popover x={x} y={y} onClose={onClose} className="settings-pop">
+    <Popover x={x} y={y} anchorTop={anchorTop} onClose={onClose} className="settings-pop">
       <div className="settings-title">Settings</div>
       <div className="setting-row">
         <span>Theme</span>
@@ -152,79 +151,41 @@ export function SettingsPanel({ x, y, onClose, onAccount }: { x: number; y: numb
   )
 }
 
-export function TopBar() {
-  const kind = useApp((s) => s.storageKind)
+/** The app menu, opened from the app icon at the top of the left rail. */
+export function AppMenu({ x, y, onClose }: { x: number; y: number; onClose: () => void }) {
   const theme = useApp((s) => s.theme)
-  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [settings, setSettings] = useState<{ x: number; y: number } | null>(null)
-  const [account, setAccount] = useState(false)
   const { canInstall, install } = useInstall()
   return (
-    <header className="topbar">
-      <div className="brand-area">
-        <button className="icon-button mobile-only" aria-label="Menu" title="Menu" onClick={() => setState((s) => ({ sidebarOpen: !s.sidebarOpen }))}>
-          <Menu />
-        </button>
-        <button
-          className="brand-trigger"
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect()
-            setMenu({ x: r.left, y: r.bottom })
-          }}
-        >
-          <span className="brand-mark" aria-hidden>
-            <Sparkles size={15} />
-          </span>
-          <span className="brand-name">BrainWaves</span>
-          <ChevronDown size={14} className="muted-icon" />
-        </button>
-      </div>
-      <div className="top-actions">
-        <IconButton label="Quick find (Ctrl K)" onClick={() => setState({ quickFind: true })}>
-          <Search />
-        </IconButton>
-        <IconButton label="Favorites" onClick={() => setView('favorites')}>
-          <Star />
-        </IconButton>
-        <IconButton
-          label="Settings"
-          active={!!settings}
-          onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect()
-            setSettings({ x: r.right - 280, y: r.bottom })
-          }}
-        >
-          <Settings />
-        </IconButton>
-        <SyncChip />
-        <span className="storage-chip" title={kind === 'sqlite' ? 'Every edit is a Yjs update in a local SQLite file' : 'Running in a browser against bw-devserver'}>
-          <span className="dot" />
-          {kind === 'sqlite' ? 'Local · SQLite' : hostedUser() ? 'Hosted' : 'Dev · SQLite'}
-        </span>
-      </div>
-      {menu && (
-        <Popover x={menu.x} y={menu.y} onClose={() => setMenu(null)}>
-          <MenuList
-            onDone={() => setMenu(null)}
-            items={[
-              { label: 'New page', icon: <FilePlus2 size={14} />, hint: 'Ctrl N', onSelect: () => createPage() },
-              { label: 'New page from template…', icon: <FileStack size={14} />, hint: 'Ctrl Shift N', onSelect: () => openTemplateDialog({ parentId: null }) },
-              { label: 'Quick find', icon: <Search size={14} />, hint: 'Ctrl K', onSelect: () => setState({ quickFind: true }) },
-              'sep',
-              {
-                label: theme === 'dark' ? 'Light theme' : 'Dark theme',
-                icon: theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />,
-                onSelect: () => setState({ theme: getState().theme === 'dark' ? 'light' : 'dark' }),
-              },
-              { label: 'Theme editor', icon: <Palette size={14} />, onSelect: () => setState({ themeEditor: true }) },
-              ...(canInstall ? [{ label: 'Install app', icon: <Smartphone size={14} />, onSelect: () => void install() }] : []),
-              { label: 'Keyboard shortcuts', icon: <CircleHelp size={14} />, hint: 'Ctrl /', onSelect: () => setState({ help: true }) },
-            ]}
-          />
-        </Popover>
-      )}
-      {settings && <SettingsPanel x={settings.x} y={settings.y} onClose={() => setSettings(null)} onAccount={() => setAccount(true)} />}
+    <Popover x={x} y={y} onClose={onClose}>
+      <MenuList
+        onDone={onClose}
+        items={[
+          { label: 'New page', icon: <FilePlus2 size={14} />, hint: 'Ctrl N', onSelect: () => createPage() },
+          { label: 'New page from template…', icon: <FileStack size={14} />, hint: 'Ctrl Shift N', onSelect: () => openTemplateDialog({ parentId: null }) },
+          { label: 'Quick find', icon: <Search size={14} />, hint: 'Ctrl K', onSelect: () => setState({ quickFind: true }) },
+          { label: 'Recent pages', icon: <Clock3 size={14} />, onSelect: () => setView('recent') },
+          'sep',
+          {
+            label: theme === 'dark' ? 'Light theme' : 'Dark theme',
+            icon: theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />,
+            onSelect: () => setState({ theme: getState().theme === 'dark' ? 'light' : 'dark' }),
+          },
+          { label: 'Theme editor', icon: <Palette size={14} />, onSelect: () => setState({ themeEditor: true }) },
+          ...(canInstall ? [{ label: 'Install app', icon: <Smartphone size={14} />, onSelect: () => void install() }] : []),
+          { label: 'Keyboard shortcuts', icon: <CircleHelp size={14} />, hint: 'Ctrl /', onSelect: () => setState({ help: true }) },
+        ]}
+      />
+    </Popover>
+  )
+}
+
+/** The Settings panel and, from it, the account dialog. */
+export function SettingsHost({ at, onClose }: { at: { x: number; y: number; anchorTop?: number }; onClose: () => void }) {
+  const [account, setAccount] = useState(false)
+  return (
+    <>
+      <SettingsPanel x={at.x} y={at.y} anchorTop={at.anchorTop} onClose={onClose} onAccount={() => setAccount(true)} />
       {account && hostedUser() && <AccountDialog user={hostedUser()!} onClose={() => setAccount(false)} />}
-    </header>
+    </>
   )
 }

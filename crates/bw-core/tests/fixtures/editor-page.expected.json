@@ -287,6 +287,30 @@
       "refs": []
     },
     {
+      "id": "tg1",
+      "type": "toggle",
+      "depth": 2,
+      "text": "",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "tg1s",
+      "type": "paragraph",
+      "depth": 3,
+      "text": "More",
+      "attrs": {},
+      "refs": []
+    },
+    {
+      "id": "tg1p",
+      "type": "paragraph",
+      "depth": 3,
+      "text": "Hidden detail",
+      "attrs": {},
+      "refs": []
+    },
+    {
       "id": "tb1",
       "type": "table",
       "depth": 2,

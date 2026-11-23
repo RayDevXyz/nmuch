@@ -34,6 +34,23 @@ A table holds plain blocks, not database columns. For sorting, filtering, typed 
 - Cells carry `colspan`, `rowspan` and `colwidth`.
 - The Rust core lists the same nodes (`schema::node::TABLE*`), and the contract fixtures cover them.
 
+## Toggles and folding
+
+A **toggle** is a line that folds away what is under it. Make one with **/toggle**, or type
+**`>> `** at the start of a line. The first line is the summary; press Enter at its end to write
+what folds under it. Enter on an empty last line leaves the toggle; Backspace at the start of the
+summary turns it back into plain lines.
+
+Anything with something under it can fold, not only toggles:
+
+- **Headings** fold their section: everything up to the next heading of the same or a bigger
+  size. A folded heading ends in "…".
+- **List items** (bulleted, numbered, to-do) with a nested list fold that list.
+
+Click the arrow to the left (it shows when you point at the line), or press **Ctrl Enter**
+anywhere in the block. What you fold is remembered on this device; folding never changes the page
+itself, so it stays the same for everyone and in Markdown (a toggle is copied as `<details>`).
+
 ## Columns
 
 Type `/columns` and pick **2 columns**, **3 columns** or **4 columns**. If the line you're on has text, it moves into the first column. Each column holds any blocks: text, lists, images, tables, databases. You can drag blocks in and out of columns with the block handle.

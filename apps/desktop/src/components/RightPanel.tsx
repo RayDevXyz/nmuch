@@ -1,3 +1,4 @@
+import { GROUPS } from './HelpModal'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force'
 import { AtSign, Link2, PanelRight } from 'lucide-react'
@@ -233,6 +234,56 @@ export function RightPanel() {
         </div>
         {activeId ? <RefList refs={mentions} pages={pages} icon={<AtSign size={13} />} /> : null}
       </div>
+      <Shortcuts />
     </aside>
+  )
+}
+
+const SHORTCUT_GROUP = 'bw.rightShortcuts'
+
+/** Keyboard shortcuts, one group at a time, at the bottom of the right panel. */
+function Shortcuts() {
+  const [group, setGroup] = useState(() => {
+    try {
+      return localStorage.getItem(SHORTCUT_GROUP) ?? GROUPS[0][0]
+    } catch {
+      return GROUPS[0][0]
+    }
+  })
+  const pick = (g: string) => {
+    setGroup(g)
+    try {
+      localStorage.setItem(SHORTCUT_GROUP, g)
+    } catch {
+      /* not remembered */
+    }
+  }
+  const items = (GROUPS.find(([g]) => g === group) ?? GROUPS[0])[1]
+  return (
+    <div className="backlinks rp-shortcuts">
+      <div className="right-subheading">
+        <span>Shortcuts</span>
+        <select aria-label="Shortcut group" value={group} onChange={(e) => pick(e.target.value)}>
+          {GROUPS.map(([g]) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
+      </div>
+      <dl>
+        {items.map(([k, d]) => (
+          <div key={k + d}>
+            <dt>
+              <kbd>{k}</kbd>
+            </dt>
+            <dd>{d}</dd>
+          </div>
+        ))}
+      </dl>
+      <button className="rp-shortcuts-all" onClick={() => setState({ help: true })}>
+        All shortcuts <kbd>Ctrl /</kbd>
+      </button>
+    </div>
   )
 }

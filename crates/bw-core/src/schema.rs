@@ -109,6 +109,8 @@ pub mod node {
     /// Columns side by side: `columns` > `column` > blocks. attrs: `widths` ("1,2,1"; empty: equal).
     pub const COLUMNS: &str = "columns";
     pub const COLUMN: &str = "column";
+    /// A toggle: the first child (a paragraph) is the summary line, the rest folds away.
+    pub const TOGGLE: &str = "toggle";
 
     /// Inline reference. attrs: `kind` ("page" | "block"), `target` (id).
     pub const REF: &str = "ref";
@@ -136,7 +138,7 @@ pub mod node {
     pub fn allows(parent: &str, child: &str) -> bool {
         let block = !is_inline(child) && ![LIST_ITEM, TASK_ITEM, TABLE_ROW, TABLE_HEADER, TABLE_CELL, COLUMN].contains(&child);
         match parent {
-            NOTE | BLOCKQUOTE | LIST_ITEM | TASK_ITEM | TABLE_HEADER | TABLE_CELL | COLUMN => block,
+            NOTE | BLOCKQUOTE | LIST_ITEM | TASK_ITEM | TABLE_HEADER | TABLE_CELL | COLUMN | TOGGLE => block,
             COLUMNS => child == COLUMN,
             BULLET_LIST | ORDERED_LIST => child == LIST_ITEM,
             TASK_LIST => child == TASK_ITEM,

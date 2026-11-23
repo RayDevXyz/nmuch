@@ -23,6 +23,7 @@ export const BLOCK_TYPES = [
   'moc',
   'columns',
   'column',
+  'toggle',
   'table',
   'tableRow',
   'tableHeader',

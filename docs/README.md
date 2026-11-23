@@ -3,7 +3,7 @@
 ## Using BrainWaves
 
 **Writing**
-- [Pages and blocks](guide/editor.md): the `/` menu and Markdown shortcuts, plus tables, columns and callouts
+- [Pages and blocks](guide/editor.md): the `/` menu and Markdown shortcuts, plus tables, columns, callouts and toggles
 - [Page headers](guide/page-headers.md): a cover with a picture, gradient or colour, breadcrumbs and sub-page links
 - [Page properties](guide/page-properties.md): status, dates, tags and more on any page; in a pop-up or under the title
 - [Templates](guide/templates.md): pages and sub-pages from a template, with fields to fill in (`{{Client}}`, `{{date}}`)

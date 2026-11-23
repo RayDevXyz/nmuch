@@ -45,6 +45,12 @@ function block(n: JSONContent, titleOf: TitleOf, indent: string): string[] {
       return [`${indent}![${n.attrs?.caption ?? ''}](${n.attrs?.src ?? ''})`]
     case 'pageLink':
       return [`${indent}[[${titleOf('page', n.attrs?.pageId ?? '')}]]`]
+    case 'toggle': {
+      // GitHub folds <details>: the first line is the summary.
+      const [first, ...rest] = kids
+      const summary = first ? inline(first.content, titleOf) : ''
+      return [`${indent}<details>`, `${indent}<summary>${summary}</summary>`, ...rest.flatMap((k) => ['', ...block(k, titleOf, indent)]), '', `${indent}</details>`]
+    }
     case 'columns':
       // Markdown has no columns: one column after the other.
       return kids.flatMap((col) => (col.content ?? []).flatMap((k) => ['', ...block(k, titleOf, indent)])).slice(1)

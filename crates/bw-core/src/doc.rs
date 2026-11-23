@@ -225,6 +225,13 @@ impl NewBlock {
         Self::el(node::MOC, vec![("settings", Any::from(settings.to_string()))], vec![])
     }
 
+    /// A toggle: a summary line and the blocks that fold under it.
+    pub fn toggle(summary: &str, body: Vec<XNode>) -> XNode {
+        let mut kids = vec![Self::paragraph(summary)];
+        kids.extend(body);
+        Self::el(node::TOGGLE, vec![], kids)
+    }
+
     /// Columns side by side, each with one paragraph.
     pub fn columns(texts: &[&str]) -> XNode {
         let cols = texts.iter().map(|t| Self::el(node::COLUMN, vec![], vec![Self::paragraph(t)])).collect();
@@ -879,7 +886,7 @@ impl<'a, 'doc> BlockTxn<'a, 'doc> {
             }
             // A table cell must hold a block: leave it an empty paragraph.
             (Container::Block(e), Some(pb))
-                if e.len(&*self.txn) == 0 && [node::TABLE_HEADER, node::TABLE_CELL, node::COLUMN].contains(&pb.tag().as_ref()) =>
+                if e.len(&*self.txn) == 0 && [node::TABLE_HEADER, node::TABLE_CELL, node::COLUMN, node::TOGGLE].contains(&pb.tag().as_ref()) =>
             {
                 write_xnode(self.txn, e, 0, &NewBlock::paragraph(""));
             }

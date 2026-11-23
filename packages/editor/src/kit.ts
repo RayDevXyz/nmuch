@@ -20,6 +20,7 @@ import { Ref } from './nodes/ref'
 import { MarkdownPaste } from './nodes/markdown-paste'
 import { Tags } from './nodes/tags'
 import { TemplateCall } from './nodes/template-call'
+import { Folding, Toggle } from './nodes/toggle'
 import { BlockRefSuggestion, PageLinkSuggestion, SlashCommands } from './menus/suggestions'
 
 export interface KitOptions {
@@ -50,6 +51,7 @@ export function schemaExtensions(): Extensions {
     Moc,
     Columns,
     Column,
+    Toggle,
     // Simple tables: a header row and plain cells. Columns can be resized by dragging.
     TableKit.configure({ table: { resizable: true, cellMinWidth: 60, lastColumnResizable: true, allowTableNodeSelection: true } }),
     Ref,
@@ -63,6 +65,7 @@ export function editorExtensions({ fragment, host }: KitOptions): Extensions {
     ...schemaExtensions(),
     HostExtension.configure({ host: host ?? null }),
     Tags,
+    Folding,
     Placeholder.configure({
       placeholder: ({ node }) => {
         if (node.type.name === 'heading') return `Heading ${node.attrs.level}`

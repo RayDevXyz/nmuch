@@ -57,6 +57,7 @@ const DOC: JSONContent = {
         { type: 'column', attrs: { id: 'col2' }, content: [p('col2p', t('Right'))] },
       ],
     },
+    { type: 'toggle', attrs: { id: 'tg1' }, content: [p('tg1s', t('More')), p('tg1p', t('Hidden detail'))] },
     {
       type: 'table',
       attrs: { id: 'tb1' },

@@ -128,6 +128,10 @@ the import window takes you there). Then, in its **Export** menu, save two files
 - the map picture, **.png** (or .svg);
 - the world data, **JSON → Full** (Minimal works too).
 
+To set up the whole world at once (terrain, climate, peoples, realms, gods, troops, units) and fill it
+with D&D adventure sites, each with a tier, levels, CR and a hook, use the
+[D&D world generator script](../../integrations/azgaar/README.md).
+
 **2. Import it.** On the campaign page, or on the World map itself, press **Import Azgaar world**.
 Choose the JSON and the picture, choose which settlements to bring in, and press **Import world**.
 

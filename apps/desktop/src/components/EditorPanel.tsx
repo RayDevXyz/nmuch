@@ -13,6 +13,7 @@ import { openSaveToBurrow } from '../burrow/Save'
 import { useNarrow } from '../mobile/narrow'
 import { MobileHeader } from '../mobile/MobileChrome'
 import { SyncChip } from '../sync/SyncDialog'
+import { PanelRight } from 'lucide-react'
 
 function Tab({ id }: { id: string }) {
   const page = useApp((s) => s.pages[id])
@@ -144,6 +145,7 @@ export function EditorPanel() {
           <IconButton label="Search (Ctrl K)" onClick={() => setState({ quickFind: true })}>
             <Search />
           </IconButton>
+          <RightToggle />
         </div>
       </div>
       )}
@@ -258,5 +260,15 @@ export function EditorPanel() {
         </Popover>
       )}
     </section>
+  )
+}
+
+/** Shows or hides the right panel (graph, backlinks; a canvas's assets). */
+function RightToggle() {
+  const open = useApp((s) => s.rightOpen)
+  return (
+    <IconButton label={open ? 'Hide the right panel (Ctrl Shift \\)' : 'Show the right panel (Ctrl Shift \\)'} active={open} onClick={() => setState({ rightOpen: !open })}>
+      <PanelRight />
+    </IconButton>
   )
 }

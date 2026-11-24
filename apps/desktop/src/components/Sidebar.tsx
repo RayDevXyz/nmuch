@@ -51,6 +51,7 @@ import { DrawerHead } from '../mobile/MobileChrome'
 import { ensureTemplatesFolder, templatesFolder } from '../templates/apply'
 import { openTemplateDialog } from '../templates/TemplateDialog'
 import { ParaView } from '../para/ParaView'
+import { ResizeHandle } from './ResizeHandle'
 
 const byKey = siblingOrder
 
@@ -491,6 +492,7 @@ export function Sidebar() {
   }, [pages])
   const all = Object.values(pages)
   const narrow = useNarrow()
+  const sidebarWidth = useApp((s) => s.sidebarWidth)
 
   let body: React.ReactNode
   if (view === 'recent') {
@@ -574,7 +576,8 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" style={narrow ? undefined : { width: sidebarWidth }}>
+      {!narrow && <ResizeHandle edge="right" width={sidebarWidth} min={200} max={520} initial={252} onWidth={(w) => setState({ sidebarWidth: w })} label="Sidebar width" />}
       {narrow && <DrawerHead />}
       <div className="sidebar-scroll">
         {body}

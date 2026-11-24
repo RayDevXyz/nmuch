@@ -1752,3 +1752,43 @@ button.para-item.para-item-main:hover { background: var(--hover); }
 .bwb-gear { margin-left: 0; }
 @media (max-width: 640px) { .bwb-grid { grid-template-columns: 1fr; } }
 .help-learn { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+
+/* Resizable sidebars */
+.sidebar, .right-panel { position: relative; }
+.resize-handle { position: absolute; top: 0; bottom: 0; width: 7px; z-index: 8; cursor: col-resize; touch-action: none; }
+.resize-handle.right { right: -4px; }
+.resize-handle.left { left: -4px; }
+.resize-handle::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: transparent; transition: background 0.12s; }
+.resize-handle:hover::after, .resize-handle:focus-visible::after, body.resizing .resize-handle::after { background: var(--accent); width: 2px; left: 2px; }
+.resize-handle:focus { outline: none; }
+body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
+
+/* The canvas: a floating tool bar at the bottom (the assets are in the right panel) */
+.cv-toolbar { bottom: 18px; gap: 4px; padding: 5px; border-radius: 14px; background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--line-soft); border: 0; }
+.cv-toolbar-group { display: flex; align-items: center; gap: 2px; }
+.cv-toolbar-group + .cv-toolbar-group { padding-left: 4px; margin-left: 2px; border-left: 1px solid var(--line); }
+.cv-tb { width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; color: var(--muted-foreground); display: grid; place-items: center; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.cv-tb:hover { background: var(--hover); color: var(--foreground); }
+.cv-tb.on { background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 40%, transparent); }
+.cv-zoom { border-radius: 12px; }
+@media (max-width: 900px) { .cv-toolbar { bottom: 64px; max-width: calc(100% - 24px); overflow-x: auto; scrollbar-width: none; } }
+
+/* The canvas's assets in the right panel */
+.right-panel.rp-assets { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.rp-view { flex: none; }
+.rp-switch-row { height: 44px; justify-content: flex-end; border-bottom: 1px solid var(--line-soft); }
+.cv-assets { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cv-assets-tabs { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin: 0 12px 4px; padding: 3px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line-soft); }
+.cv-assets-tabs button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px 5px; border: 0; border-radius: 8px; background: transparent; color: var(--muted-foreground); font: inherit; font-size: 10.5px; font-weight: 600; cursor: pointer; }
+.cv-assets-tabs button:hover { color: var(--foreground); }
+.cv-assets-tabs button.on { background: var(--panel); color: var(--accent); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15); }
+.cv-assets-body { flex: 1; min-height: 0; overflow-y: auto; }
+@media (max-width: 900px) {
+  .workspace .right-panel.rp-assets { display: flex !important; position: fixed; top: 0; right: 0; bottom: 0; z-index: 60; width: min(340px, 92vw) !important; box-shadow: -12px 0 30px rgba(0, 0, 0, 0.35); }
+  .rp-assets .resize-handle { display: none; }
+}
+/* Zoom at the bottom left, the tools in the middle; they make room for each other. */
+.cv-root { container-type: inline-size; container-name: canvas; }
+.cv-root .cv-zoom { left: 16px; right: auto; bottom: 18px; }
+@container canvas (max-width: 1180px) { .cv-zoom-slider { display: none; } }
+@container canvas (max-width: 1010px) { .cv-toolbar { bottom: 66px; } }

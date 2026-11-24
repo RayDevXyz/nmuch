@@ -1,4 +1,27 @@
-import { Maximize, Minus, Play, Plus, Redo2, Undo2 } from 'lucide-react'
+import {
+  ArrowUpRight,
+  Circle,
+  CircleUserRound,
+  CloudFog,
+  Diamond,
+  Frame,
+  Hand,
+  Image as ImageIcon,
+  LayoutGrid,
+  MapPin,
+  Maximize,
+  Minus,
+  MousePointer2,
+  Play,
+  Plus,
+  Redo2,
+  Square,
+  StickyNote,
+  Type,
+  Undo2,
+  type LucideIcon,
+} from 'lucide-react'
+import { getState, setState, useApp } from '../state/store'
 
 export type Tool = 'select' | 'hand' | 'note' | 'rect' | 'ellipse' | 'diamond' | 'text' | 'connector' | 'frame' | 'image' | 'pin' | 'token' | 'reveal'
 
@@ -56,6 +79,69 @@ export function ZoomBar({
           </button>
         </>
       )}
+    </div>
+  )
+}
+
+type ToolDef = { tool: Tool; label: string; key: string; icon: LucideIcon }
+
+const GROUPS: ToolDef[][] = [
+  [
+    { tool: 'select', label: 'Select', key: 'V', icon: MousePointer2 },
+    { tool: 'hand', label: 'Pan (or hold Space)', key: 'H', icon: Hand },
+  ],
+  [
+    { tool: 'note', label: 'Note', key: 'N', icon: StickyNote },
+    { tool: 'text', label: 'Text', key: 'T', icon: Type },
+    { tool: 'rect', label: 'Rectangle', key: 'R', icon: Square },
+    { tool: 'ellipse', label: 'Ellipse', key: 'O', icon: Circle },
+    { tool: 'diamond', label: 'Diamond', key: 'D', icon: Diamond },
+    { tool: 'connector', label: 'Connector: drag from one item to another', key: 'C', icon: ArrowUpRight },
+    { tool: 'frame', label: 'Frame', key: 'F', icon: Frame },
+  ],
+  [
+    { tool: 'image', label: 'Picture: click where it goes', key: 'I', icon: ImageIcon },
+    { tool: 'pin', label: 'Pin a page', key: 'P', icon: MapPin },
+  ],
+]
+const SCENE: ToolDef[] = [
+  { tool: 'token', label: 'Token: a character or monster', key: 'K', icon: CircleUserRound },
+  { tool: 'reveal', label: 'Reveal: drag over an area to clear its fog', key: 'E', icon: CloudFog },
+]
+
+/**
+ * Bottom centre: the drawing tools in one floating bar, and a button that shows the canvas's
+ * assets (shapes, text, pictures, layers) in the right panel.
+ */
+export function CanvasToolbar({ tool, onTool, scene }: { tool: Tool; onTool: (t: Tool) => void; scene: boolean }) {
+  const showing = useApp((s) => s.rightOpen && s.rightView === 'assets')
+  const groups = scene ? [...GROUPS, SCENE] : GROUPS
+  return (
+    <div className="cv-toolbar" role="toolbar" aria-label="Canvas tools" onPointerDown={(e) => e.stopPropagation()}>
+      {groups.map((g, i) => (
+        <div key={i} className="cv-toolbar-group">
+          {g.map((t) => (
+            <button key={t.tool} className={`cv-tb ${tool === t.tool ? 'on' : ''}`} title={`${t.label} (${t.key})`} aria-label={t.label} aria-pressed={tool === t.tool} onClick={() => onTool(t.tool)}>
+              <t.icon size={17} />
+            </button>
+          ))}
+        </div>
+      ))}
+      <div className="cv-toolbar-group">
+        <button
+          className={`cv-tb ${showing ? 'on' : ''}`}
+          title={showing ? 'Hide the assets' : 'Assets: shapes, text, pictures and layers'}
+          aria-label="Assets"
+          aria-pressed={showing}
+          onClick={() => {
+            const s = getState()
+            if (s.rightOpen && s.rightView === 'assets') setState({ rightOpen: false })
+            else setState({ rightOpen: true, rightView: 'assets' })
+          }}
+        >
+          <LayoutGrid size={17} />
+        </button>
+      </div>
     </div>
   )
 }

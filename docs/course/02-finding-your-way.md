@@ -32,7 +32,11 @@ document or canvas view, the **â˜…** (star the page), copy as Markdown, and **â‹
 theme, sub-pages, duplicate, archive, move to trash and more).
 
 **The right panel** shows the graph of linked pages, backlinks, unlinked mentions and a list of
-keyboard shortcuts. **Ctrl Shift \\** shows or hides it.
+keyboard shortcuts. The panel icon next to the search icon (or **Ctrl Shift \\**) shows or hides it.
+While a canvas is open, it shows the canvas's assets instead (lesson 11).
+
+**Wider or narrower:** drag the inner edge of the sidebar or the right panel to resize it;
+double-click the edge to put it back.
 
 **Finding anything:** **Ctrl K** opens quick find. Type part of a title or of any text; Enter opens
 it.
@@ -49,6 +53,7 @@ searchable and linked. **Move to trash** deletes it, and the Trashed view can br
 - [ ] Press **Ctrl K** and open a page by typing a word from it.
 - [ ] Archive a page, find it under **Archived**, and bring it back.
 - [ ] Hide and show the sidebar with **Ctrl \\**.
+- [ ] Make the sidebar wider by dragging its edge, then double-click the edge to reset it.
 
 ## Learn more
 

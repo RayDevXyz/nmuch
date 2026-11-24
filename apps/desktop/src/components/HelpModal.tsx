@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { setState } from '../state/store'
+import { learnBrainWaves } from '../course/learn'
 
 export const GROUPS: [string, [string, string][]][] = [
   [
@@ -135,7 +136,18 @@ export function HelpModal() {
             </section>
           ))}
         </div>
-        <p className="help-foot">On macOS use ⌘ instead of Ctrl.</p>
+        <p className="help-foot">
+          On macOS use ⌘ instead of Ctrl. New here?{' '}
+          <button
+            className="help-learn"
+            onClick={() => {
+              close()
+              void learnBrainWaves()
+            }}
+          >
+            Take the BrainWaves course
+          </button>
+        </p>
       </div>
     </div>,
     document.querySelector('.workspace') ?? document.body,

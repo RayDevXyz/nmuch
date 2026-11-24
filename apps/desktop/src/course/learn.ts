@@ -1,5 +1,5 @@
 import { markdownToContent } from '../lib/convert'
-import { createPage, openPage, withPage } from '../state/actions'
+import { createPage, openPage, updatePage, withPage } from '../state/actions'
 import { getState, toast } from '../state/store'
 
 /**
@@ -28,22 +28,34 @@ const waitFor = async (id: string) => {
 
 let making: Promise<void> | null = null
 
-/** Open the course, making it first if it isn't there yet. */
+/** How many lessons this build of the app carries (0: it was built without docs/course). */
+export const LESSON_COUNT = Object.keys(files).filter((p) => /\/\d+-[^/]*\.md$/.test(p)).length
+
+/**
+ * Open the course, making it first if it isn't there yet. A course page without its lessons (made
+ * by a build that lacked them) is filled in rather than opened empty.
+ */
 export function learnBrainWaves(): Promise<void> {
+  if (!LESSON_COUNT) {
+    toast('This build of BrainWaves has no course lessons in it. Rebuild it with the docs/course folder, or read the course on GitHub: docs/course.')
+    return Promise.resolve()
+  }
   const found = coursePage()
-  if (found) {
+  const filled = found && Object.values(getState().pages).some((p) => p.parentId === found.id && p.trashedAt == null)
+  if (found && filled) {
     openPage(found.id, 'tab')
     return Promise.resolve()
   }
-  making ??= make().finally(() => (making = null))
+  making ??= make(found?.id ?? null).finally(() => (making = null))
   return making
 }
 
-async function make() {
+async function make(existing: string | null) {
   toast('Making the course…')
   const loaded = await Promise.all(Object.entries(files).map(async ([path, load]) => [nameOf(path), await load()] as const))
   const index = loaded.find(([n]) => n === 'README.md')?.[1] ?? `# ${COURSE_TITLE}`
   const lessons = loaded.filter(([n]) => /^\d+-.*\.md$/.test(n)).sort(([a], [b]) => a.localeCompare(b))
+  if (!lessons.length) throw new Error('No course lessons in this build')
 
   // Lesson titles: "1. Your first page", from each file's first heading.
   const titles = new Map<string, string>()
@@ -53,8 +65,10 @@ async function make() {
     titles.set(name, `${n}. ${h1.replace(/^Final project:\s*/i, 'Final project: ')}`)
   }
 
-  const course = await createPage({ title: COURSE_TITLE, icon: '🎓', open: false })
+  // An empty course page left by an earlier build is reused (it keeps its place and its links).
+  const course = existing ? getState().pages[existing]! : await createPage({ title: COURSE_TITLE, icon: '🎓', open: false })
   await waitFor(course.id)
+  if (existing && !course.icon) updatePage(course.id, { icon: '🎓' })
   const ids = new Map<string, string>()
   for (const [name] of lessons) {
     const page = await createPage({ parentId: course.id, title: titles.get(name)!, icon: '📘', open: false })

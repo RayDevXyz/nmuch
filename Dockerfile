@@ -13,7 +13,11 @@ COPY packages/editor/package.json packages/editor/
 RUN pnpm install --frozen-lockfile
 COPY packages packages
 COPY apps/desktop apps/desktop
+# The in-app course (Learn BrainWaves) is built from these lessons.
+COPY docs/course docs/course
 RUN pnpm --filter @brainwaves/desktop build
+# Fail here, not in the app, if the course didn't make it into the build.
+RUN ls apps/desktop/dist/assets | grep -q '^01-first-page' || (echo 'docs/course is missing from the web build' && exit 1)
 
 # ---- 2. the server
 FROM rust:1-bookworm AS server

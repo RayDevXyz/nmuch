@@ -1,7 +1,10 @@
+import { ResizeHandle } from './ResizeHandle'
+import { useCanvasAssets } from '../edgeless/bridge'
+import { AssetsPanel } from '../edgeless/SidePanel'
 import { GROUPS } from './HelpModal'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force'
-import { AtSign, Link2, PanelRight } from 'lucide-react'
+import { AtSign, Link2, X } from 'lucide-react'
 import { openPage } from '../state/actions'
 import { setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
@@ -201,8 +204,44 @@ export function RightPanel() {
   const backCount = new Set(back.filter((b) => pages[b.pageId]?.trashedAt == null).map((b) => b.pageId)).size
   const menCount = new Set(mentions.filter((b) => pages[b.pageId]?.trashedAt == null).map((b) => b.pageId)).size
 
+  const width = useApp((s) => s.rightWidth)
+  const rightView = useApp((s) => s.rightView)
+  const canvas = useCanvasAssets()
+  const assets = !!canvas && canvas.pageId === activeId && rightView === 'assets'
+  const handle = <ResizeHandle edge="left" width={width} min={240} max={620} initial={290} onWidth={(w) => setState({ rightWidth: w })} label="Right panel width" />
+  // While a canvas is open, this panel can show its assets instead (and switch back).
+  const viewSwitch = canvas && canvas.pageId === activeId && (
+    <div className="seg small rp-view" role="tablist" aria-label="Right panel">
+      <button role="tab" aria-selected={assets} className={assets ? 'on' : ''} onClick={() => setState({ rightView: 'assets' })}>
+        Assets
+      </button>
+      <button role="tab" aria-selected={!assets} className={!assets ? 'on' : ''} onClick={() => setState({ rightView: 'graph' })}>
+        Graph
+      </button>
+    </div>
+  )
+
+  if (assets && canvas)
+    return (
+      <aside className="right-panel rp-assets" style={{ width }}>
+        {handle}
+        <div className="right-heading">
+          <span>Canvas</span>
+          <div className="right-heading-actions">
+            {viewSwitch}
+            <IconButton label="Hide the panel" onClick={() => setState({ rightOpen: false })}>
+              <X />
+            </IconButton>
+          </div>
+        </div>
+        <AssetsPanel {...canvas} />
+      </aside>
+    )
+
   return (
-    <aside className="right-panel">
+    <aside className="right-panel" style={{ width }}>
+      {handle}
+      {viewSwitch && <div className="right-heading rp-switch-row">{viewSwitch}</div>}
       <div className="right-heading">
         <span>Graph View</span>
         <div className="right-heading-actions">
@@ -214,9 +253,6 @@ export function RightPanel() {
               All
             </button>
           </div>
-          <IconButton label="Collapse panel (Ctrl Shift \)" onClick={() => setState({ rightOpen: false })}>
-            <PanelRight />
-          </IconButton>
         </div>
       </div>
       <GraphView links={links} mode={mode} />

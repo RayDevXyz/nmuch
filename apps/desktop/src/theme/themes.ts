@@ -42,6 +42,7 @@ export interface ThemeDef {
 }
 
 export const FONT_STACKS: { id: string; label: string; css: string }[] = [
+  { id: 'inter', label: 'Inter', css: "'Inter Variable', Inter, 'Segoe UI', system-ui, sans-serif" },
   { id: 'manrope', label: 'Manrope', css: "'Manrope Variable', 'Manrope', Inter, 'Segoe UI', system-ui, sans-serif" },
   { id: 'system', label: 'System', css: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif" },
   { id: 'humanist', label: 'Humanist', css: "'Segoe UI', 'Gill Sans', 'Trebuchet MS', Candara, sans-serif" },
@@ -90,7 +91,46 @@ const LIGHT: ThemeColors = {
 }
 const FONTS = { sans: 'manrope', mono: 'jetbrains' }
 
+/** shadcn/ui's Mira style: its neutral palette (oklch values as hex) and Inter. */
+const MIRA_DARK: ThemeColors = {
+  appBg: '#0a0a0a',
+  panel: '#171717',
+  panel2: '#212121',
+  hover: '#262626',
+  line: '#2e2e2e',
+  editorBg: '#0a0a0a',
+  codeBg: '#171717',
+  foreground: '#fafafa',
+  muted: '#a1a1a1',
+  faint: '#737373',
+  accent: '#e5e5e5',
+  warm: '#f5b25b',
+  folder: '#e2a84f',
+  ok: '#7fd394',
+  danger: '#ff6467',
+}
+const MIRA_LIGHT: ThemeColors = {
+  appBg: '#ffffff',
+  panel: '#fafafa',
+  panel2: '#f5f5f5',
+  hover: '#efefef',
+  line: '#e5e5e5',
+  editorBg: '#ffffff',
+  codeBg: '#f5f5f5',
+  foreground: '#0a0a0a',
+  muted: '#737373',
+  faint: '#a3a3a3',
+  accent: '#171717',
+  warm: '#c27a2c',
+  folder: '#c48a2c',
+  ok: '#2f8a4c',
+  danger: '#e7000b',
+}
+const MIRA_FONTS = { sans: 'inter', mono: 'jetbrains' }
+
 export const BUILTIN: ThemeDef[] = [
+  { id: 'mira-dark', name: 'Mira Dark', base: 'dark', colors: MIRA_DARK, fonts: MIRA_FONTS, builtin: true },
+  { id: 'mira-light', name: 'Mira Light', base: 'light', colors: MIRA_LIGHT, fonts: MIRA_FONTS, builtin: true },
   { id: 'dark', name: 'Dark', base: 'dark', colors: DARK, fonts: FONTS, builtin: true },
   { id: 'light', name: 'Light', base: 'light', colors: LIGHT, fonts: FONTS, builtin: true },
   {
@@ -266,5 +306,6 @@ export const findTheme = (id: string | undefined, custom: ThemeDef[]) => (id ? (
 /** The theme a mode uses now. */
 export function activeTheme(mode: Mode, chosen: Partial<Record<Mode, string>>, custom: ThemeDef[]): ThemeDef {
   const t = findTheme(chosen[mode], custom)
-  return t && t.base === mode ? t : BUILTIN.find((b) => b.id === mode)!
+  // Not chosen (or gone): the Mira look for that mode.
+  return t && t.base === mode ? t : BUILTIN.find((b) => b.id === (mode === 'dark' ? 'mira-dark' : 'mira-light'))!
 }

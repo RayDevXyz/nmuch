@@ -1752,3 +1752,199 @@ button.para-item.para-item-main:hover { background: var(--hover); }
 .bwb-gear { margin-left: 0; }
 @media (max-width: 640px) { .bwb-grid { grid-template-columns: 1fr; } }
 .help-learn { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }
+
+/* Resizable sidebars */
+.sidebar, .right-panel { position: relative; }
+.resize-handle { position: absolute; top: 0; bottom: 0; width: 7px; z-index: 8; cursor: col-resize; touch-action: none; }
+.resize-handle.right { right: -4px; }
+.resize-handle.left { left: -4px; }
+.resize-handle::after { content: ''; position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: transparent; transition: background 0.12s; }
+.resize-handle:hover::after, .resize-handle:focus-visible::after, body.resizing .resize-handle::after { background: var(--accent); width: 2px; left: 2px; }
+.resize-handle:focus { outline: none; }
+body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
+
+/* The canvas: a floating tool bar at the bottom (the assets are in the right panel) */
+.cv-toolbar { bottom: 18px; gap: 4px; padding: 5px; border-radius: 14px; background: color-mix(in srgb, var(--panel) 92%, transparent); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28), 0 0 0 1px var(--line-soft); border: 0; }
+.cv-toolbar-group { display: flex; align-items: center; gap: 2px; }
+.cv-toolbar-group + .cv-toolbar-group { padding-left: 4px; margin-left: 2px; border-left: 1px solid var(--line); }
+.cv-tb { width: 36px; height: 36px; border: 0; border-radius: 10px; background: transparent; color: var(--muted-foreground); display: grid; place-items: center; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.cv-tb:hover { background: var(--hover); color: var(--foreground); }
+.cv-tb.on { background: var(--accent); color: var(--accent-ink); box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 40%, transparent); }
+.cv-zoom { border-radius: 12px; }
+@media (max-width: 900px) { .cv-toolbar { bottom: 64px; max-width: calc(100% - 24px); overflow-x: auto; scrollbar-width: none; } }
+
+/* The canvas's assets in the right panel */
+.right-panel.rp-assets { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.rp-view { flex: none; }
+.rp-switch-row { height: 44px; justify-content: flex-end; border-bottom: 1px solid var(--line-soft); }
+.cv-assets { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cv-assets-tabs { flex: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; margin: 0 12px 4px; padding: 3px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line-soft); }
+.cv-assets-tabs button { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px 5px; border: 0; border-radius: 8px; background: transparent; color: var(--muted-foreground); font: inherit; font-size: 10.5px; font-weight: 600; cursor: pointer; }
+.cv-assets-tabs button:hover { color: var(--foreground); }
+.cv-assets-tabs button.on { background: var(--panel); color: var(--accent); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15); }
+.cv-assets-body { flex: 1; min-height: 0; overflow-y: auto; }
+@media (max-width: 900px) {
+  .workspace .right-panel.rp-assets { display: flex !important; position: fixed; top: 0; right: 0; bottom: 0; z-index: 60; width: min(340px, 92vw) !important; box-shadow: -12px 0 30px rgba(0, 0, 0, 0.35); }
+  .rp-assets .resize-handle { display: none; }
+}
+/* Zoom in the top right corner (top left on battle maps, where the table panel is); the context
+   bar in the top middle keeps clear of it. */
+.cv-root { container-type: inline-size; container-name: canvas; }
+.cv-root .cv-zoom { top: 12px; right: 12px; left: auto; bottom: auto; border-radius: 12px; }
+.cv-root.scene .cv-zoom { left: 12px; right: auto; }
+.cv-root .cv-context { max-width: calc(100% - 640px) !important; }
+@container canvas (max-width: 1180px) {
+  .cv-zoom-slider { display: none; }
+  .cv-root .cv-context { max-width: calc(100% - 400px) !important; }
+}
+@container canvas (max-width: 860px) {
+  /* Not enough room to centre it: the selection bar starts at the left, clear of the zoom. */
+  .cv-root .cv-context { left: 12px !important; transform: none; max-width: calc(100% - 200px) !important; }
+  .cv-root.scene .cv-context { left: auto !important; right: 12px; }
+}
+/* The tool bar never spills out of the canvas: it scrolls sideways when the canvas is narrow. */
+.cv-root .cv-toolbar { max-width: calc(100% - 24px); overflow-x: auto; scrollbar-width: none; }
+.cv-root .cv-toolbar::-webkit-scrollbar { display: none; }
+.cv-toolbar-group { flex: none; }
+
+/* ==========================================================================================
+   Mira: the spacing, sizes and shapes of shadcn/ui's Mira style, for the whole app.
+   (shadcn/ui apps/v4/registry/styles/style-mira.css; radius 0.625rem.) One scale everywhere:
+   controls 28px high (small 24, large 32), 8px side padding, 12px text at 1.625, radii
+   6 / 8 / 10 / 14px, a 2px focus ring, and popovers and dialogs drawn with a hairline ring.
+   The text you write keeps its own size (Settings → Text size).
+   ========================================================================================== */
+.workspace {
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --control-h: 28px;
+  --control-h-sm: 24px;
+  --control-h-lg: 32px;
+  --control-px: 8px;
+  --ui-text: 12px;
+  --ui-lh: 1.625;
+  --ring: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+  --input-bg: color-mix(in srgb, var(--line) 28%, transparent);
+  --hairline: 0 0 0 1px color-mix(in srgb, var(--foreground) 10%, transparent);
+  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.18), 0 2px 4px -2px rgba(0, 0, 0, 0.12);
+  font-feature-settings: 'cv11', 'ss01';
+}
+
+/* ---- buttons */
+.workspace :is(.primary-btn, .setting-action, .db-new, .db-tool, .ghost-btn, .db-row-action, .cv-wide-btn, .empty-trash, .tpl-side-use) {
+  min-height: var(--control-h); height: auto; padding: 0 var(--control-px); gap: 6px;
+  border-radius: var(--radius-md); font-size: var(--ui-text); line-height: var(--ui-lh); font-weight: 500;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, box-shadow 0.12s;
+}
+.workspace .primary-btn { padding: 0 10px; border: 1px solid transparent; }
+.workspace .primary-btn:active, .workspace .setting-action:active, .workspace .db-new:active { transform: translateY(1px); }
+.workspace .setting-action { border: 1px solid var(--line); background: var(--input-bg); }
+.workspace .setting-action:hover { background: var(--hover); }
+.workspace .setting-action.primary { border-color: transparent; color: var(--accent-ink); background: var(--accent); }
+.workspace .db-new { border: 1px solid transparent; }
+.workspace .db-row-action { border: 1px solid var(--line); background: var(--input-bg); }
+.workspace .db-row-action.primary { border-color: transparent; }
+.workspace .db-new-split .db-new:first-child { border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.workspace .db-new-split .db-new-more { border-radius: 0 var(--radius-md) var(--radius-md) 0; padding: 0 6px; }
+.workspace .icon-button { width: var(--control-h); height: var(--control-h); border-radius: var(--radius-md); }
+.workspace .icon-button svg { width: 16px; height: 16px; }
+.workspace .row-btn { border-radius: var(--radius-sm); }
+.workspace :is(.primary-btn, .setting-action, .db-new, .db-tool, .ghost-btn, .db-row-action, .icon-button, .row-btn, .menu-item, .tab, .nav-item, .tree-row, .cv-tb, .seg button):focus-visible {
+  outline: none; box-shadow: 0 0 0 2px var(--ring);
+}
+
+/* ---- fields */
+.workspace :is(.sync-field input, .sync-field select, .tpl-dialog select, .setting-select, .db-form input, .db-form select, .db-picker-search, .db-filter-row select, .db-filter-row input, .db-option-row input, .widget-field select, .widget-field input, .cv-pinpicker input, .bwb-settings input:not([type='checkbox']):not([type='color']), .bwb-settings select, .bwb-ask input, .bwb-ask select, .moc-settings select, .moc-settings input, .import-path, .emoji-input, .link-edit input, .para-dialog select) {
+  height: var(--control-h); padding: 0 var(--control-px); border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--input-bg); color: var(--foreground); font: inherit; font-size: var(--ui-text); line-height: var(--ui-lh);
+  transition: border-color 0.12s, box-shadow 0.12s; box-sizing: border-box;
+}
+.workspace :is(.sync-field input, .sync-field select, .tpl-dialog select, .setting-select, .db-form input, .db-form select, .db-picker-search, .db-filter-row select, .db-filter-row input, .db-option-row input, .widget-field select, .widget-field input, .cv-pinpicker input, .bwb-settings input, .bwb-settings select, .bwb-ask input, .bwb-ask select, .moc-settings select, .moc-settings input, .import-path, .emoji-input, .link-edit input, .para-dialog select):focus {
+  outline: none; border-color: var(--muted-foreground); box-shadow: 0 0 0 2px var(--ring);
+}
+.workspace :is(.tpl-search, .search-box, .para-capture) {
+  height: var(--control-h); padding: 0 var(--control-px); gap: 6px; border: 1px solid var(--line); border-radius: var(--radius-md);
+  background: var(--input-bg); font-size: var(--ui-text);
+}
+.workspace :is(.tpl-search, .search-box, .para-capture):focus-within { border-color: var(--muted-foreground); box-shadow: 0 0 0 2px var(--ring); }
+.workspace :is(.tpl-search, .search-box, .para-capture) input { font-size: var(--ui-text); }
+.workspace .sync-field { gap: 6px; margin: 10px 0; font-size: var(--ui-text); }
+.workspace .sync-field > span, .workspace .bwb-settings label, .workspace .db-form label { font-size: var(--ui-text); font-weight: 500; color: var(--foreground); }
+.workspace .sync-field small { font-size: 11px; color: var(--muted-foreground); }
+.workspace input[type='checkbox'] { accent-color: var(--accent); }
+
+/* ---- popovers and menus */
+.workspace .popover { border: 0; border-radius: var(--radius-lg); padding: 4px; min-width: 128px; box-shadow: var(--hairline), var(--shadow-md); }
+.workspace .popover.settings-pop { padding: 10px; }
+.workspace .menu-item { min-height: var(--control-h); padding: 4px var(--control-px); gap: 8px; border-radius: var(--radius-md); font-size: var(--ui-text); line-height: var(--ui-lh); }
+.workspace .menu-item svg { width: 14px; height: 14px; }
+.workspace :is(.menu-caption, .menu-label) { padding: 6px var(--control-px); font-size: var(--ui-text); font-weight: 500; color: var(--muted-foreground); text-transform: none; letter-spacing: 0; }
+.workspace .menu-sep { height: 1px; margin: 4px -4px; background: color-mix(in srgb, var(--line) 50%, transparent); }
+.workspace .settings-title { font-size: 14px; font-weight: 500; margin-bottom: 6px; }
+.workspace .setting-row { height: auto; min-height: 36px; font-size: var(--ui-text); gap: 8px; }
+
+/* ---- dialogs */
+.workspace .modal-backdrop { background: rgba(0, 0, 0, 0.62); backdrop-filter: blur(2px); }
+.workspace :is(.account, .help-modal, .quickfind, .tpl-dialog) { border: 0; border-radius: var(--radius-xl); box-shadow: var(--hairline), 0 24px 48px -12px rgba(0, 0, 0, 0.35); background: var(--panel); }
+.workspace .account header { min-height: 52px; padding: 12px 12px 12px 16px; border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent); font-size: 14px; font-weight: 500; }
+.workspace .account section { padding: 16px; border-bottom-color: color-mix(in srgb, var(--line) 50%, transparent); font-size: var(--ui-text); line-height: var(--ui-lh); }
+.workspace .account-hint { font-size: var(--ui-text); line-height: var(--ui-lh); color: var(--muted-foreground); margin: 0 0 12px; }
+.workspace .sync-actions { gap: 8px; margin-top: 4px; }
+.workspace .sync-actions .setting-action { width: auto; margin-top: 0; }
+.workspace .help-modal { padding: 16px; }
+.workspace .help-modal h3 { font-size: var(--ui-text); font-weight: 500; color: var(--muted-foreground); }
+.workspace .help-row { font-size: var(--ui-text); min-height: 26px; }
+.workspace .quickfind input { font-size: 14px; }
+.workspace .tpl-list button { min-height: 32px; padding: 6px var(--control-px); border-radius: var(--radius-md); font-size: 13px; }
+
+/* ---- tabs and segmented switches */
+.workspace .seg { padding: 3px; gap: 2px; border-radius: var(--radius-lg); border: 0; background: color-mix(in srgb, var(--line) 45%, transparent); }
+.workspace .seg button { height: 22px; padding: 0 8px; border-radius: var(--radius-md); font-size: var(--ui-text); font-weight: 500; }
+.workspace .seg.small button { height: 20px; padding: 0 6px; font-size: 11px; }
+.workspace .seg button.on { background: var(--panel); box-shadow: var(--hairline), 0 1px 2px rgba(0, 0, 0, 0.12); }
+.workspace .tab { height: var(--control-h-lg); border-radius: var(--radius-md); font-size: var(--ui-text); padding: 0 8px 0 10px; gap: 6px; }
+.workspace .db-tab { font-size: var(--ui-text); font-weight: 500; }
+.workspace .mode-switch { border-radius: var(--radius-lg); padding: 3px; }
+.workspace .mode-switch button { border-radius: var(--radius-sm); height: 22px; }
+.workspace .cv-assets-tabs { border-radius: var(--radius-lg); }
+.workspace .cv-assets-tabs button { border-radius: var(--radius-md); font-weight: 500; }
+
+/* ---- the sidebar and the rail */
+.workspace .sidebar-heading { font-size: var(--ui-text); font-weight: 600; padding: 0 12px 0 16px; }
+.workspace .tree-row { height: 30px; padding: 0 8px; gap: 8px; border-radius: var(--radius-md); font-size: 13px; }
+.workspace .tree-row.active, .workspace .tree-row[aria-current='page'] { font-weight: 500; }
+.workspace .nav-item { height: 32px; border-radius: var(--radius-md); }
+.workspace .rail-nav { gap: 4px; }
+.workspace :is(.para-nav, .para-item-main) { border-radius: var(--radius-md); font-size: 13px; }
+.workspace .para-sec h4, .workspace .bwb-sec, .workspace .cv-drawer-body h4 { font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted-foreground); }
+.workspace .right-heading { font-size: var(--ui-text); font-weight: 600; }
+
+/* ---- cards and blocks of settings */
+.workspace :is(.moc-settings, .bwb-settings, .para-hub, .para-setup, .bwb-step, .db-card) { border-radius: var(--radius-lg); }
+.workspace :is(.moc-settings, .bwb-settings, .para-hub) { border: 0; box-shadow: var(--hairline); padding: 12px; }
+.workspace .bwb-step { border: 0; box-shadow: var(--hairline); padding: 12px; }
+.workspace .db-card { border: 0; box-shadow: var(--hairline); }
+
+/* ---- badges */
+.workspace :is(.para-badge, .nr-default, .sync-chip) { height: 20px; padding: 0 8px; border-radius: 999px; font-size: 10px; font-weight: 500; }
+.workspace .nav-item em { min-width: 16px; height: 16px; font-size: 9.5px; border-radius: 999px; }
+
+/* ---- database tables: Mira's dense rows */
+.workspace .db-table th { height: 30px; font-size: var(--ui-text); font-weight: 500; }
+.workspace .db-tools { gap: 4px; }
+
+/* ---- the canvas chrome matches */
+.workspace :is(.cv-toolbar, .cv-zoom, .cv-context) { border: 0; box-shadow: var(--hairline), var(--shadow-md); }
+.workspace .cv-toolbar { border-radius: var(--radius-xl); }
+.workspace .cv-tb { width: 32px; height: 32px; border-radius: var(--radius-md); }
+.workspace .cv-zoom { border-radius: var(--radius-lg); }
+.workspace .cv-zoom button { width: var(--control-h); height: var(--control-h); border-radius: var(--radius-md); }
+.workspace .cv-context { border-radius: var(--radius-lg); }
+
+/* ---- toasts */
+.workspace .toast { border-radius: var(--radius-lg); font-size: var(--ui-text); box-shadow: var(--hairline), var(--shadow-md); }
+
+/* Phones: fields at 16px so the browser doesn't zoom in. */
+.workspace.is-narrow :is(.sync-field input, .tpl-search input, .para-capture input, .db-form input, .bwb-ask input) { font-size: 16px; }

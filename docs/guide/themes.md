@@ -5,12 +5,20 @@ from **Settings → Theme editor…** or the app menu (BrainWaves ▾ → **Them
 
 ![Editing a dark theme](../images/theme-editor-dark.png)
 
+## The look
+
+The whole app follows one scale, after shadcn/ui's **Mira** style: controls 28 px high with 8 px
+side padding, 12 px interface text, rounded corners of 6, 8, 10 and 14 px, a soft focus ring, and
+menus and dialogs drawn with a hairline edge. Themes change the colours and fonts; the spacing stays
+the same. The text you write keeps its own size (Settings → Text size).
+
 ## Picking and making themes
 
 - **Each mode keeps its own theme.** Pick one for **Dark mode** and one for **Light mode**; the
   usual dark/light switch moves between them.
-- **Built-in themes:** Dark and Light (BrainWaves' own), Midnight, Forest, Ember and High
-  contrast (dark), Paper and Ocean (light).
+- **Built-in themes:** Mira Dark and Mira Light (the default: shadcn/ui's Mira look, neutral greys
+  and Inter), Dark and Light (BrainWaves' first look), Midnight, Forest, Ember, Paper, Ocean and High
+  contrast.
 - **Changing a built-in theme makes your own copy** ("Midnight (mine)"), so the originals are
   always there. **New from this** starts a copy on purpose. Rename your themes in **Name**.
 - **Colors** come in three groups:

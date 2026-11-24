@@ -41,11 +41,12 @@ import {
   type ShapeKind,
   type XYWH,
 } from './model'
-import { ZoomBar, type Tool } from './chrome'
+import { CanvasToolbar, ZoomBar, type Tool } from './chrome'
+import { publishCanvas, retractCanvas } from './bridge'
 import { mergeNotes, splitAtCursor, splitByHeadings } from './split'
 import { ContextBar } from './ContextBar'
 import { alignBoxes, angleTo, distributeBoxes, resizeTurned, snapBox, snapEdges, turnedBounds, type Guide } from './geometry'
-import { DRAG_TYPE, presetById, rememberUpload, SidePanel, type PanelTab, type Preset } from './SidePanel'
+import { DRAG_TYPE, presetById, rememberUpload, type Preset } from './SidePanel'
 import { DRAG as BURROW_DRAG, domainOf, droppedBookmark, getBookmark } from '../burrow/api'
 import { openExternal } from '../lib/storage'
 
@@ -63,12 +64,6 @@ const LAYOUT = 'layout' // origin of automatic placement: not undoable
 
 /** Viewports survive switching modes and tabs (for this session). */
 const viewports = new Map<string, Viewport>()
-/** The side panel's tab, kept across pages (null: closed). Battle maps keep their own: closed at
- * first, since the table panel takes the other side. */
-let lastTab: PanelTab | null = 'elements'
-let lastSceneTab: PanelTab | null = null
-const RAIL_W = 64
-const DRAWER_W = 268
 const SNAP_PX = 6
 
 /** Show a page's whole canvas: now if it's open, else the next time it opens. */
@@ -134,9 +129,8 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   const space = useRef(false)
   const [guides, setGuides] = useState<Guide[]>([])
   const [readout, setReadout] = useState<{ text: string; x: number; y: number } | null>(null)
-  const [tab, setTabState] = useState<PanelTab | null>(scene ? lastSceneTab : lastTab)
-  const setTab = (t: PanelTab | null) => (scene ? (lastSceneTab = t) : (lastTab = t), setTabState(t))
-  const leftInset = RAIL_W + (tab ? DRAWER_W : 0)
+  // The tools are at the bottom and the assets in the right panel: nothing covers the left edge.
+  const leftInset = 0
   // Created in an effect (not a memo) so a remount in development gets a live one.
   const [um, setUm] = useState<Y.UndoManager | null>(null)
   const editors = useRef(new Map<string, TiptapEditor>())
@@ -886,6 +880,35 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [presenting])
 
+  // ---------- the right panel's assets
+
+  // Every render: the right panel shows this canvas's assets (and acts on them) while it's open.
+  useEffect(() => {
+    if (presenting !== null) return retractCanvas(pageId)
+    publishCanvas({
+      pageId,
+      tool,
+      onTool: setTool,
+      scene,
+      onAdd: (p) => addPreset(p),
+      onUpload: () => ((pendingImage.current = null), imageInput.current?.click()),
+      onAddImage: (img) => {
+        const [cx, cy] = viewCenter()
+        const width = Math.min(img.w, 1600)
+        const height = Math.round((img.h / img.w) * width)
+        const id = addElement(doc, { type: 'image', xywh: [Math.round(cx - width / 2), Math.round(cy - height / 2), width, height], src: img.src })
+        setSelected([id])
+      },
+      doc,
+      elements,
+      notes,
+      selected,
+      onSelect: (ids) => setSelected(ids),
+      onFocus: focusItem,
+    })
+  })
+  useEffect(() => () => retractCanvas(pageId), [pageId])
+
   // ---------- render
 
   const selRects = selected.map(rectOfId).filter((r): r is Rect => !!r)
@@ -901,7 +924,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   return (
     <div
       ref={root}
-      className={`cv-root tool-${tool} ${presenting !== null ? 'presenting' : ''} ${crowded && vp.z < 1.6 ? 'labels-few' : ''}`}
+      className={`cv-root tool-${tool} ${scene ? 'scene' : ''} ${presenting !== null ? 'presenting' : ''} ${crowded && vp.z < 1.6 ? 'labels-few' : ''}`}
       tabIndex={0}
       style={{ backgroundSize: `${grid}px ${grid}px`, backgroundPosition: `${-vp.x * vp.z}px ${-vp.y * vp.z}px` }}
       onPointerDown={onPointerDown}
@@ -1171,29 +1194,8 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       )}
       {presenting === null ? (
         <>
-          <SidePanel
-            tab={tab}
-            onTab={setTab}
-            tool={tool}
-            onTool={setTool}
-            scene={scene}
-            onAdd={(p) => addPreset(p)}
-            onUpload={() => ((pendingImage.current = null), imageInput.current?.click())}
-            onAddImage={(img) => {
-              const [cx, cy] = viewCenter()
-              const width = Math.min(img.w, 1600)
-              const height = Math.round((img.h / img.w) * width)
-              const id = addElement(doc, { type: 'image', xywh: [Math.round(cx - width / 2), Math.round(cy - height / 2), width, height], src: img.src })
-              setSelected([id])
-            }}
-            doc={doc}
-            elements={elements}
-            notes={notes}
-            selected={selected}
-            onSelect={(ids) => setSelected(ids)}
-            onFocus={focusItem}
-          />
-          <ZoomBar z={vp.z} onZoomTo={zoomTo} onZoom={zoomBy} onFit={zoomToFit} onUndo={() => um?.undo()} onRedo={() => um?.redo()} frames={frames.length} onPresent={() => present(0)} />
+          <CanvasToolbar tool={tool} onTool={setTool} scene={scene} onUndo={() => um?.undo()} onRedo={() => um?.redo()} />
+          <ZoomBar z={vp.z} onZoomTo={zoomTo} onZoom={zoomBy} onFit={zoomToFit} frames={frames.length} onPresent={() => present(0)} />
         </>
       ) : (
         <div className="cv-present-bar">

@@ -11,9 +11,12 @@ and frames. It's still the same page: the notes are its text in document view to
 - **Switch:** the document and canvas buttons in the breadcrumb row, or **Ctrl Shift E**.
 - **Move around:** scroll to pan (or hold **Space** and drag), **Ctrl** + scroll to zoom,
   **Ctrl 1** to fit everything.
-- **Tools:** **N** note, **T** text, **R** rectangle, **O** ellipse, **D** diamond, **C**
-  connector (drag from one thing to another), **F** frame, **V** select, **H** pan. Pictures come
-  from the side panel on the left.
+- **The tool bar** at the bottom has every tool; its last button shows the **assets** (shapes,
+  frames, text styles, pictures and layers) in the right panel. Click one to add it, or drag it
+  onto the canvas. **Assets | Graph** at the top of the panel switches back to the graph.
+- **Tool keys:** **N** note, **T** text, **R** rectangle, **O** ellipse, **D** diamond, **C**
+  connector (drag from one thing to another), **F** frame, **I** picture, **P** pin, **V** select,
+  **H** pan.
 - **Styling:** the bar at the top: colours, borders, fonts, size, transparency, order.
 - **Arranging:** smart guides line things up as you drag (hold **Ctrl** to move freely);
   **Ctrl G** groups, **Ctrl Shift G** ungroups, **Alt Shift L** locks.

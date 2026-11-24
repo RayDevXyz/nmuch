@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { PanelRight } from 'lucide-react'
 import { closeTab, createPage, init, openPage } from './state/actions'
 import { getState, setState, useApp } from './state/store'
 import { LeftRail } from './components/LeftRail'
@@ -90,7 +89,6 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.style.colorScheme = theme
-    document.body.style.background = theme === 'dark' ? '#111214' : '#f3f1f7'
   }, [theme])
 
   useEffect(() => {
@@ -160,11 +158,6 @@ export default function App() {
           </section>
         )}
         {rightOpen && <RightPanel />}
-        {!rightOpen && !narrow && (
-          <button className="expand-right" aria-label="Open graph panel" title="Open graph panel (Ctrl Shift \)" onClick={() => setState({ rightOpen: true })}>
-            <PanelRight />
-          </button>
-        )}
       </div>
       {narrow && ready && <MobileBottom />}
       {quickFind && <QuickFind />}

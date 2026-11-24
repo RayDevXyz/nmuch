@@ -1,7 +1,6 @@
 import {
   ArrowUpRight,
   Bookmark,
-  ChevronsLeft,
   CircleUserRound,
   CloudFog,
   Eye,
@@ -82,8 +81,8 @@ export const rememberUpload = (img: { src: string; w: number; h: number }) => {
 }
 
 interface Props {
-  tab: PanelTab | null
-  onTab: (t: PanelTab | null) => void
+  tab?: PanelTab | null
+  onTab?: (t: PanelTab | null) => void
   tool: Tool
   onTool: (t: Tool) => void
   scene: boolean
@@ -121,42 +120,44 @@ const SCENE_TOOLS: typeof TOOLS = [
   { tool: 'reveal', label: 'Reveal: drag over an area to clear its fog', key: 'E', icon: CloudFog },
 ]
 
-export function SidePanel(p: Props) {
+const TAB_KEY = 'bw.canvasAssetsTab'
+
+/**
+ * The canvas's assets in the right panel: shapes, frames and notes; text styles; pictures; and the
+ * layers. Click a tile to add it in the middle of the view, or drag it onto the canvas.
+ */
+export function AssetsPanel(p: Props) {
+  const [tab, setTab] = useState<PanelTab>(() => {
+    try {
+      return (localStorage.getItem(TAB_KEY) as PanelTab) || 'elements'
+    } catch {
+      return 'elements'
+    }
+  })
+  const pick = (t: PanelTab) => {
+    setTab(t)
+    try {
+      localStorage.setItem(TAB_KEY, t)
+    } catch {
+      /* not remembered */
+    }
+  }
   return (
-    <div className={`cv-side ${p.tab ? 'open' : ''}`} onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
-      <nav className="cv-rail" aria-label="Canvas panels">
+    <div className="cv-assets" onKeyDown={(e) => e.stopPropagation()}>
+      <nav className="cv-assets-tabs" role="tablist" aria-label="Canvas assets">
         {TABS.map((t) => (
-          <button key={t.id} className={`cv-rail-btn ${p.tab === t.id ? 'active' : ''}`} onClick={() => p.onTab(p.tab === t.id ? null : t.id)} aria-pressed={p.tab === t.id}>
-            <t.icon size={19} />
+          <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => pick(t.id)} title={t.label}>
+            <t.icon size={15} />
             <span>{t.label}</span>
           </button>
         ))}
-        <span className="cv-rail-sep" />
-        {/* The drawing tools stay at hand with the panel closed. */}
-        <div className="cv-rail-tools" role="toolbar" aria-label="Canvas tools">
-          {[...TOOLS.slice(0, 3), ...(p.scene ? SCENE_TOOLS : [])].map((t) => (
-            <button key={t.tool} className={`cv-tool ${p.tool === t.tool ? 'active' : ''}`} title={`${t.label} (${t.key})`} aria-label={t.label} aria-pressed={p.tool === t.tool} onClick={() => p.onTool(t.tool)}>
-              <t.icon size={16} />
-            </button>
-          ))}
-        </div>
       </nav>
-      {p.tab && (
-        <div className="cv-drawer">
-          <header className="cv-drawer-head">
-            <span>{TABS.find((t) => t.id === p.tab)?.label}</span>
-            <button className="cv-icon" aria-label="Close the panel" onClick={() => p.onTab(null)}>
-              <ChevronsLeft size={16} />
-            </button>
-          </header>
-          <div className="cv-drawer-body">
-            {p.tab === 'elements' && <ElementsTab {...p} />}
-            {p.tab === 'text' && <TextTab {...p} />}
-            {p.tab === 'uploads' && <UploadsTab {...p} />}
-            {p.tab === 'layers' && <LayersTab {...p} />}
-          </div>
-        </div>
-      )}
+      <div className="cv-drawer-body cv-assets-body">
+        {tab === 'elements' && <ElementsTab {...p} />}
+        {tab === 'text' && <TextTab {...p} />}
+        {tab === 'uploads' && <UploadsTab {...p} />}
+        {tab === 'layers' && <LayersTab {...p} />}
+      </div>
     </div>
   )
 }

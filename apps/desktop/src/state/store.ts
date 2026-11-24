@@ -28,6 +28,11 @@ export interface AppState {
   themeEditor: boolean
   sidebarOpen: boolean
   rightOpen: boolean
+  /** Widths of the sidebar and the right panel, in px (dragged by their edge). */
+  sidebarWidth: number
+  rightWidth: number
+  /** What the right panel shows while a canvas is open: its assets, or the usual graph. */
+  rightView: 'assets' | 'graph'
   expanded: Record<string, boolean>
   width: 'normal' | 'wide'
   fontSize: 'small' | 'normal' | 'large'
@@ -58,7 +63,7 @@ export interface AppState {
 const PREFS_KEY = 'brainwaves.prefs.v1'
 /** Preferences saved before the rename to BrainWaves. */
 const OLD_PREFS_KEY = 'nimbus.prefs.v1'
-type Prefs = Pick<AppState, 'view' | 'tabs' | 'activeId' | 'theme' | 'themes' | 'calloutStyles' | 'themeFor' | 'sidebarOpen' | 'rightOpen' | 'expanded' | 'width' | 'fontSize' | 'spellcheck' | 'edgeless'>
+type Prefs = Pick<AppState, 'view' | 'tabs' | 'activeId' | 'theme' | 'themes' | 'calloutStyles' | 'themeFor' | 'sidebarOpen' | 'rightOpen' | 'sidebarWidth' | 'rightWidth' | 'rightView' | 'expanded' | 'width' | 'fontSize' | 'spellcheck' | 'edgeless'>
 
 function loadPrefs(): Partial<Prefs> {
   try {
@@ -83,6 +88,9 @@ let state: AppState = {
   themeEditor: false,
   sidebarOpen: true,
   rightOpen: true,
+  sidebarWidth: 252,
+  rightWidth: 290,
+  rightView: 'assets',
   expanded: {},
   width: 'normal',
   fontSize: 'normal',
@@ -120,9 +128,9 @@ export function setState(patch: Partial<AppState> | ((s: AppState) => Partial<Ap
   listeners.forEach((l) => l())
   clearTimeout(prefsTimer)
   prefsTimer = setTimeout(() => {
-    const { view, tabs, activeId, theme, themes, calloutStyles, themeFor, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless } = state
+    const { view, tabs, activeId, theme, themes, calloutStyles, themeFor, sidebarOpen, rightOpen, sidebarWidth, rightWidth, rightView, expanded, width, fontSize, spellcheck, edgeless } = state
     try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify({ view, tabs, activeId, theme, themes, calloutStyles, themeFor, sidebarOpen, rightOpen, expanded, width, fontSize, spellcheck, edgeless }))
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ view, tabs, activeId, theme, themes, calloutStyles, themeFor, sidebarOpen, rightOpen, sidebarWidth, rightWidth, rightView, expanded, width, fontSize, spellcheck, edgeless }))
     } catch {
       /* storage unavailable */
     }

@@ -199,13 +199,7 @@ export async function mapForPlayers(elements: Element[], settings: SceneSettings
   const look = lookOf(state.map.theme, settings.grid.size)
   const b = state.bounds
   const add = async (src: string): Promise<string> => {
-    let hit = hashes.get(src)
-    if (!hit) {
-      const data = toBase64(src)
-      hit = { hash: await sha256(data), data }
-      if (hashes.size > 400) hashes.clear()
-      hashes.set(src, hit)
-    }
+    const hit = await hashed(src)
     files.set(hit.hash, hit.data)
     return hit.hash
   }
@@ -264,6 +258,17 @@ export async function mapForPlayers(elements: Element[], settings: SceneSettings
 }
 
 const hashes = new Map<string, { hash: string; data: string }>()
+/** A picture as the table keeps it (a base64 data URL) and its hash, worked out once. */
+async function hashed(src: string): Promise<{ hash: string; data: string }> {
+  let hit = hashes.get(src)
+  if (!hit) {
+    const data = toBase64(src)
+    hit = { hash: await sha256(data), data }
+    if (hashes.size > 400) hashes.clear()
+    hashes.set(src, hit)
+  }
+  return hit
+}
 const svgs = new WeakMap<object, Map<string, string>>()
 
 /** Big enough to stay sharp when players zoom in, small enough for a browser to draw. */
@@ -540,6 +545,19 @@ export class Live {
       this.sent.add(h)
     }
     const scene = project(elements, settings, shown.getTitle(), hash, state, readExplored(shown.doc))
+    // Tokens' pictures (5etools tokens, your own), each sent once.
+    const assets = readAssets(shown.doc)
+    for (const t of scene.tokens as { id: string; img?: string }[]) {
+      const el = elements.find((e) => e.id === t.id)
+      const src = el?.type === 'token' && el.asset ? propSrc(el.asset, assets) : null
+      if (!src) continue
+      const { hash: h, data } = await hashed(src.src)
+      if (!this.sent.has(h)) {
+        this.send({ t: 'image', hash: h, data })
+        this.sent.add(h)
+      }
+      t.img = h
+    }
     this.send({ t: 'scene', scene: { ...scene, layers } })
   }
 

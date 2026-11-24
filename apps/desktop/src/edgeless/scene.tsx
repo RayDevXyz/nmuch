@@ -10,6 +10,8 @@ import { addElement, COLORS, deleteItems, updateElements, type Element, type Rec
 import type { MapState } from '../battlemap/compute'
 import { GenerateSection, LayersSection, LightingSection, LookSection, MapItemsSection } from '../battlemap/MapPanel'
 import { LIGHT_PRESETS } from '../battlemap/tools'
+import { tokenPath } from '../battlemap/fivee-art'
+import { propSrc, type Asset } from '../battlemap/assets'
 
 /**
  * A battle map (a page with the D&D role "scene"): the canvas plus a grid, fog of war, tokens,
@@ -160,7 +162,7 @@ export function SceneUnder({ elements, settings, selected, bounds }: { elements:
 }
 
 /** Tokens, and what's happening at the table: pings, drawings, move requests. */
-export function SceneOver({ elements, live, selected, pageId }: { elements: Element[]; live: Live | null; selected: Set<string>; pageId: string }) {
+export function SceneOver({ elements, live, selected, pageId, assets }: { elements: Element[]; live: Live | null; selected: Set<string>; pageId: string; assets: Record<string, Asset> }) {
   const liveState = useLive(live)
   // Pings, drawings and requests belong to the map players see.
   const state = liveState.showing === pageId ? liveState : { ...liveState, requests: [], pings: [], drawings: [] }
@@ -169,7 +171,7 @@ export function SceneOver({ elements, live, selected, pageId }: { elements: Elem
   return (
     <>
       {tokens.map((t) => (
-        <TokenView key={t.id} t={t} selected={selected.has(t.id)} />
+        <TokenView key={t.id} t={t} selected={selected.has(t.id)} picture={t.asset ? (propSrc(t.asset, assets)?.src ?? null) : null} />
       ))}
       {state.requests.map((r) => {
         const t = byId.get(r.token)
@@ -192,7 +194,7 @@ export function SceneOver({ elements, live, selected, pageId }: { elements: Elem
   )
 }
 
-function TokenView({ t, selected }: { t: TokenEl; selected: boolean }) {
+function TokenView({ t, selected, picture }: { t: TokenEl; selected: boolean; picture: string | null }) {
   const [x, y, w, h] = t.xywh
   const page = useApp((s) => (t.page ? s.pages[t.page] : undefined))
   const name = t.text || page?.title || 'Creature'
@@ -206,8 +208,8 @@ function TokenView({ t, selected }: { t: TokenEl; selected: boolean }) {
       style={{ left: x, top: y, width: w, height: h, ['--tc' as string]: tokenColor(t) }}
       title={`${name}${t.hidden ? ' (hidden from players)' : ''}`}
     >
-      <span className="sc-token-disc" style={{ fontSize: Math.max(12, Math.min(w, h) * 0.34) }}>
-        {initials(name)}
+      <span className={`sc-token-disc ${picture ? 'pictured' : ''}`} style={{ fontSize: Math.max(12, Math.min(w, h) * 0.34) }}>
+        {picture ? <img src={picture} alt="" draggable={false} /> : initials(name)}
       </span>
       {t.hidden && <EyeOff className="sc-token-hidden" size={14} />}
       {ratio != null && (
@@ -222,17 +224,18 @@ function TokenView({ t, selected }: { t: TokenEl; selected: boolean }) {
 
 // ---------- placing tokens
 
-type Pick = { name: string; page?: string; player?: boolean; hp?: number; maxHp?: number; ac?: number; cells: number; color?: string }
+export type Pick = { name: string; page?: string; player?: boolean; hp?: number; maxHp?: number; ac?: number; cells: number; color?: string; art?: string }
 
 const SIZE_CELLS: Record<string, number> = { T: 1, S: 1, M: 1, L: 2, H: 3, G: 4 }
 
-function monsterPick(e: Entry): Pick {
+/** A monster as a new token: its hit points, AC and size, and its 5etools token picture if it has one. */
+export function monsterPick(e: Entry): Pick {
   const r = e.raw
   const hp = typeof r.hp?.average === 'number' ? r.hp.average : undefined
   const ac0 = Array.isArray(r.ac) ? r.ac[0] : r.ac
   const ac = typeof ac0 === 'number' ? ac0 : typeof ac0?.ac === 'number' ? ac0.ac : undefined
   const size = Array.isArray(r.size) ? r.size[0] : r.size
-  return { name: e.name, hp, maxHp: hp, ac, cells: SIZE_CELLS[size as string] ?? 1 }
+  return { name: e.name, hp, maxHp: hp, ac, cells: SIZE_CELLS[size as string] ?? 1, art: tokenPath(r) ?? undefined }
 }
 
 /** Choose what a new token is: one of the party, a monster from the compendium, or anything. */

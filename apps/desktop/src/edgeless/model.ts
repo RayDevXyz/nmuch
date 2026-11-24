@@ -106,6 +106,8 @@ export interface TokenEl extends Base {
   darkvision?: number
   /** A light it carries (a torch). */
   light?: Light
+  /** Its picture: an asset of the map (`u:<hash>`), e.g. a 5etools token. */
+  asset?: string
 }
 /** An area of a battle map cleared of fog: its bounds, or a polygon within them. */
 export interface RevealEl extends Base {

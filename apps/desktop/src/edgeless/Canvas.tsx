@@ -6,7 +6,7 @@ import type { NoteRef } from '../lib/core/page-sync'
 import { openPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
 import { campaignOf, liveFor, type Shown } from '../dnd/live'
-import { DEFAULT_SCENE, placeToken, SceneOver, SceneUnder, snapToken, TokenPicker, useSceneSettings } from './scene'
+import { DEFAULT_SCENE, monsterPick, placeToken, SceneOver, SceneUnder, snapToken, TokenPicker, useSceneSettings } from './scene'
 import {
   addElement,
   addNote,
@@ -55,7 +55,9 @@ import { getToolOptions, isMapTool, LIGHT_PRESETS, ToolOptionsBar } from '../bat
 import { layerOf, nearestWall } from '../battlemap/model'
 import { normalize, simplify, type Pt } from '../battlemap/geom'
 import { builtinById } from '../battlemap/props'
-import { addToLibrary, readAsset, readAssets } from '../battlemap/assets'
+import { addToLibrary, putAsset, readAsset, readAssets, useAssets } from '../battlemap/assets'
+import { asFile, picture, type Pic } from '../battlemap/fivee-art'
+import type { FiveeActions } from '../battlemap/FiveeBrowser'
 
 /** The canvas viewport: world point (x, y) is at the top-left; `z` is the zoom. */
 interface Viewport {
@@ -510,6 +512,64 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     setTool('select')
     setSelected([id])
   }
+  // ---------- pictures from the user's 5etools
+
+  const mapAssets = useAssets(scene ? doc : null)
+  /** A 5etools picture kept in this map's page (once), as a prop asset id. */
+  async function fiveeAsset(path: string, name: string, source = ''): Promise<string> {
+    const a = await readAsset(await asFile(await picture(path), name))
+    putAsset(doc, { ...a, name, tags: [...new Set([...a.tags, ...(source ? [source.toLowerCase()] : []), '5etools'])] })
+    return `u:${a.hash}`
+  }
+  /** Give a token its 5etools picture (when the picture is there; quietly not, when it isn't). */
+  const tokenArt = (id: string, path: string, name: string) =>
+    void fiveeAsset(path, name).then(
+      (asset) => updateElements(doc, { [id]: { asset } }),
+      () => {},
+    )
+  const fivee: FiveeActions = {
+    tokenSelected: selected.some((id) => byId.get(id)?.type === 'token'),
+    token: async (p: Pic) => {
+      const asset = await fiveeAsset(p.path, p.name, p.source)
+      const picked = selected.filter((id) => byId.get(id)?.type === 'token')
+      if (picked.length) return updateElements(doc, Object.fromEntries(picked.map((id) => [id, { asset }])))
+      const [cx, cy] = viewCenter()
+      const pick = p.entry ? monsterPick(p.entry) : { name: p.name, cells: 1 }
+      const id = placeToken(doc, pick, cx, cy, gridOf())
+      updateElements(doc, { [id]: { asset } })
+      setSelected([id])
+    },
+    art: async (p: Pic) => addProp(await fiveeAsset(p.path, p.name, p.source)),
+    map: async (p: Pic) => {
+      const src = await picture(p.path)
+      const natural = await new Promise<{ w: number; h: number }>((res, rej) => {
+        const i = new Image()
+        i.onload = () => res({ w: i.naturalWidth, h: i.naturalHeight })
+        i.onerror = () => rej(new Error('the map could not be read'))
+        i.src = src
+      })
+      const fitted = await fitImage(await asFile(src, p.name))
+      const g = gridOf()
+      const mg = p.map?.grid
+      // The map's squares become the battle map's squares.
+      const k = mg?.size ? g.size / mg.size : 1
+      const W = Math.round(natural.w * k)
+      const H = Math.round(natural.h * k)
+      const [cx, cy] = viewCenter()
+      let x = Math.round((cx - W / 2 - g.offsetX) / g.size) * g.size + g.offsetX
+      let y = Math.round((cy - H / 2 - g.offsetY) / g.size) * g.size + g.offsetY
+      if (mg) {
+        x -= Math.round(((mg.offsetX ?? 0) * k) % g.size)
+        y -= Math.round(((mg.offsetY ?? 0) * k) % g.size)
+      }
+      if (mg?.type?.startsWith('hex') && g.type !== 'hex') setSceneSettings({ grid: { ...g, type: 'hex' } })
+      const id = addElement(doc, { type: 'image', xywh: [x, y, W, H], src: fitted.src, index: keyBefore(), layer: 'terrain', text: p.name })
+      setSelected([id])
+      requestAnimationFrame(() => fit({ x, y, w: W, h: H }, 40, 2))
+      toast(mg ? `${p.name}: its grid lines up with this map’s` : `${p.name} added (it gives no grid: set the squares under Map → Grid & fog)`)
+    },
+  }
+
   /** Files dropped on a battle map: moving pictures and videos become props; still pictures, the map. */
   async function dropOnMap(files: File[], wx: number, wy: number) {
     for (const [i, f] of files.entries()) {
@@ -1156,6 +1216,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       scene,
       onAdd: (p) => addPreset(p),
       onAddProp: (asset) => addProp(asset),
+      fivee: scene ? fivee : null,
       campaign: campaign ?? null,
       mapState,
       onLayers: (layers) => sceneSettings && setSceneSettings({ map: { ...(sceneSettings.map ?? {}), layers } }),
@@ -1350,7 +1411,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           }
           return null
         })}
-        {scene && <SceneOver elements={elements} live={live} selected={selectedSet} pageId={pageId} />}
+        {scene && <SceneOver elements={elements} live={live} selected={selectedSet} pageId={pageId} assets={mapAssets} />}
         {placedNotes.map((n) => (
           <NoteView
             key={n.id}
@@ -1497,6 +1558,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           at={tokenPicker}
           onPick={(p) => {
             const id = placeToken(doc, p, tokenPicker.wx, tokenPicker.wy, sceneSettings.grid)
+            if (p.art) tokenArt(id, p.art, p.name)
             setTokenPicker(null)
             setSelected([id])
             root.current?.focus()

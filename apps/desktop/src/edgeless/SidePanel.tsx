@@ -99,6 +99,7 @@ interface Props {
   onFocus: (id: string) => void
   onAddProp?: (asset: string) => void
   campaign?: string | null
+  fivee?: import('../battlemap/FiveeBrowser').FiveeActions | null
 }
 
 const PROPS_TAB = { id: 'props' as PanelTab, label: 'Props', icon: Armchair }
@@ -158,7 +159,7 @@ export function AssetsPanel(p: Props) {
         ))}
       </nav>
       <div className="cv-drawer-body cv-assets-body">
-        {tab === 'props' && p.scene && p.onAddProp && <PropsLibrary doc={p.doc} campaign={p.campaign ?? null} onAdd={p.onAddProp} />}
+        {tab === 'props' && p.scene && p.onAddProp && <PropsLibrary doc={p.doc} campaign={p.campaign ?? null} onAdd={p.onAddProp} fivee={p.fivee ?? null} />}
         {(tab === 'elements' || (tab === 'props' && !p.scene)) && <ElementsTab {...p} />}
         {tab === 'text' && <TextTab {...p} />}
         {tab === 'uploads' && <UploadsTab {...p} />}

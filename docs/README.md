@@ -1,5 +1,7 @@
 # BrainWaves documentation
 
+**New to BrainWaves?** Take [the BrainWaves course](course/README.md): 18 hands-on lessons, from your first page to a complete second brain. In the app: the app menu (the BrainWaves icon) → **Learn BrainWaves**.
+
 ## Using BrainWaves
 
 **Writing**

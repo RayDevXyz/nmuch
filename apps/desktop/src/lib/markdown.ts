@@ -38,7 +38,7 @@ export interface ParsedBlock {
 }
 
 export function parseMarkdown(text: string, resolvePage?: (title: string) => string | null): ParsedBlock[] {
-  const lines = text.replace(/\r\n?/g, '\n').split('\n')
+  const lines = joinWrapped(text.replace(/\r\n?/g, '\n').split('\n'))
   const out: ParsedBlock[] = []
   const inline = (s: string) => inlineMdToHtml(s, resolvePage)
   for (let i = 0; i < lines.length; i++) {
@@ -74,6 +74,12 @@ export function parseMarkdown(text: string, resolvePage?: (title: string) => str
       out.push({ type: 'bullet', text: inline(m[2]), props: { indent: indentOf(m[1]) } })
     } else if ((m = line.match(/^(\s*)\d+[.)]\s+(.*)$/))) {
       out.push({ type: 'numbered', text: inline(m[2]), props: { indent: indentOf(m[1]) } })
+    } else if ((m = line.match(/^>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i))) {
+      // A GitHub note ("> [!TIP]" and its "> " lines) becomes a callout.
+      const body: string[] = []
+      while (i + 1 < lines.length && /^>/.test(lines[i + 1])) body.push(lines[++i].replace(/^>\s?/, ''))
+      const icon = ({ note: 'ℹ️', tip: '💡', important: '❗', warning: '⚠️', caution: '🛑' } as Record<string, string>)[m[1].toLowerCase()]
+      out.push({ type: 'callout', text: inline(body.join(' ').trim()), props: { icon } })
     } else if ((m = line.match(/^>\s?(.*)$/))) {
       out.push({ type: 'quote', text: inline(m[1]), props: {} })
     } else if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
@@ -83,6 +89,35 @@ export function parseMarkdown(text: string, resolvePage?: (title: string) => str
     } else {
       out.push({ type: 'text', text: inline(line), props: {} })
     }
+  }
+  return out
+}
+
+/** A line that starts a block of its own (not the rest of a wrapped paragraph or list item). */
+const STARTS = /^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|>|```|\||(-{3,}|\*{3,}|_{3,})\s*$|!\[|<)/
+
+/**
+ * Markdown wraps long paragraphs and list items over several lines; join them back into one
+ * line each, so a wrapped sentence stays one block. Code blocks are left alone.
+ */
+function joinWrapped(lines: string[]): string[] {
+  const out: string[] = []
+  let code = false
+  for (const line of lines) {
+    const fence = /^```/.test(line.trim())
+    const prev = out[out.length - 1]
+    const joinable =
+      !code &&
+      !fence &&
+      !!line.trim() &&
+      !STARTS.test(line) &&
+      prev !== undefined &&
+      !!prev.trim() &&
+      !/^\s*(#{1,6}\s|```|\||(-{3,}|\*{3,}|_{3,})\s*$)/.test(prev) &&
+      !/^>\s*\[!\w+\]\s*$/.test(prev)
+    if (fence) code = !code
+    if (joinable) out[out.length - 1] = `${prev.replace(/\s+$/, '')} ${line.trim()}`
+    else out.push(line)
   }
   return out
 }

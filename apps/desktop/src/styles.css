@@ -1751,3 +1751,4 @@ button.para-item.para-item-main:hover { background: var(--hover); }
 .bwb-settings .bwb-step { background: var(--panel); }
 .bwb-gear { margin-left: 0; }
 @media (max-width: 640px) { .bwb-grid { grid-template-columns: 1fr; } }
+.help-learn { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; }

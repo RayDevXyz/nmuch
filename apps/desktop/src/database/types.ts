@@ -86,6 +86,8 @@ export interface DatabaseResult {
   groups: Group[]
   related: Record<string, RowRef>
   total: number
+  /** The template new rows start from (a page id), if set. */
+  template?: string
 }
 
 export const TITLE = 'title'

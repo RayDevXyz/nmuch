@@ -3,7 +3,7 @@ import { Archive, Check, Rocket, Search, X } from 'lucide-react'
 import { queryDatabase } from '../database/api'
 import { toast, useApp } from '../state/store'
 import { openPage } from '../state/actions'
-import { applyParaTemplate } from './templates'
+import { applyDatabaseTemplate } from '../templates/apply'
 import { message, openParaDialog, paraArchive, paraProcess, paraPromote, REASONS, STATUSES, useParaDialog, type Space } from './api'
 
 interface Item {
@@ -68,7 +68,7 @@ function PromoteDialog({ rowId, space }: { rowId: string; space: Space }) {
     try {
       await paraPromote(rowId, { ...f, area: f.area || undefined, deadline: f.deadline || undefined })
       // The project template goes below what the note already says.
-      await applyParaTemplate(space, 'projects', rowId, true).catch((e) => console.error('PARA template:', e))
+      await applyDatabaseTemplate(space.projects, rowId, undefined, true).catch((e) => console.error('PARA template:', e))
       openParaDialog(null)
       toast(`“${note?.title || 'Untitled'}” is a project now`)
       openPage(rowId, 'replace')

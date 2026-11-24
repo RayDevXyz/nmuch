@@ -3,13 +3,15 @@ import { FileStack, Search, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { openPage } from '../state/actions'
 import { setState, toast, useApp } from '../state/store'
-import { defaultTitle, ensureTemplatesFolder, listTemplates, loadTree, templateContent, createFromTemplate, variablesOf, type Tree } from './apply'
+import { defaultTitle, rowTitle, ensureTemplatesFolder, listTemplates, loadTree, templateContent, createFromTemplate, variablesOf, type Tree } from './apply'
 import type { Variable } from './engine'
 
 /** What the template form does with its result. */
 export interface TemplateRequest {
   /** Where a new page goes (null: top level). */
   parentId: string | null
+  /** Make the page as a new row of this database. */
+  databaseId?: string
   /** Start on this template (skip the list). */
   templateId?: string
   /** Values given already (from `{{template: … | Name: value}}`), keys lower-case. */
@@ -77,7 +79,7 @@ function Dialog({ req }: { req: TemplateRequest }) {
         const content = await templateContent(tree, filled, req.parentId)
         req.onDone?.({ content })
       } else {
-        const pageId = await createFromTemplate(tree, { title: title ?? '', values: filled, parentId: req.parentId, open: !req.onDone })
+        const pageId = await createFromTemplate(tree, { title: title ?? '', values: filled, parentId: req.databaseId ?? req.parentId, databaseId: req.databaseId, open: !req.onDone })
         req.onDone?.({ pageId })
       }
       setState({ templateDialog: null })
@@ -170,7 +172,12 @@ function Dialog({ req }: { req: TemplateRequest }) {
               {mode === 'page' && (
                 <label className="sync-field">
                   <span>Title</span>
-                  <input autoFocus value={title ?? defaultTitle(tree, values, req.parentId)} onChange={(e) => setTitle(e.target.value)} />
+                  <input
+                    autoFocus
+                    placeholder={req.databaseId ? 'Untitled' : undefined}
+                    value={title ?? (req.databaseId ? rowTitle(tree, values, req.databaseId) : defaultTitle(tree, values, req.parentId))}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
                 </label>
               )}
               {vars.map((v, i) => (

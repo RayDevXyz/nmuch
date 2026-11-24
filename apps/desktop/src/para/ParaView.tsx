@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { applyParaTemplate, ensureParaTemplates } from './templates'
+import { ensureParaTemplates, linkParaTemplates } from './templates'
+import { applyDatabaseTemplate } from '../templates/apply'
 import { Archive, ArchiveRestore, CalendarCheck, Check, Inbox, Rocket } from 'lucide-react'
 import { createRow } from '../database/api'
 import { uid } from '../lib/id'
@@ -71,7 +72,7 @@ function Capture({ space }: { space: Space }) {
         try {
           const id = uid()
           await createRow(space.inbox, id, title, { inboxStatus: 'inbox' })
-          void applyParaTemplate(space, 'inbox', id).catch(() => {})
+          void applyDatabaseTemplate(space.inbox, id).catch(() => {})
         } catch (err) {
           setText(title)
           toast(`Could not capture: ${message(err)}`)
@@ -89,6 +90,7 @@ function SpacePanel({ space }: { space: Space }) {
   // Spaces made before PARA had templates get them once.
   useEffect(() => {
     if (!space.templates || !Object.keys(space.templates).length) void ensureParaTemplates(space).catch(() => {})
+    else void linkParaTemplates(space).catch(() => {})
   }, [space])
   const [showArchive, setShowArchive] = useState(false)
   const overdue = o?.areas.filter((a) => a.overdue) ?? []

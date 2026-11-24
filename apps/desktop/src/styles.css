@@ -1684,3 +1684,19 @@ button.para-item.para-item-main:hover { background: var(--hover); }
 .rp-shortcuts dd { margin: 0; color: var(--muted-foreground); line-height: 1.4; }
 .rp-shortcuts-all { margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--faint); font: inherit; font-size: 12px; cursor: pointer; }
 .rp-shortcuts-all:hover { background: var(--hover); color: var(--foreground); }
+
+/* New ▾ in a database: a template for a new page, and which one New uses */
+.db-new-split { display: inline-flex; }
+.db-new-split .db-new:first-child { border-radius: 6px 0 0 6px; }
+.db-new-split .db-new-more { padding: 0 6px; border-radius: 0 6px 6px 0; margin-left: 1px; }
+.db-new-split .db-new-more.on { background: var(--accent-strong); }
+.nr-menu { min-width: 250px; max-height: 70vh; overflow-y: auto; }
+.nr-line { display: flex; align-items: center; gap: 2px; }
+.nr-line .menu-item { flex: 1; min-width: 0; }
+.nr-line .menu-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nr-default { margin-left: auto; padding: 1px 6px; border-radius: 9px; background: var(--accent-soft); color: var(--foreground); font-size: 10.5px; }
+.nr-star { flex: none; width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--faint); display: grid; place-items: center; cursor: pointer; opacity: 0.6; }
+.nr-line:hover .nr-star { opacity: 1; }
+.nr-star:hover { background: var(--hover); color: var(--foreground); }
+.nr-star.on { color: var(--accent); opacity: 1; }
+.nr-hint { margin: 4px 10px 4px; color: var(--faint); font-size: 11.5px; }

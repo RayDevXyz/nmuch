@@ -534,3 +534,16 @@ fn a_page_becomes_a_database_and_back() {
     let dune = r.rows.iter().find(|r| r.id == "dune").unwrap();
     assert_eq!(dune.values.get("rating"), Some(&json!(5)));
 }
+
+#[test]
+fn database_template_setting() {
+    let mut core = bw_core::Core::open_in_memory().unwrap();
+    let db = core.create_database("db", bw_core::PageMeta { title: "Tasks".into(), ..Default::default() }).unwrap();
+    assert_eq!(core.database_template(&db).unwrap(), None);
+    core.set_database_template(&db, Some("tpl")).unwrap();
+    assert_eq!(core.database_template(&db).unwrap().as_deref(), Some("tpl"));
+    assert_eq!(core.query_database(&db, None, None).unwrap().template.as_deref(), Some("tpl"));
+    core.set_database_template(&db, None).unwrap();
+    assert_eq!(core.query_database(&db, None, None).unwrap().template, None);
+    assert!(core.set_database_template("nope", Some("x")).is_err());
+}

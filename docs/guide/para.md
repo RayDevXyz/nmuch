@@ -96,8 +96,11 @@ before templates existed) and live in the **Templates** folder like any other te
 there (**Edit the page templates** in the PARA panel) and new items follow your version. Template
 syntax works too, e.g. `{{date:dddd D MMMM}}`; see [Templates](templates.md).
 
-A template is applied when an item is made in the app: the capture box, **New** in a PARA database,
-or a new row made from a relation cell (say, a new area picked from a project's *Area*). A page
+Each PARA database has its template set as its **Template for new pages** (see
+[Databases](databases.md#new-pages-from-a-template)), so you can switch a database to another
+template, or to none, from its view settings or the **▾** next to **New**. A template is applied
+when an item is made in the app: the capture box, **New** in a PARA database, or a new row made
+from a relation cell (say, a new area picked from a project's *Area*). A page
 that already has text is never overwritten. A note promoted to a project keeps its text and gets
 the project template added below it. Delete a template to stop using it for that kind of item.
 

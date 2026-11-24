@@ -21,6 +21,9 @@ use crate::schema::{keys, new_id, PageId, PageKind, PageMeta, PageMetaPatch};
 /// The id of the column every database has: the row's page title.
 pub const TITLE: &str = "title";
 
+/// Prop on a database page: the template (a page id) its new rows start from.
+pub const TEMPLATE_PROP: &str = "databaseTemplate";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PropType {
@@ -418,6 +421,35 @@ impl Core {
         let snap = self.snapshot(database_id)?;
         snap.database
             .ok_or_else(|| Error::Invalid(format!("{database_id} is not a database")))
+    }
+
+    /// Choose the template new rows of a database start from (`None`: an empty page).
+    pub fn set_database_template(
+        &mut self,
+        database_id: &str,
+        template: Option<&str>,
+    ) -> Result<()> {
+        self.database_def(database_id)?;
+        let id = database_id.to_string();
+        self.transact(database_id, |tx| match template.filter(|t| !t.is_empty()) {
+            Some(t) => tx.set_prop(&id, TEMPLATE_PROP, Value::String(t.to_string())),
+            None => tx.remove_prop(&id, TEMPLATE_PROP),
+        })
+    }
+
+    /// The template new rows of a database start from, if one is set.
+    pub fn database_template(&mut self, database_id: &str) -> Result<Option<String>> {
+        let snap = self.snapshot(database_id)?;
+        if snap.database.is_none() {
+            return Err(Error::Invalid(format!("{database_id} is not a database")));
+        }
+        Ok(snap
+            .root()
+            .props
+            .get(TEMPLATE_PROP)
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(String::from))
     }
 
     /// Add or replace a column. Relations are created with [`Core::create_relation`].

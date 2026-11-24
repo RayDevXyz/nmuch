@@ -8,7 +8,8 @@ import { Cell, FileOpener, PropIcon, visibleProps } from './cells'
 import { useCourseActions } from '../modules/course'
 import { clearAsk, useAskedView, useParaRole } from '../para/api'
 import { paraShown, ParaRowActions } from '../para/ParaRow'
-import { newParaItem } from '../para/templates'
+import { applyDatabaseTemplate } from '../templates/apply'
+import { NewRowMenu } from './NewRowMenu'
 import { useRoles } from '../dnd/api'
 import { openCharacterWizard } from '../dnd/CharacterWizard'
 import { dndSlashExtras } from '../dnd/slash'
@@ -20,7 +21,7 @@ export const VIEW_ICON: Record<ViewKind, typeof Table2> = { table: Table2, board
 
 type Menu =
   | { kind: 'prop'; prop: Property; at: Anchor }
-  | { kind: 'add-prop' | 'filter' | 'sort' | 'settings' | 'add-view'; at: Anchor }
+  | { kind: 'add-prop' | 'filter' | 'sort' | 'settings' | 'add-view' | 'new'; at: Anchor }
   | null
 
 /**
@@ -63,11 +64,12 @@ export function DatabaseView({
   if (!result) return <div className="db-loading">Loading…</div>
   const view = result.view
 
-  const addRow = async (values: Record<string, unknown> = {}) => {
+  /** A new row; it starts from the database's template unless `empty`. */
+  const addRow = async (values: Record<string, unknown> = {}, empty = false) => {
     const id = uid()
     await createRow(databaseId, id, '', values)
     await refresh()
-    void newParaItem(databaseId, id)
+    if (!empty && result.template) void applyDatabaseTemplate(databaseId, id, result.template)
   }
 
   const addView = async (type: ViewKind) => {
@@ -143,9 +145,14 @@ export function DatabaseView({
                 <FolderInput size={13} /> Import folder
               </button>
             )}
-            <button className="db-new" onClick={() => void addRow()}>
-              <Plus size={13} /> New
-            </button>
+            <div className="db-new-split">
+              <button className="db-new" title={result.template ? 'A new page from this database’s template' : 'A new page'} onClick={() => void addRow()}>
+                <Plus size={13} /> New
+              </button>
+              <button className={`db-new db-new-more ${menu?.kind === 'new' ? 'on' : ''}`} aria-label="New from a template" title="New from a template…" onClick={(e) => setMenu({ kind: 'new', at: anchorOf(e) })}>
+                <ChevronDown size={13} />
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -182,6 +189,7 @@ export function DatabaseView({
       {menu?.kind === 'add-prop' && <AddPropertyMenu result={result} at={menu.at} onClose={close} />}
       {menu?.kind === 'filter' && <FilterMenu result={result} at={menu.at} onClose={close} />}
       {menu?.kind === 'sort' && <SortMenu result={result} at={menu.at} onClose={close} />}
+      {menu?.kind === 'new' && <NewRowMenu databaseId={databaseId} current={result.template} at={menu.at} onClose={close} onEmpty={() => void addRow({}, true)} />}
       {menu?.kind === 'settings' && (
         <ViewSettingsMenu
           result={result}

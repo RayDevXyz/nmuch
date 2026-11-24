@@ -67,6 +67,8 @@ export interface EditorHost {
   FormulaInline?: ComponentType<FormulaInlineProps>
   /** Renders a map of content: a live list of links to pages, from its settings. */
   MocBlock?: ComponentType<MocBlockProps>
+  /** Renders a button block: its look, its settings, and what it does when clicked. */
+  ButtonBlock?: ComponentType<ButtonBlockProps>
   /** Extra `/` commands the app adds (templates, module blocks). */
   slashExtras?: SlashExtra[]
   /**
@@ -117,6 +119,15 @@ export interface MocBlockProps {
   settings: Record<string, unknown>
   editable: boolean
   onSettings(settings: Record<string, unknown>): void
+}
+
+export interface ButtonBlockProps {
+  blockId: string
+  settings: Record<string, unknown>
+  editable: boolean
+  onSettings(settings: Record<string, unknown>): void
+  /** Put blocks right after the button, in this page. */
+  insertBelow(content: JSONContent[]): void
 }
 
 export interface DatabaseBlockProps {

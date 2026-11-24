@@ -24,6 +24,7 @@ export const BLOCK_TYPES = [
   'columns',
   'column',
   'toggle',
+  'button',
   'table',
   'tableRow',
   'tableHeader',

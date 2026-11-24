@@ -287,6 +287,16 @@
       "refs": []
     },
     {
+      "id": "bt1",
+      "type": "button",
+      "depth": 2,
+      "text": "",
+      "attrs": {
+        "settings": "{\"label\":\"Quick note\",\"steps\":[]}"
+      },
+      "refs": []
+    },
+    {
       "id": "tg1",
       "type": "toggle",
       "depth": 2,

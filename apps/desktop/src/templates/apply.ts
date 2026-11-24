@@ -119,7 +119,9 @@ export function renderContent(nodes: JSONContent[], ctx: Context): JSONContent[]
       const text = render(n.text ?? '', ctx)
       return text ? { ...n, text } : null
     }
-    const attrs = n.attrs ? Object.fromEntries(Object.entries(n.attrs).map(([k, v]) => [k, k === 'id' ? null : typeof v === 'string' ? render(v, ctx) : v])) : undefined
+    // A button's fields are filled in when it is clicked, not when the template is used.
+    const keep = (k: string) => n.type === 'button' && k === 'settings'
+    const attrs = n.attrs ? Object.fromEntries(Object.entries(n.attrs).map(([k, v]) => [k, k === 'id' ? null : typeof v === 'string' && !keep(k) ? render(v, ctx) : v])) : undefined
     const content = n.content?.map(fix).filter((x): x is JSONContent => !!x)
     return { ...n, ...(attrs ? { attrs } : {}), ...(n.content ? { content } : {}) }
   }

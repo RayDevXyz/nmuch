@@ -6,6 +6,7 @@
 - [Pages and blocks](guide/editor.md): the `/` menu and Markdown shortcuts, plus tables, columns, callouts and toggles
 - [Page headers](guide/page-headers.md): a cover with a picture, gradient or colour, breadcrumbs and sub-page links
 - [Page properties](guide/page-properties.md): status, dates, tags and more on any page; in a pop-up or under the title
+- [Buttons](guide/buttons.md): a button that makes a note, adds a to-do or a row, or opens a page, with your own label, colour and steps
 - [Templates](guide/templates.md): pages and sub-pages from a template, with fields to fill in (`{{Client}}`, `{{date}}`)
 - [Formulas](guide/formulas.md): live values in your text, from properties and databases, with logic
 - [Themes](guide/themes.md): the theme editor, and a theme per page

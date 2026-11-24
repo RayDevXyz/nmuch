@@ -9,6 +9,7 @@ import {
   Columns3,
   Columns4,
   ListCollapse,
+  MousePointerClick,
   Map as MapIcon,
   Sigma,
   Heading1,
@@ -49,6 +50,7 @@ export type SlashId =
   | 'columns3'
   | 'columns4'
   | 'toggle'
+  | 'button'
 
 export interface SlashItem {
   id: SlashId
@@ -81,6 +83,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { id: 'linkedDatabase', label: 'Linked database', desc: 'Show an existing database here', icon: Table2, keywords: 'linked database view existing table board gallery embed show other' },
   { id: 'databasePage', label: 'Database page', desc: 'A new database as its own page', icon: Table2, keywords: 'table board full page db' },
   { id: 'formula', label: 'Formula', desc: 'A live value: a property, a database total, some logic', icon: Sigma, keywords: 'formula value property database calc sum count if logic inline =' },
+  { id: 'button', label: 'Button', desc: 'Does something when clicked: a new note, a line of text…', icon: MousePointerClick, keywords: 'button action quick note create automation click shortcut' },
   { id: 'moc', label: 'Map of content', desc: 'Links to pages that stay up to date', icon: MapIcon, keywords: 'moc index overview toc contents links hub sub-pages children tag' },
   { id: 'page', label: 'Sub-page', desc: 'Nest a new page inside this one', icon: FileText, keywords: 'page subpage child document link' },
 ]
@@ -166,6 +169,8 @@ export function runSlash(editor: Editor, id: SlashId, range?: Range) {
       })
       return true
     }
+    case 'button':
+      return chain().insertButton({ label: 'Quick note', icon: '📝', steps: [{ kind: 'createPage', where: { kind: 'here' }, title: 'Note {{date}} {{time}}', open: 'tab' }], edit: true }).run()
     case 'toggle':
       return chain().setToggle().run()
     case 'columns2':

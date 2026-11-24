@@ -21,6 +21,7 @@ import { MarkdownPaste } from './nodes/markdown-paste'
 import { Tags } from './nodes/tags'
 import { TemplateCall } from './nodes/template-call'
 import { Folding, Toggle } from './nodes/toggle'
+import { ActionButton } from './nodes/button'
 import { BlockRefSuggestion, PageLinkSuggestion, SlashCommands } from './menus/suggestions'
 
 export interface KitOptions {
@@ -52,6 +53,7 @@ export function schemaExtensions(): Extensions {
     Columns,
     Column,
     Toggle,
+    ActionButton,
     // Simple tables: a header row and plain cells. Columns can be resized by dragging.
     TableKit.configure({ table: { resizable: true, cellMinWidth: 60, lastColumnResizable: true, allowTableNodeSelection: true } }),
     Ref,

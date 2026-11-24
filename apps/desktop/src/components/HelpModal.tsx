@@ -26,6 +26,7 @@ export const GROUPS: [string, [string, string][]][] = [
       ['/course', 'Course tracker: courses, lessons, progress'],
       ['Enter / Shift Enter', 'New block / line break'],
       ['Tab / Shift Tab', 'Indent / outdent list item'],
+      ['/button', 'A button: make a note, add a to-do or a row, open a page'],
       ['/toggle or >>', 'Toggle: a line that folds away what is under it'],
       ['Ctrl Enter', 'Fold / unfold the toggle, heading or list item you are in'],
       ['Ctrl Alt 0–3', 'Text / Heading 1–3'],

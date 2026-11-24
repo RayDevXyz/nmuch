@@ -111,6 +111,9 @@ pub mod node {
     pub const COLUMN: &str = "column";
     /// A toggle: the first child (a paragraph) is the summary line, the rest folds away.
     pub const TOGGLE: &str = "toggle";
+    /// A button that does something when clicked. attrs: `settings` (JSON: its look and its
+    /// steps). The app runs it; the core only stores it.
+    pub const BUTTON: &str = "button";
 
     /// Inline reference. attrs: `kind` ("page" | "block"), `target` (id).
     pub const REF: &str = "ref";

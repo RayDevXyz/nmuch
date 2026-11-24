@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@fontsource-variable/manrope'
+import '@fontsource-variable/inter'
 import '@fontsource-variable/jetbrains-mono'
 import './styles.css'
 import './dnd/theme.css'

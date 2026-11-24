@@ -50,6 +50,13 @@ function Dialog({ req }: { req: TemplateRequest }) {
     setState({ templateDialog: null })
   }
 
+  // Escape closes the dialog even when nothing in it has focus yet.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && close()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
+
   useEffect(() => {
     if (!chosen) return setTree(null)
     let live = true

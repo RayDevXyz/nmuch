@@ -89,7 +89,6 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.style.colorScheme = theme
-    document.body.style.background = theme === 'dark' ? '#111214' : '#f3f1f7'
   }, [theme])
 
   useEffect(() => {

@@ -12,6 +12,7 @@ Every page can also be a canvas: a large board where its text sits in notes you 
 |---|---|
 | Pan | Wheel or trackpad, the hand tool (H), or hold Space and drag |
 | Zoom | Ctrl + wheel or pinch, the − / + buttons in the zoom bar (top right), Ctrl 1 to fit |
+| On a touch screen | Two fingers: pinch to zoom and drag to move around, both at once. One finger on an empty spot moves around too; on an item it moves the item (a note: by its strip at the top, which grows to finger size). A second finger while moving something undoes that move and starts the pinch. |
 | Add a note | N, then click or drag. It shows in the document too. |
 | Add text | T, or double-click on empty space |
 | Add a shape | R (rectangle), O (ellipse) or D (diamond), then click or drag |

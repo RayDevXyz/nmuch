@@ -563,3 +563,23 @@ input.cs-stat-value:focus { outline: 1px solid var(--dnd-gold); }
 .sc-review-actions { justify-content: flex-end; }
 .cs-backstory { margin-top: 12px; }
 .cs-backstory p { margin: 4px 0 0; white-space: pre-wrap; }
+/* Which books to use */
+.fv-books { max-height: 52vh; overflow-y: auto; }
+.fv-books .fv-muted { color: var(--dnd-muted); opacity: 0.8; }
+.fv-book-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 18px; margin: 12px 0; }
+.fv-book-groups h5 { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 4px; font-family: var(--dnd-title, serif); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dnd-gold-bright); }
+.fv-book { display: flex; align-items: center; gap: 8px; padding: 3px 2px; font-size: 14px; color: var(--dnd-text); cursor: pointer; }
+.fv-book input { accent-color: var(--dnd-gold, #c9a44c); }
+.fv-book span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fv-book small { font-family: var(--font-mono); font-size: 10.5px; color: var(--dnd-muted); }
+.fv-link-btn { border: 0; background: none; color: var(--dnd-muted); font: inherit; font-size: 11px; text-transform: none; letter-spacing: 0; cursor: pointer; text-decoration: underline; }
+/* The players' hub, in the campaign's table panel */
+.sc-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.sc-chip { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border: 1px solid #4a3e2d; background: #17130e; color: #b8a98c; font-size: 13px; cursor: pointer; }
+.sc-chip.on { border-color: #c9a45c; color: #e9dec6; }
+.sc-chip input { display: none; }
+.sc-chip small { color: #85765c; font-size: 11px; }
+.sc-linkbtn { padding: 0; border: 0; background: none; color: #e3c27a; font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.sc-journal { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.sc-journal li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14px; }
+.sc-journal small { color: #85765c; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }

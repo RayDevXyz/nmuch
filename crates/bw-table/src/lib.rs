@@ -21,8 +21,19 @@
 //! sheets (BrainWaves sends the *party*). A player is known by a random id their browser keeps
 //! (`pid`), so their characters follow them from visit to visit without accounts.
 //!
-//! Rooms, their latest scene, the map pictures, recent rolls, the rules, the party and the
-//! character submissions are saved under the data folder, so a restart doesn't lose the game.
+//! The room is also the players' **hub**: BrainWaves publishes a **compendium** (the
+//! player-facing part of the DM's 5etools: spells, items, races, classes, backgrounds, feats,
+//! conditions; never monsters) and **journal** pages (expedition logs, story so far, handouts).
+//! Players read them here, without the DM's 5etools or BrainWaves running.
+//!
+//! - DM: `PUT /api/rooms/<room>/compendium/<category>` (a JSON array), then
+//!   `PUT /api/rooms/<room>/compendium` (`{ sources }`, marks it published);
+//!   `PUT|DELETE /api/rooms/<room>/journal/<id>` (`{ title, icon, kind, html }`).
+//! - Players: `GET /api/rooms/<room>/compendium[/<category>]`, `GET /api/rooms/<room>/journal[/<id>]`.
+//!
+//! Rooms, their latest scene, the map pictures, recent rolls, the rules, the party, the
+//! character submissions, the compendium and the journal are saved under the data folder, so a
+//! restart doesn't lose the game.
 
 pub mod dice;
 
@@ -58,6 +69,13 @@ const MAX_CHARACTER: usize = 32 << 10;
 /// Open (not yet approved) submissions one player may have at once.
 const MAX_OPEN_SUBMISSIONS: usize = 8;
 const KEEP_SUBMISSIONS: usize = 200;
+/// One compendium category (classes with their features are the biggest).
+const MAX_CATEGORY: usize = 48 << 20;
+/// One journal page (pictures are inside it).
+const MAX_PAGE: usize = 16 << 20;
+const MAX_JOURNAL: usize = 500;
+/// What players may read: the player-facing 5e content (no monsters).
+pub const CATEGORIES: [&str; 7] = ["spell", "item", "race", "class", "background", "feat", "condition"];
 
 pub struct Config {
     pub data: PathBuf,
@@ -90,6 +108,11 @@ struct Saved {
     submissions: Vec<Value>,
     /// Character id → the player (pid) it belongs to (set when the DM approves a submission).
     owners: BTreeMap<String, String>,
+    /// The published compendium: `{ publishedAt, sources, counts: { category: n } }` (the
+    /// entries themselves are files next to the room's).
+    compendium: Value,
+    /// Published journal pages, without their content: `{ id, title, icon, kind, published, updated }`.
+    journal: Vec<Value>,
 }
 
 struct Room {
@@ -177,6 +200,14 @@ impl AppState {
     fn image_path(&self, code: &str, hash: &str) -> PathBuf {
         self.0.data.join("rooms").join(format!("{code}-{hash}.img"))
     }
+
+    fn category_path(&self, code: &str, cat: &str) -> PathBuf {
+        self.0.data.join("rooms").join(format!("{code}-compendium-{cat}.data"))
+    }
+
+    fn page_path(&self, code: &str, id: &str) -> PathBuf {
+        self.0.data.join("rooms").join(format!("{code}-page-{id}.data"))
+    }
 }
 
 pub fn router(state: AppState) -> Router {
@@ -187,6 +218,16 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(|| async { "ok" }))
         .route("/api/rooms", post(create_room))
         .route("/api/rooms/{code}/image/{hash}", get(image))
+        .route("/api/rooms/{code}/compendium", get(compendium_meta).put(publish_compendium).delete(remove_compendium))
+        .route(
+            "/api/rooms/{code}/compendium/{cat}",
+            get(compendium_category).put(put_category).layer(DefaultBodyLimit::max(MAX_CATEGORY)),
+        )
+        .route("/api/rooms/{code}/journal", get(journal_list))
+        .route(
+            "/api/rooms/{code}/journal/{id}",
+            get(journal_page).put(put_page).delete(remove_page).layer(DefaultBodyLimit::max(MAX_PAGE)),
+        )
         .route("/ws/{code}", get(ws))
         .layer(DefaultBodyLimit::max(64 << 10))
         // BrainWaves (another origin: the desktop app, or its dev page) makes rooms here. Every
@@ -194,7 +235,7 @@ pub fn router(state: AppState) -> Router {
         .layer(
             tower_http::cors::CorsLayer::new()
                 .allow_origin(tower_http::cors::Any)
-                .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
+                .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::PUT, axum::http::Method::DELETE])
                 .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE]),
         )
         .with_state(state)
@@ -210,6 +251,7 @@ async fn asset(Path(file): Path<String>) -> Response {
     let (body, mime): (&'static [u8], &str) = match file.as_str() {
         "table.js" => (include_bytes!("../../../apps/table/table.js"), "text/javascript; charset=utf-8"),
         "characters.js" => (include_bytes!("../../../apps/table/characters.js"), "text/javascript; charset=utf-8"),
+        "hub.js" => (include_bytes!("../../../apps/table/hub.js"), "text/javascript; charset=utf-8"),
         "table.css" => (include_bytes!("../../../apps/table/table.css"), "text/css; charset=utf-8"),
         "cinzel-500.woff2" => (include_bytes!("../../../apps/table/fonts/cinzel-latin-500-normal.woff2"), "font/woff2"),
         "cinzel-700.woff2" => (include_bytes!("../../../apps/table/fonts/cinzel-latin-700-normal.woff2"), "font/woff2"),
@@ -281,6 +323,219 @@ async fn image(State(s): State<AppState>, Path((code, hash)): Path<(String, Stri
     }
 }
 
+// ---------------------------------------------------------------- the hub: compendium and journal
+
+fn valid_page_id(id: &str) -> bool {
+    (1..=64).contains(&id.len()) && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
+/// The DM's key, and a room that exists.
+fn dm_room(s: &AppState, headers: &HeaderMap, code: &str) -> Result<(), Response> {
+    if !s.is_dm(&bearer(headers)) {
+        return Err((StatusCode::UNAUTHORIZED, "wrong DM key").into_response());
+    }
+    if !valid_code(code) || !s.0.rooms.lock().unwrap().contains_key(code) {
+        return Err((StatusCode::NOT_FOUND, "no such table").into_response());
+    }
+    Ok(())
+}
+
+fn room_exists(s: &AppState, code: &str) -> bool {
+    valid_code(code) && s.0.rooms.lock().unwrap().contains_key(code)
+}
+
+async fn write_atomic(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    let tmp = path.with_extension("tmp");
+    tokio::fs::write(&tmp, bytes).await?;
+    tokio::fs::rename(&tmp, path).await
+}
+
+/// One category of the compendium (a JSON array of 5etools entries), replacing what was there.
+async fn put_category(State(s): State<AppState>, headers: HeaderMap, Path((code, cat)): Path<(String, String)>, body: axum::body::Bytes) -> Response {
+    if let Err(r) = dm_room(&s, &headers, &code) {
+        return r;
+    }
+    if !CATEGORIES.contains(&cat.as_str()) {
+        return (StatusCode::BAD_REQUEST, "players only get spells, items, races, classes, backgrounds, feats and conditions").into_response();
+    }
+    let count = match serde_json::from_slice::<Vec<serde::de::IgnoredAny>>(&body) {
+        Ok(list) => list.len(),
+        Err(_) => return (StatusCode::BAD_REQUEST, "not a JSON list").into_response(),
+    };
+    if write_atomic(&s.category_path(&code, &cat), &body).await.is_err() {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "could not save it").into_response();
+    }
+    let mut rooms = s.0.rooms.lock().unwrap();
+    if let Some(room) = rooms.get_mut(&code) {
+        if !room.saved.compendium.is_object() {
+            room.saved.compendium = json!({});
+        }
+        room.saved.compendium["counts"][&cat] = json!(count);
+        room.dirty = true;
+    }
+    Json(json!({ "category": cat, "count": count })).into_response()
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct PublishCompendium {
+    /// The books it was made from (shown to players).
+    sources: Vec<String>,
+    /// The categories sent this time; others are removed.
+    categories: Vec<String>,
+}
+
+/// Mark the compendium published (after its categories were sent) and tell the players.
+async fn publish_compendium(State(s): State<AppState>, headers: HeaderMap, Path(code): Path<String>, Json(body): Json<PublishCompendium>) -> Response {
+    if let Err(r) = dm_room(&s, &headers, &code) {
+        return r;
+    }
+    let stale: Vec<&str> = CATEGORIES.iter().copied().filter(|c| !body.categories.iter().any(|x| x == c)).collect();
+    for cat in &stale {
+        let _ = tokio::fs::remove_file(s.category_path(&code, cat)).await;
+    }
+    let mut rooms = s.0.rooms.lock().unwrap();
+    let Some(room) = rooms.get_mut(&code) else { return StatusCode::NOT_FOUND.into_response() };
+    let mut counts = room.saved.compendium["counts"].as_object().cloned().unwrap_or_default();
+    counts.retain(|k, _| !stale.contains(&k.as_str()));
+    room.saved.compendium = json!({
+        "publishedAt": now_ms(),
+        "sources": body.sources.iter().take(400).map(|x| x.chars().take(64).collect::<String>()).collect::<Vec<_>>(),
+        "counts": counts,
+    });
+    room.dirty = true;
+    send_all(room, &json!({ "t": "compendium", "compendium": room.saved.compendium }), |_| true);
+    Json(room.saved.compendium.clone()).into_response()
+}
+
+async fn remove_compendium(State(s): State<AppState>, headers: HeaderMap, Path(code): Path<String>) -> Response {
+    if let Err(r) = dm_room(&s, &headers, &code) {
+        return r;
+    }
+    for cat in CATEGORIES {
+        let _ = tokio::fs::remove_file(s.category_path(&code, cat)).await;
+    }
+    let mut rooms = s.0.rooms.lock().unwrap();
+    if let Some(room) = rooms.get_mut(&code) {
+        room.saved.compendium = Value::Null;
+        room.dirty = true;
+        send_all(room, &json!({ "t": "compendium", "compendium": Value::Null }), |_| true);
+    }
+    StatusCode::NO_CONTENT.into_response()
+}
+
+async fn compendium_meta(State(s): State<AppState>, Path(code): Path<String>) -> Response {
+    let rooms = s.0.rooms.lock().unwrap();
+    match rooms.get(&code).filter(|_| valid_code(&code)) {
+        Some(r) => Json(r.saved.compendium.clone()).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+async fn compendium_category(State(s): State<AppState>, Path((code, cat)): Path<(String, String)>) -> Response {
+    if !room_exists(&s, &code) || !CATEGORIES.contains(&cat.as_str()) {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    match tokio::fs::read(s.category_path(&code, &cat)).await {
+        // The page asks with ?v=<publishedAt>, so a new publication is a new URL.
+        Ok(bytes) => ([(header::CONTENT_TYPE, "application/json"), (header::CACHE_CONTROL, "public, max-age=86400")], bytes).into_response(),
+        Err(_) => (StatusCode::OK, [(header::CONTENT_TYPE, "application/json")], "[]").into_response(),
+    }
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
+struct NewPage {
+    title: String,
+    icon: String,
+    /// log (an expedition log), story (the story so far), or page (anything else).
+    kind: String,
+    /// The page as HTML (made by BrainWaves; the player page sanitizes it again).
+    html: String,
+}
+
+/// Publish (or update) a journal page.
+async fn put_page(State(s): State<AppState>, headers: HeaderMap, Path((code, id)): Path<(String, String)>, Json(body): Json<NewPage>) -> Response {
+    if let Err(r) = dm_room(&s, &headers, &code) {
+        return r;
+    }
+    if !valid_page_id(&id) {
+        return (StatusCode::BAD_REQUEST, "bad page id").into_response();
+    }
+    let kind = match body.kind.as_str() {
+        "log" | "story" => body.kind.clone(),
+        _ => "page".to_string(),
+    };
+    let title: String = body.title.trim().chars().take(200).collect();
+    let icon: String = body.icon.chars().take(8).collect();
+    let now = now_ms();
+    {
+        let rooms = s.0.rooms.lock().unwrap();
+        let room = rooms.get(&code).unwrap();
+        if room.saved.journal.len() >= MAX_JOURNAL && !room.saved.journal.iter().any(|p| p["id"] == json!(id)) {
+            return (StatusCode::INSUFFICIENT_STORAGE, "the journal is full").into_response();
+        }
+    }
+    if write_atomic(&s.page_path(&code, &id), body.html.as_bytes()).await.is_err() {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "could not save it").into_response();
+    }
+    let mut rooms = s.0.rooms.lock().unwrap();
+    let Some(room) = rooms.get_mut(&code) else { return StatusCode::NOT_FOUND.into_response() };
+    let entry = match room.saved.journal.iter_mut().find(|p| p["id"] == json!(id)) {
+        Some(p) => {
+            p["title"] = json!(title);
+            p["icon"] = json!(icon);
+            p["kind"] = json!(kind);
+            p["updated"] = json!(now);
+            p.clone()
+        }
+        None => {
+            let p = json!({ "id": id, "title": title, "icon": icon, "kind": kind, "published": now, "updated": now });
+            room.saved.journal.push(p.clone());
+            p
+        }
+    };
+    room.dirty = true;
+    send_all(room, &json!({ "t": "journal", "journal": room.saved.journal }), |_| true);
+    Json(entry).into_response()
+}
+
+async fn remove_page(State(s): State<AppState>, headers: HeaderMap, Path((code, id)): Path<(String, String)>) -> Response {
+    if let Err(r) = dm_room(&s, &headers, &code) {
+        return r;
+    }
+    if !valid_page_id(&id) {
+        return StatusCode::NOT_FOUND.into_response();
+    }
+    let _ = tokio::fs::remove_file(s.page_path(&code, &id)).await;
+    let mut rooms = s.0.rooms.lock().unwrap();
+    if let Some(room) = rooms.get_mut(&code) {
+        room.saved.journal.retain(|p| p["id"] != json!(id));
+        room.dirty = true;
+        send_all(room, &json!({ "t": "journal", "journal": room.saved.journal }), |_| true);
+    }
+    StatusCode::NO_CONTENT.into_response()
+}
+
+async fn journal_list(State(s): State<AppState>, Path(code): Path<String>) -> Response {
+    let rooms = s.0.rooms.lock().unwrap();
+    match rooms.get(&code).filter(|_| valid_code(&code)) {
+        Some(r) => Json(r.saved.journal.clone()).into_response(),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+async fn journal_page(State(s): State<AppState>, Path((code, id)): Path<(String, String)>) -> Response {
+    let meta = {
+        let rooms = s.0.rooms.lock().unwrap();
+        rooms.get(&code).filter(|_| valid_code(&code)).and_then(|r| r.saved.journal.iter().find(|p| p["id"] == json!(id)).cloned())
+    };
+    let Some(mut meta) = meta.filter(|_| valid_page_id(&id)) else { return StatusCode::NOT_FOUND.into_response() };
+    let html = tokio::fs::read_to_string(s.page_path(&code, &id)).await.unwrap_or_default();
+    meta["html"] = json!(html);
+    ([(header::CACHE_CONTROL, "no-cache")], Json(meta)).into_response()
+}
+
 // ---------------------------------------------------------------- live
 
 #[derive(Deserialize, Default)]
@@ -332,7 +587,9 @@ async fn session(s: AppState, code: String, dm: bool, pid: Option<String>, name:
             "requests": if dm { room.requests.values().cloned().collect::<Vec<_>>() } else { vec![] },
             "dmOnline": room.conns.values().any(|c| c.dm),
             "rules": room.saved.rules,
-            "party": party_for(room, pid.as_deref()),
+            "party": party_for(room, dm, pid.as_deref()),
+            "compendium": room.saved.compendium,
+            "journal": room.saved.journal,
             "submissions": if dm { open_submissions(room) } else { mine(room, pid.as_deref()) },
         });
         let _ = tx.send(welcome.to_string());
@@ -386,23 +643,28 @@ fn broadcast_players(room: &Room) {
     send_all(room, &json!({ "t": "players", "players": players }), |_| true);
 }
 
-/// The party as one player sees it: each character marked `mine` if it's theirs (pids stay here).
-fn party_for(room: &Room, pid: Option<&str>) -> Vec<Value> {
+/// The party as one connection sees it. A player gets only their own characters (marked
+/// `mine`); the DM gets everyone. Pids stay here.
+fn party_for(room: &Room, dm: bool, pid: Option<&str>) -> Vec<Value> {
     room.saved
         .party
         .iter()
-        .map(|c| {
-            let mut c = c.clone();
+        .filter_map(|c| {
             let owner = c["id"].as_str().and_then(|id| room.saved.owners.get(id));
-            c["mine"] = json!(pid.is_some() && owner.map(String::as_str) == pid);
-            c
+            let mine = pid.is_some() && owner.map(String::as_str) == pid;
+            if !dm && !mine {
+                return None;
+            }
+            let mut c = c.clone();
+            c["mine"] = json!(mine);
+            Some(c)
         })
         .collect()
 }
 
 fn send_party(room: &Room) {
     for c in room.conns.values() {
-        let msg = json!({ "t": "party", "party": party_for(room, if c.dm { None } else { c.pid.as_deref() }) });
+        let msg = json!({ "t": "party", "party": party_for(room, c.dm, if c.dm { None } else { c.pid.as_deref() }) });
         let _ = c.tx.send(msg.to_string());
     }
 }

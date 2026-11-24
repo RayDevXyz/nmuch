@@ -32,6 +32,10 @@ rules (CORS) don't get in the way. It only fetches files under `data/` from that
 
 ![The compendium](../images/dnd-1-compendium.png)
 
+- **Books to use:** 5etools loads every book. In the compendium's ⚙, under **Books to use**, turn
+  off the ones you don't play with (**Core only**, **All** and **None** are quick choices). Search,
+  the character builder and the players' compendium on the table use only these; cards already
+  in your pages keep working.
 - **Search** across everything at once, or narrow it with the category chips.
 - **Read** an entry: monsters get a full stat block; spells, items, races, classes (with their
   features by level) and the rest get their own card.

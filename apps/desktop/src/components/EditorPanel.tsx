@@ -13,7 +13,9 @@ import { openSaveToBurrow } from '../burrow/Save'
 import { useNarrow } from '../mobile/narrow'
 import { MobileHeader } from '../mobile/MobileChrome'
 import { SyncChip } from '../sync/SyncDialog'
-import { PanelRight } from 'lucide-react'
+import { campaigns } from '../dnd/hub'
+import { openPublish } from '../dnd/PublishDialog'
+import { PanelRight, ScrollText } from 'lucide-react'
 
 function Tab({ id }: { id: string }) {
   const page = useApp((s) => s.pages[id])
@@ -241,6 +243,7 @@ export function EditorPanel() {
                   ]),
               { label: 'Page theme…', icon: <Palette size={14} />, onSelect: () => setTimeout(openPageThemeMenu) },
               { label: 'Save to Burrow…', icon: <BookmarkCheck size={14} />, onSelect: () => openSaveToBurrow(page.id) },
+              ...(campaigns().length ? [{ label: 'Publish to table…', icon: <ScrollText size={14} />, onSelect: () => openPublish(page.id) }] : []),
               { label: 'Add sub-page', icon: <Plus size={14} />, onSelect: () => createPage({ parentId: page.id }) },
               { label: 'Add sub-page from template…', icon: <FileStack size={14} />, onSelect: () => openTemplateDialog({ parentId: page.id }) },
               ...(page.databaseId

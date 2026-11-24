@@ -234,7 +234,7 @@ export interface Shown {
  * browser's CORS check can't break it. Only when that side can't reach the table server is the
  * request made from the browser.
  */
-async function createRoom(server: string, key: string, body: { name: string; code?: string }): Promise<string> {
+export async function createRoom(server: string, key: string, body: { name: string; code?: string }): Promise<string> {
   try {
     const r = await coreClient().call<{ code: string }>('tableCreateRoom', { server, key, ...body })
     return r.code

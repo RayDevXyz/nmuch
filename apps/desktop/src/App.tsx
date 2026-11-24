@@ -15,6 +15,7 @@ import { ImportDialog } from './components/ImportDialog'
 import { WidgetsDialog } from './widgets/WidgetsDialog'
 import { ModulesDialog } from './modules/ModulesDialog'
 import { ParaDialogs } from './para/ParaDialogs'
+import { PublishHost } from './dnd/PublishDialog'
 import { CompendiumHost, openCompendium } from './dnd/Compendium'
 import { CharacterWizardHost } from './dnd/CharacterWizard'
 import { getRoles, showsCanvas } from './dnd/api'
@@ -166,6 +167,7 @@ export default function App() {
       <SyncDialog />
       <TemplateDialog />
       <ParaDialogs />
+      <PublishHost />
       <CalloutStyleMenu />
       <LinkDatabaseDialog />
       {widgetsDialog && <WidgetsDialog />}

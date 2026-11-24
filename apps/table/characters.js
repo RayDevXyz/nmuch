@@ -83,10 +83,14 @@
     if (!mineChars.length && !open.length) html += `<p class="muted">You have no character in this campaign yet.</p>`
     if (canCreate) html += `<button class="gold wide" id="char-new">✦ Create a character</button>`
     else html += `<p class="muted small">${rules ? 'Your DM has closed character creation for now.' : 'Character creation opens once your DM shares the rules.'}</p>`
-    if (others.length) html += `<p class="party-line"><span>The party:</span> ${others.map((c) => `<button class="link" data-sheet="${esc(c.id)}">${esc(c.name)}</button>`).join(', ')}</p>`
     box.innerHTML = html
+    // The sheet next to the list: the one open, else the first of yours.
+    if (!party.some((c) => c.id === shownSheet) && mineChars.length) shownSheet = mineChars[0].id
+    if (shownSheet) renderSheet(shownSheet)
+    for (const b of box.querySelectorAll('[data-sheet]')) b.classList.toggle('on', b.dataset.sheet === shownSheet)
     box.querySelector('#char-new')?.addEventListener('click', () => openWizard(null))
     for (const b of box.querySelectorAll('[data-sheet]')) b.onclick = () => openSheet(b.dataset.sheet)
+    void others
     for (const b of box.querySelectorAll('[data-edit]')) b.onclick = () => openWizard(subs.find((s) => s.id === b.dataset.edit))
     for (const b of box.querySelectorAll('[data-withdraw]'))
       b.onclick = () => {
@@ -109,11 +113,22 @@
   $('modal-close').onclick = closeModal
   document.addEventListener('keydown', (e) => e.key === 'Escape' && !$('modal').hidden && closeModal())
 
-  // ---------- the sheet
+  // ---------- the sheet (read-only: your DM keeps it in BrainWaves)
 
+  let shownSheet = null
   function openSheet(id) {
+    shownSheet = id
+    window.bwHub?.show('characters')
+    render()
+    document.body.classList.add('reading')
+  }
+  const refLink = (cat, name) => `<a href="#" data-ref-cat="${cat}" data-ref-name="${esc(name)}">${esc(name)}</a>`
+  $('sheet-back')?.addEventListener('click', () => document.body.classList.remove('reading'))
+
+  function renderSheet(id) {
     const c = party.find((x) => x.id === id)
-    if (!c) return
+    const target = $('char-sheet')
+    if (!c || !target) return
     const s = c.sheet || {}
     const lvl = s.level || 1
     const prof = Math.ceil(Math.max(1, lvl) / 4) + 1
@@ -122,7 +137,7 @@
     const skill = ([k, , a]) => mod(ab[a] ?? 10) + (s.skills?.[k] || 0) * prof
     const perception = 10 + skill(SKILLS.find((x) => x[0] === 'perception'))
     const hp = s.hp || {}
-    modal(
+    target.innerHTML = (
       `<div class="sheet">
         <header class="sheet-head">
           <h2>${esc(c.name)}</h2>
@@ -144,12 +159,11 @@
           <section><h3>Skills</h3><ul class="sheet-list">${SKILLS.map((sk) => `<li class="${s.skills?.[sk[0]] ? 'prof' : ''}"><span>${sk[1]} <small>${sk[2]}</small></span><b>${signed(skill(sk))}</b></li>`).join('')}</ul></section>
         </div>
         ${(s.conditions || []).length ? `<section><h3>Conditions</h3><p>${(s.conditions || []).map(esc).join(', ')}</p></section>` : ''}
-        ${(s.spells || []).length ? `<section><h3>Spells</h3><p>${s.spells.map((x) => `${esc(x.name)}${x.prepared ? ' ✦' : ''}`).join(', ')}</p></section>` : ''}
-        ${(s.inventory || []).length ? `<section><h3>Equipment</h3><p>${s.inventory.map((x) => `${esc(x.name)}${x.qty > 1 ? ` ×${x.qty}` : ''}`).join(', ')}</p></section>` : ''}
+        ${(s.spells || []).length ? `<section><h3>Spells</h3><p>${s.spells.map((x) => `${refLink('spell', x.name)}${x.prepared ? ' ✦' : ''}`).join(', ')}</p></section>` : ''}
+        ${(s.inventory || []).length ? `<section><h3>Equipment</h3><p>${s.inventory.map((x) => `${refLink('item', x.name)}${x.qty > 1 ? ` ×${x.qty}` : ''}`).join(', ')}</p></section>` : ''}
         ${s.backstory ? `<section><h3>Backstory</h3><p class="prose">${esc(s.backstory)}</p></section>` : ''}
-        <p class="muted small">Your DM keeps this sheet in BrainWaves; changes show up here.</p>
-      </div>`,
-      true,
+        <p class="muted small">Read-only: your DM keeps this sheet in BrainWaves, and changes show up here.</p>
+      </div>`
     )
   }
 

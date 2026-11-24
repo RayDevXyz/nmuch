@@ -43,6 +43,45 @@ export const fetchData = (path: string, fresh = false) => coreClient().call<unkn
 export const getSource = () => coreClient().call<string | null>('dndSource')
 export const setSource = (url: string) => coreClient().call<string>('dndSetSource', { url })
 
+// ---- which books to use
+
+/** The books (5etools source ids) the user turned on; null: all of them. */
+let enabled: Set<string> | null | undefined
+let enabledLoad: Promise<Set<string> | null> | null = null
+export function enabledSources(): Promise<Set<string> | null> {
+  if (enabled !== undefined) return Promise.resolve(enabled)
+  enabledLoad ??= coreClient()
+    .call<string[] | null>('dndSources')
+    .then(
+      (l) => (enabled = l ? new Set(l.map((x) => x.toUpperCase())) : null),
+      () => (enabled = null),
+    )
+  return enabledLoad
+}
+export async function setEnabledSources(list: string[] | null) {
+  await coreClient().call('dndSetSources', { sources: list })
+  enabled = list ? new Set(list.map((x) => x.toUpperCase())) : null
+  enabledLoad = null
+}
+
+export interface Book {
+  id: string
+  name: string
+  /** core, supplement, setting, adventure, … */
+  group: string
+  published?: string
+}
+
+/** The books and adventures the user's 5etools knows (data/books.json, data/adventures.json). */
+export async function listBooks(): Promise<Book[]> {
+  const [books, advs] = await Promise.all([optional('data/books.json'), optional('data/adventures.json')])
+  const out: Book[] = []
+  for (const b of (books.book ?? []) as Raw[]) out.push({ id: String(b.id ?? b.source), name: String(b.name), group: String(b.group ?? 'other'), published: b.published })
+  for (const a of (advs.adventure ?? []) as Raw[]) out.push({ id: String(a.id ?? a.source), name: String(a.name), group: 'adventure', published: a.published })
+  const seen = new Set<string>()
+  return out.filter((b) => b.id && !seen.has(b.id.toUpperCase()) && seen.add(b.id.toUpperCase()))
+}
+
 /** A file that may not exist in every 5etools version: missing → empty. */
 async function optional(path: string): Promise<Raw> {
   try {
@@ -133,8 +172,14 @@ async function load(cat: Category): Promise<Raw[]> {
 
 const loaded = new Map<Category, Promise<Entry[]>>()
 
-/** All entries of a category (fetched once per session; `reload` to fetch again). */
-export function entries(cat: Category): Promise<Entry[]> {
+/** The entries of a category from the books the user turned on. */
+export async function entries(cat: Category): Promise<Entry[]> {
+  const [list, on] = await Promise.all([allEntries(cat), enabledSources()])
+  return on ? list.filter((e) => on.has(e.source.toUpperCase())) : list
+}
+
+/** All entries of a category, whatever books are turned on (fetched once per session; `reload` to fetch again). */
+export function allEntries(cat: Category): Promise<Entry[]> {
   let p = loaded.get(cat)
   if (!p) {
     p = load(cat).then((list) =>
@@ -155,7 +200,8 @@ export function reload() {
 
 /** Find one entry; without a source, the first by name (preferring core books). */
 export async function find(ref: { cat: Category; name: string; source?: string }): Promise<Entry | null> {
-  const list = await entries(ref.cat)
+  // Every book: a card already in a page keeps working after its book is turned off.
+  const list = await allEntries(ref.cat)
   const name = ref.name.toLowerCase()
   const same = list.filter((e) => e.name.toLowerCase() === name)
   if (!same.length) return null

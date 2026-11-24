@@ -266,6 +266,39 @@ impl Core {
             .optional()?)
     }
 
+    /// The 5etools books (source ids, e.g. `PHB`, `XGE`) to use; `None`: all of them.
+    pub fn dnd_set_sources(&mut self, sources: Option<Vec<String>>) -> Result<()> {
+        self.conn().execute(
+            "DELETE FROM module_grants WHERE module_id = ?1 AND kind = 'sources'",
+            [MODULE_ID],
+        )?;
+        if let Some(list) = sources {
+            let clean: Vec<String> = list
+                .into_iter()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty() && s.len() < 64)
+                .collect();
+            self.conn().execute(
+                "INSERT INTO module_grants(module_id, kind, value, granted_at) VALUES (?1, 'sources', ?2, ?3)",
+                rusqlite::params![MODULE_ID, json!(clean).to_string(), crate::store::now_millis()],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn dnd_sources(&self) -> Result<Option<Vec<String>>> {
+        use rusqlite::OptionalExtension;
+        let raw: Option<String> = self
+            .conn()
+            .query_row(
+                "SELECT value FROM module_grants WHERE module_id = ?1 AND kind = 'sources'",
+                [MODULE_ID],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(raw.and_then(|r| serde_json::from_str(&r).ok()))
+    }
+
     // ---- the workspace's Campaigns and Characters
 
     /// The Campaigns and Characters databases, created (at the top level) the first time.

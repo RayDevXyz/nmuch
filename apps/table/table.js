@@ -73,6 +73,7 @@
 
   function onMessage(m) {
     window.bwCharacters?.onMessage(m)
+    window.bwHub?.onMessage(m)
     if (m.t === 'party' || m.t === 'welcome') setTimeout(autoClaim)
     switch (m.t) {
       case 'welcome':

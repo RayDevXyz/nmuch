@@ -264,11 +264,15 @@ async fn players_submit_characters_the_dm_approves_or_sends_back() {
     // Approved: the DM made the character; it's the player's in the party.
     send(&mut dm, json!({ "t": "review", "id": sid, "approve": true, "characterId": "char-1" })).await;
     send(&mut dm, json!({ "t": "party", "party": [{ "id": "char-1", "name": "Thorin", "sheet": { "level": 1 } }, { "id": "char-2", "name": "Elara" }] })).await;
-    let party = next_where(&mut p, "party", |v| v["party"].as_array().is_some_and(|a| a.len() == 2)).await.unwrap();
+    // Players see only their own characters; the DM sees the whole party.
+    let party = next_where(&mut p, "party", |v| v["party"].as_array().is_some_and(|a| !a.is_empty())).await.unwrap();
+    assert_eq!(party["party"].as_array().unwrap().len(), 1, "only their own");
+    assert_eq!(party["party"][0]["id"], "char-1");
     assert_eq!(party["party"][0]["mine"], true);
-    assert_eq!(party["party"][1]["mine"], false);
-    let theirs = next_where(&mut other, "party", |v| v["party"].as_array().is_some_and(|a| a.len() == 2)).await.unwrap();
-    assert_eq!(theirs["party"][0]["mine"], false);
+    let theirs = next(&mut other, "party").await.unwrap();
+    assert_eq!(theirs["party"], json!([]), "a stranger sees no sheets");
+    let all = next_where(&mut dm, "party", |v| v["party"].as_array().is_some_and(|a| a.len() == 2)).await;
+    assert!(all.is_some(), "the DM sees everyone");
 
     // It survives a restart, and the player finds their character again by their browser id.
     state.save();
@@ -278,5 +282,69 @@ async fn players_submit_characters_the_dm_approves_or_sends_back() {
     assert_eq!(w3["party"][0]["mine"], true);
     assert_eq!(w3["submissions"][0]["status"], "approved");
     assert_eq!(w3["submissions"][0]["characterId"], "char-1");
+    std::fs::remove_dir_all(&data).ok();
+}
+
+#[tokio::test]
+async fn the_hub_publishes_a_compendium_and_journal_pages() {
+    let data = temp();
+    let (addr, state) = start(&data).await;
+    let code = room(&addr).await;
+    let mut p = join(&addr, &code, "name=Mira&pid=AbCdEfGhIjKlMnOpQr12").await;
+    let w = next(&mut p, "welcome").await.unwrap();
+    assert_eq!(w["compendium"], Value::Null);
+    assert_eq!(w["journal"], json!([]));
+
+    // Only the DM publishes, and never monsters.
+    let spells = json!([{ "name": "Fireball", "source": "PHB", "level": 3 }, { "name": "Shield", "source": "PHB", "level": 1 }]).to_string();
+    assert_eq!(http(&addr, "PUT", &format!("/api/rooms/{code}/compendium/spell"), Some("nope"), &spells).await.0, 401);
+    assert_eq!(http(&addr, "PUT", &format!("/api/rooms/{code}/compendium/monster"), Some(KEY), "[]").await.0, 400);
+    assert_eq!(http(&addr, "PUT", &format!("/api/rooms/{code}/compendium/spell"), Some(KEY), "{}").await.0, 400);
+    let (c, body) = http(&addr, "PUT", &format!("/api/rooms/{code}/compendium/spell"), Some(KEY), &spells).await;
+    assert_eq!(c, 200, "{body}");
+    assert_eq!(http(&addr, "PUT", &format!("/api/rooms/{code}/compendium/feat"), Some(KEY), r#"[{"name":"Alert","source":"PHB"}]"#).await.0, 200);
+    // Publishing the spells only: the feats sent before are dropped.
+    let (c, _) = http(&addr, "PUT", &format!("/api/rooms/{code}/compendium"), Some(KEY), r#"{"sources":["PHB"],"categories":["spell"]}"#).await;
+    assert_eq!(c, 200);
+    let note = next(&mut p, "compendium").await.unwrap();
+    assert_eq!(note["compendium"]["counts"]["spell"], 2);
+    assert!(note["compendium"]["counts"].get("feat").is_none());
+    let (c, list) = http(&addr, "GET", &format!("/api/rooms/{code}/compendium/spell"), None, "").await;
+    assert_eq!(c, 200);
+    assert_eq!(serde_json::from_str::<Value>(&list).unwrap()[0]["name"], "Fireball");
+    assert_eq!(serde_json::from_str::<Value>(&http(&addr, "GET", &format!("/api/rooms/{code}/compendium/feat"), None, "").await.1).unwrap(), json!([]));
+    assert_eq!(http(&addr, "GET", &format!("/api/rooms/{code}/compendium/monster"), None, "").await.0, 404);
+
+    // Journal pages: published, updated, listed, read, unpublished.
+    let page = json!({ "title": "Session 1: The road to Phandalin", "icon": "📜", "kind": "log", "html": "<p>We met <b>Sildar</b>.</p>" }).to_string();
+    assert_eq!(http(&addr, "PUT", &format!("/api/rooms/{code}/journal/s1"), None, &page).await.0, 401);
+    assert_eq!(http(&addr, "PUT", &format!("/api/rooms/{code}/journal/bad%20id"), Some(KEY), &page).await.0, 400);
+    assert_eq!(http(&addr, "PUT", &format!("/api/rooms/{code}/journal/s1"), Some(KEY), &page).await.0, 200);
+    let j = next(&mut p, "journal").await.unwrap();
+    assert_eq!(j["journal"][0]["title"], "Session 1: The road to Phandalin");
+    assert_eq!(j["journal"][0]["kind"], "log");
+    let story = json!({ "title": "The story so far", "kind": "story", "html": "<p>Act one.</p>" }).to_string();
+    assert_eq!(http(&addr, "PUT", &format!("/api/rooms/{code}/journal/story"), Some(KEY), &story).await.0, 200);
+    let edited = json!({ "title": "Session 1", "kind": "log", "html": "<p>Edited.</p>" }).to_string();
+    assert_eq!(http(&addr, "PUT", &format!("/api/rooms/{code}/journal/s1"), Some(KEY), &edited).await.0, 200);
+    let (_, list) = http(&addr, "GET", &format!("/api/rooms/{code}/journal"), None, "").await;
+    let list: Value = serde_json::from_str(&list).unwrap();
+    assert_eq!(list.as_array().unwrap().len(), 2);
+    assert_eq!(list[0]["title"], "Session 1", "an update keeps its place");
+    let (_, one) = http(&addr, "GET", &format!("/api/rooms/{code}/journal/s1"), None, "").await;
+    assert_eq!(serde_json::from_str::<Value>(&one).unwrap()["html"], "<p>Edited.</p>");
+
+    // Everything survives a restart.
+    state.save();
+    let (addr2, _) = start(&data).await;
+    let (_, list2) = http(&addr2, "GET", &format!("/api/rooms/{code}/journal"), None, "").await;
+    assert_eq!(serde_json::from_str::<Value>(&list2).unwrap().as_array().unwrap().len(), 2);
+    let (_, meta) = http(&addr2, "GET", &format!("/api/rooms/{code}/compendium"), None, "").await;
+    assert_eq!(serde_json::from_str::<Value>(&meta).unwrap()["sources"], json!(["PHB"]));
+
+    assert_eq!(http(&addr2, "DELETE", &format!("/api/rooms/{code}/journal/s1"), Some(KEY), "").await.0, 204);
+    assert_eq!(http(&addr2, "GET", &format!("/api/rooms/{code}/journal/s1"), None, "").await.0, 404);
+    assert_eq!(http(&addr2, "DELETE", &format!("/api/rooms/{code}/compendium"), Some(KEY), "").await.0, 204);
+    assert_eq!(serde_json::from_str::<Value>(&http(&addr2, "GET", &format!("/api/rooms/{code}/compendium/spell"), None, "").await.1).unwrap(), json!([]));
     std::fs::remove_dir_all(&data).ok();
 }

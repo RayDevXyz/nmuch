@@ -2,7 +2,7 @@ import { ArrowLeft, BookOpen, Check, Plus, RefreshCw, Search, Settings2, X } fro
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from '../state/store'
-import { CATEGORIES, entries, fetchData, find, getSource, reload, search, setSource, type Category, type Entry, type Ref } from './fivee'
+import { CATEGORIES, enabledSources, entries, fetchData, find, getSource, listBooks, reload, search, setEnabledSources, setSource, type Book, type Category, type Entry, type Ref } from './fivee'
 import { OpenRef } from './render'
 import { Statblock } from './Statblock'
 
@@ -100,15 +100,26 @@ function Compendium({ req, close }: { req: Request; close: () => void }) {
           </button>
         </header>
         {settings && (
-          <SourceSettings
-            source={source ?? null}
-            onSaved={(s) => {
-              reload()
-              setSrc(s)
-              setSettings(false)
-              input.current?.focus()
-            }}
-          />
+          <>
+            <SourceSettings
+              source={source ?? null}
+              onSaved={(s) => {
+                reload()
+                setSrc(s)
+                setSettings(false)
+                input.current?.focus()
+              }}
+            />
+            {source && (
+              <BookSettings
+                onSaved={() => {
+                  setSettings(false)
+                  setQ((x) => x + ' ')
+                  setTimeout(() => setQ((x) => x.trimEnd()))
+                }}
+              />
+            )}
+          </>
         )}
         {source && (
           <div className="fv-comp-main">
@@ -227,6 +238,100 @@ function SourceSettings({ source, onSaved }: { source: string | null; onSaved: (
         </button>
       </div>
       {status && <div className={/^Connected/.test(status) ? 'fv-ok' : 'fv-error'}>{status}</div>}
+    </div>
+  )
+}
+
+const GROUPS: [string, string][] = [
+  ['core', 'Core rules'],
+  ['supplement', 'Supplements'],
+  ['setting', 'Settings'],
+  ['supplement-alt', 'Other supplements'],
+  ['prerelease', 'Previews'],
+  ['homebrew', 'Homebrew'],
+  ['screen', 'Screens'],
+  ['recipe', 'Recipes'],
+  ['other', 'Other'],
+  ['adventure', 'Adventures'],
+]
+
+/**
+ * Which books BrainWaves uses: 5etools loads everything, so turn off what you don't play with.
+ * Search, the character builder and what's published to the table follow this; cards already in
+ * pages keep working.
+ */
+function BookSettings({ onSaved }: { onSaved: () => void }) {
+  const [books, setBooks] = useState<Book[] | null>(null)
+  const [on, setOn] = useState<Set<string>>(new Set())
+  const [error, setError] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  useEffect(() => {
+    Promise.all([listBooks(), enabledSources()]).then(
+      ([b, en]) => {
+        setBooks(b)
+        setOn(new Set(en ? [...en] : b.map((x) => x.id.toUpperCase())))
+      },
+      (e) => setError(String(e).replace(/^Error:\s*/, '')),
+    )
+  }, [])
+  if (error) return <div className="fv-settings"><div className="fv-error">{error}</div></div>
+  if (!books) return <div className="fv-settings"><p>Reading your 5etools books…</p></div>
+  const ids = books.map((b) => b.id.toUpperCase())
+  const toggle = (id: string) => {
+    const n = new Set(on)
+    if (n.has(id)) n.delete(id)
+    else n.add(id)
+    setOn(n)
+  }
+  const setMany = (list: string[], value: boolean) => {
+    const n = new Set(on)
+    list.forEach((id) => (value ? n.add(id) : n.delete(id)))
+    setOn(n)
+  }
+  const save = async () => {
+    const all = ids.every((id) => on.has(id))
+    await setEnabledSources(all ? null : [...on])
+    toast(all ? 'Using every book' : `Using ${on.size} of ${ids.length} books`)
+    onSaved()
+  }
+  const shown = books.filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()) || b.id.toLowerCase().includes(q.toLowerCase()))
+  const groups = GROUPS.map(([g, label]) => [label, shown.filter((b) => (GROUPS.some(([x]) => x === b.group) ? b.group : 'other') === g)] as const).filter(([, l]) => l.length)
+  return (
+    <div className="fv-settings fv-books">
+      <p>
+        <strong>Books to use.</strong> 5etools loads every book; turn off the ones you don't play with. Search, the character builder and
+        what you publish to the table use only these. <span className="fv-muted">{on.size} of {ids.length} on.</span>
+      </p>
+      <div className="fv-settings-row">
+        <input placeholder="Find a book…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <button className="fv-btn ghost" onClick={() => setOn(new Set(ids))}>All</button>
+        <button className="fv-btn ghost" onClick={() => setOn(new Set(books.filter((b) => b.group === 'core').map((b) => b.id.toUpperCase())))}>Core only</button>
+        <button className="fv-btn ghost" onClick={() => setOn(new Set())}>None</button>
+      </div>
+      <div className="fv-book-groups">
+        {groups.map(([label, list]) => (
+          <section key={label}>
+            <h5>
+              {label}
+              <button className="fv-link-btn" onClick={() => setMany(list.map((b) => b.id.toUpperCase()), !list.every((b) => on.has(b.id.toUpperCase())))}>
+                {list.every((b) => on.has(b.id.toUpperCase())) ? 'none' : 'all'}
+              </button>
+            </h5>
+            {list.map((b) => (
+              <label key={b.id} className="fv-book">
+                <input type="checkbox" checked={on.has(b.id.toUpperCase())} onChange={() => toggle(b.id.toUpperCase())} />
+                <span>{b.name}</span>
+                <small>{b.id}</small>
+              </label>
+            ))}
+          </section>
+        ))}
+      </div>
+      <div className="fv-settings-row">
+        <button className="fv-btn" onClick={() => void save()}>
+          <Check size={13} /> Save books
+        </button>
+      </div>
     </div>
   )
 }

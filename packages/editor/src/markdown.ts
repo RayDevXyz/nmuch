@@ -45,6 +45,9 @@ function block(n: JSONContent, titleOf: TitleOf, indent: string): string[] {
       return [`${indent}![${n.attrs?.caption ?? ''}](${n.attrs?.src ?? ''})`]
     case 'pageLink':
       return [`${indent}[[${titleOf('page', n.attrs?.pageId ?? '')}]]`]
+    case 'button':
+      // A button does nothing outside the app: leave it out.
+      return []
     case 'toggle': {
       // GitHub folds <details>: the first line is the summary.
       const [first, ...rest] = kids

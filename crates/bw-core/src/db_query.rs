@@ -68,6 +68,9 @@ pub struct DatabaseResult {
     pub related: BTreeMap<String, RowRef>,
     /// Total rows in the database before filtering.
     pub total: usize,
+    /// The template new rows start from (a page id), if one is set.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
 }
 
 impl Core {
@@ -222,7 +225,15 @@ impl Core {
             _ => vec![],
         };
 
+        let template = snap
+            .root()
+            .props
+            .get(crate::database::TEMPLATE_PROP)
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(String::from);
         Ok(DatabaseResult {
+            template,
             database_id: database_id.to_string(),
             title: snap.meta.title,
             icon: snap.meta.icon,

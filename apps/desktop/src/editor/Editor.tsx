@@ -22,6 +22,7 @@ import { installedWidgets } from '../widgets/api'
 import { installedModules } from '../modules/api'
 import { WidgetBlock } from '../widgets/WidgetBlock'
 import { expandMocs, MocBlock } from '../moc/MocBlock'
+import { ButtonBlock } from '../buttons/ButtonBlock'
 import { templateCall, templateSlashExtras } from '../templates/editor'
 import { pickCalloutStyle } from '../callouts/CalloutStyle'
 import { FormulaInline } from '../formulas/Formula'
@@ -346,6 +347,7 @@ export function Editor({ pageId, scrollRef }: { pageId: string; scrollRef: React
       pickDatabaseView: () => pickDatabaseView(pageId),
       WidgetBlock: (props) => <WidgetBlock {...props} pageId={pageId} />,
       MocBlock: (props) => <MocBlock {...props} pageId={pageId} />,
+      ButtonBlock: (props) => <ButtonBlock {...props} pageId={pageId} />,
       templateCall: (text) => templateCall(text, pageId),
       pickCalloutStyle,
       FormulaInline: (props) => <FormulaInline {...props} pageId={pageId} />,

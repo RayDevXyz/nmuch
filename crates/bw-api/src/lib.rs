@@ -361,6 +361,27 @@ pub fn dispatch(core: &mut Core, ctx: &Context, command: &str, a: Value) -> Resu
                 .map_err(e)?;
             ok(())
         }
+        "setDatabaseTemplate" => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct A {
+                database_id: String,
+                #[serde(default)]
+                template_id: Option<String>,
+            }
+            let A { database_id, template_id } = args(a)?;
+            core.set_database_template(&database_id, template_id.as_deref()).map_err(e)?;
+            ok(())
+        }
+        "databaseTemplate" => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct A {
+                database_id: String,
+            }
+            let A { database_id } = args(a)?;
+            ok(core.database_template(&database_id).map_err(e)?)
+        }
         "setView" => {
             let SetView { database_id, view } = args(a)?;
             core.set_view(&database_id, view).map_err(e)?;

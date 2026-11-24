@@ -22,6 +22,10 @@ export const removeView = (databaseId: string, viewId: string) => call<void>('re
 export const createRow = (databaseId: string, id: string, title = '', values: Record<string, unknown> = {}) =>
   call<string>('createRow', { databaseId, id, title, values })
 
+/** The template new rows of a database start from (a page id, or null for an empty page). */
+export const setDatabaseTemplate = (databaseId: string, templateId: string | null) => call<void>('setDatabaseTemplate', { databaseId, templateId })
+export const databaseTemplate = (databaseId: string) => call<string | null>('databaseTemplate', { databaseId })
+
 export const setValue = (rowId: string, propertyId: string, value: unknown) => call<void>('setValue', { rowId, propertyId, value })
 
 export const databaseDef = (databaseId: string) =>

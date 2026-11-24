@@ -1,8 +1,8 @@
 import type { JSONContent } from '@tiptap/core'
 import { createPage, withPage } from '../state/actions'
-import { getState } from '../state/store'
-import { ensureTemplatesFolder, loadTree, templateContent } from '../templates/apply'
-import { paraRoleOf, refreshSpaces, type ParaRole, type Space } from './api'
+import { ensureTemplatesFolder, templateExists } from '../templates/apply'
+import { databaseTemplate, setDatabaseTemplate } from '../database/api'
+import { refreshSpaces, type ParaRole, type Space } from './api'
 import { coreClient } from '../lib/storage'
 
 /**
@@ -104,42 +104,34 @@ export function ensureParaTemplates(space: Space): Promise<void> {
       made[role] = page.id
     }
     await coreClient().call('paraSetTemplates', { id: space.hub, templates: made })
+    for (const role of ROLES) await setDatabaseTemplate(space[role], made[role])
     await refreshSpaces()
   })().finally(() => (making = null))
   return making
 }
 
-/** The template page of a role, if it is still there. */
-function templateOf(space: Space, role: ParaRole): string | null {
-  const id = space.templates?.[role]
-  const page = id ? getState().pages[id] : undefined
-  return page && page.trashedAt == null ? page.id : null
-}
-
-const hasText = (ns: JSONContent[]): boolean =>
-  ns.some((n) => n.type === 'text' ? !!n.text?.trim() : !['paragraph', 'heading'].includes(n.type ?? '') || hasText(n.content ?? []))
-
 /**
- * Fill a new item with its role's template. `append` adds it below what is there (a promoted
- * note); otherwise a page that already has content is left alone.
+ * Each PARA database uses its kind's template for new pages (the database's own "Template for new
+ * pages" setting). Set it where it isn't yet: right after the templates are made, and once for
+ * spaces made before databases had that setting. A database whose template was changed or cleared
+ * keeps that choice, because only a role whose template page still exists is set, and only once.
  */
-export async function applyParaTemplate(space: Space, role: ParaRole, rowId: string, append = false): Promise<void> {
-  const id = templateOf(space, role)
-  if (!id) return
-  for (let i = 0; i < 30 && !getState().pages[rowId]; i++) await new Promise((r) => setTimeout(r, 100))
-  const tree = await loadTree(id)
-  const content = await templateContent(tree, {}, rowId)
-  if (!content.length) return
-  await withPage(rowId, (s) => {
-    const existing = s.notesJSON(true).flatMap((n) => n.content ?? [])
-    if (!append && hasText(existing)) return
-    s.setContent({ type: 'doc', content: append && hasText(existing) ? [...existing, ...content] : content })
-    return s.flush()
-  })
-}
-
-/** A row was just made in a database: if it is a PARA database, give it its template. */
-export async function newParaItem(databaseId: string, rowId: string): Promise<void> {
-  const found = await paraRoleOf(databaseId).catch(() => null)
-  if (found) await applyParaTemplate(found.space, found.role, rowId).catch(() => {})
+export async function linkParaTemplates(space: Space): Promise<void> {
+  const done = `bw.paraLinked.${space.hub}`
+  try {
+    if (localStorage.getItem(done)) return
+  } catch {
+    /* no storage: check every time, harmless */
+  }
+  for (const role of ROLES) {
+    const id = space.templates?.[role]
+    if (!id || !templateExists(id)) continue
+    const current = await databaseTemplate(space[role]).catch(() => null)
+    if (!current) await setDatabaseTemplate(space[role], id)
+  }
+  try {
+    localStorage.setItem(done, '1')
+  } catch {
+    /* not remembered */
+  }
 }

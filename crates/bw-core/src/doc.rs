@@ -225,6 +225,11 @@ impl NewBlock {
         Self::el(node::MOC, vec![("settings", Any::from(settings.to_string()))], vec![])
     }
 
+    /// A button; `settings` is its look and its steps (see `apps/desktop/src/buttons`).
+    pub fn button(settings: serde_json::Value) -> XNode {
+        Self::el(node::BUTTON, vec![("settings", Any::from(settings.to_string()))], vec![])
+    }
+
     /// A toggle: a summary line and the blocks that fold under it.
     pub fn toggle(summary: &str, body: Vec<XNode>) -> XNode {
         let mut kids = vec![Self::paragraph(summary)];

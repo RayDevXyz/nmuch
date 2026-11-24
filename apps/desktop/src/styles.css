@@ -1684,3 +1684,70 @@ button.para-item.para-item-main:hover { background: var(--hover); }
 .rp-shortcuts dd { margin: 0; color: var(--muted-foreground); line-height: 1.4; }
 .rp-shortcuts-all { margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--faint); font: inherit; font-size: 12px; cursor: pointer; }
 .rp-shortcuts-all:hover { background: var(--hover); color: var(--foreground); }
+
+/* New ▾ in a database: a template for a new page, and which one New uses */
+.db-new-split { display: inline-flex; }
+.db-new-split .db-new:first-child { border-radius: 6px 0 0 6px; }
+.db-new-split .db-new-more { padding: 0 6px; border-radius: 0 6px 6px 0; margin-left: 1px; }
+.db-new-split .db-new-more.on { background: var(--accent-strong); }
+.nr-menu { min-width: 250px; max-height: 70vh; overflow-y: auto; }
+.nr-line { display: flex; align-items: center; gap: 2px; }
+.nr-line .menu-item { flex: 1; min-width: 0; }
+.nr-line .menu-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nr-default { margin-left: auto; padding: 1px 6px; border-radius: 9px; background: var(--accent-soft); color: var(--foreground); font-size: 10.5px; }
+.nr-star { flex: none; width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--faint); display: grid; place-items: center; cursor: pointer; opacity: 0.6; }
+.nr-line:hover .nr-star { opacity: 1; }
+.nr-star:hover { background: var(--hover); color: var(--foreground); }
+.nr-star.on { color: var(--accent); opacity: 1; }
+.nr-hint { margin: 4px 10px 4px; color: var(--faint); font-size: 11.5px; }
+
+/* Buttons */
+.button-block { margin: 6px 0; }
+.bwb { --bwb: var(--accent); }
+.bwb-row { display: flex; align-items: center; gap: 6px; }
+.bwb-row.full { width: 100%; }
+.bwb-btn { --c: var(--bwb, var(--accent)); display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 34px; padding: 6px 16px; border-radius: 9px; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; transition: filter 0.12s, background 0.12s, transform 0.05s; border: 1.5px solid transparent; }
+.bwb-btn.full { flex: 1; }
+.bwb-btn:active { transform: translateY(1px); }
+.bwb-btn:disabled { opacity: 0.7; cursor: progress; }
+.bwb-btn.v-solid { background: var(--c); color: #fff; border-color: var(--c); }
+.bwb-btn.v-solid:hover { filter: brightness(1.08); }
+.bwb-btn.v-soft { background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--foreground); border-color: color-mix(in srgb, var(--c) 22%, transparent); }
+.bwb-btn.v-soft:hover { background: color-mix(in srgb, var(--c) 24%, transparent); }
+.bwb-btn.v-outline { background: transparent; color: var(--c); border-color: var(--c); }
+.bwb-btn.v-outline:hover { background: color-mix(in srgb, var(--c) 10%, transparent); }
+.bwb-btn.v-ghost { background: transparent; color: var(--c); padding: 6px 8px; }
+.bwb-btn.v-ghost:hover { background: var(--hover); }
+.bwb-icon { font-size: 15px; line-height: 1; }
+.bwb-gear { opacity: 0; }
+.button-block:hover .bwb-gear, .bwb-gear.on { opacity: 1; }
+.bwb-ask { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); max-width: 420px; }
+.bwb-ask select, .bwb-settings select, .bwb-settings input:not([type='checkbox']):not([type='color']) { height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel-2); color: var(--foreground); font: inherit; font-size: 13px; min-width: 0; width: 100%; box-sizing: border-box; }
+.bwb-settings { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; max-width: 560px; }
+.bwb-head { display: flex; align-items: center; justify-content: space-between; }
+.bwb-sec { margin-top: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
+.bwb-sub { font-size: 11.5px; font-weight: 600; color: var(--muted-foreground); }
+.bwb-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bwb-settings label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted-foreground); }
+.bwb-settings .bwb-emoji { width: 70px !important; text-align: center; }
+.bwb-colors { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.bwb-swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2); }
+.bwb-swatch.on { border-color: var(--foreground); }
+.bwb-custom input { width: 26px; height: 24px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.bwb-step { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--panel-2); display: flex; flex-direction: column; gap: 8px; }
+.bwb-step-head { display: flex; align-items: center; gap: 8px; }
+.bwb-step-head select { flex: 1; font-weight: 600; }
+.bwb-step-n { width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--foreground); font-size: 11px; font-weight: 700; display: grid; place-items: center; flex: none; }
+.bwb-step-tools { display: inline-flex; gap: 2px; }
+.bwb-fields { display: flex; flex-direction: column; gap: 7px; }
+.bwb-values { display: flex; flex-direction: column; gap: 5px; padding: 6px 8px; border-radius: 8px; background: var(--panel); }
+.bwb-settings .bwb-value { flex-direction: row; align-items: center; gap: 8px; }
+.bwb-value > span { width: 38%; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bwb-add { display: flex; gap: 6px; flex-wrap: wrap; }
+.bwb-add .setting-action { width: auto; margin-top: 0; }
+.bwb-hint { margin: 0; color: var(--faint); font-size: 12px; line-height: 1.5; }
+.bwb-hint code { font-size: 11px; }
+.bwb-settings { padding: 12px; border-radius: 10px; background: var(--panel-2); border: 1px solid var(--line-soft); }
+.bwb-settings .bwb-step { background: var(--panel); }
+.bwb-gear { margin-left: 0; }
+@media (max-width: 640px) { .bwb-grid { grid-template-columns: 1fr; } }

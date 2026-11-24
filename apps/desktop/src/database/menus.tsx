@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowDown, ArrowUp, EyeOff, Plus, Trash2, X } from 'lucide-react'
 import { Popover } from '../components/Popover'
 import { uid } from '../lib/id'
-import { useApp } from '../state/store'
-import { createRelation, databaseDef, removeProperty, setProperty, setView } from './api'
+import { toast, useApp } from '../state/store'
+import { listTemplates, templateExists } from '../templates/apply'
+import { createRelation, databaseDef, removeProperty, setDatabaseTemplate, setProperty, setView } from './api'
 import { Chip, PropIcon } from './cells'
 import {
   COLORS,
@@ -475,6 +476,7 @@ export function ViewSettingsMenu({
             </select>
           </label>
         )}
+        <DatabaseTemplateSetting result={result} />
         <div className="menu-caption">Columns</div>
         <div className="menu-list">
           {result.properties
@@ -505,4 +507,29 @@ export function ViewSettingsMenu({
 export function OptionChip({ result, propId, optionId }: { result: DatabaseResult; propId: string; optionId: string | null }) {
   const opt = result.properties.find((p) => p.id === propId)?.options?.find((o) => o.id === optionId)
   return opt ? <Chip color={opt.color}>{opt.name}</Chip> : null
+}
+
+/** Database setting: the template new pages (rows) start from. */
+function DatabaseTemplateSetting({ result }: { result: DatabaseResult }) {
+  const pages = useApp((s) => s.pages)
+  const templates = useMemo(() => listTemplates(), [pages]) // eslint-disable-line react-hooks/exhaustive-deps
+  const current = templateExists(result.template) ? result.template : ''
+  return (
+    <label>
+      Template for new pages
+      <select
+        aria-label="Template for new pages"
+        value={current}
+        onChange={(e) => void setDatabaseTemplate(result.databaseId, e.target.value || null).catch((err) => toast(`Could not change it: ${err}`))}
+      >
+        <option value="">None (an empty page)</option>
+        {templates.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.icon ? `${t.icon} ` : ''}
+            {t.title || 'Untitled'}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
 }

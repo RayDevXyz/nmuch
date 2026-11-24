@@ -17,6 +17,23 @@ A database is a page whose rows are pages too. Each row has cells in typed colum
 
 Relations link rows of two databases, both ways if you like, and rollups count or total over linked rows. A database can also feed [formulas](formulas.md) and [maps of content](maps-of-content.md). How databases are built is in [design/phase-03-databases.md](../design/phase-03-databases.md).
 
+## New pages from a template
+
+Every row of a database is a page, and it can start from a [template](templates.md):
+
+- **A template for every new page.** In the view settings (the sliders icon next to Sort), choose
+  **Template for new pages**. From then on **New** (and **+ New** under the table, on a board
+  column or in a gallery) makes a page from that template. Fields in it take their defaults; nothing
+  is asked. A template whose title has fields (`Bug {{Severity}}`) also names the row; otherwise
+  the row starts untitled.
+- **A template for one page.** Click **▾** next to **New**: pick **Empty page** or any template. The
+  template's form opens (title and fields), and the new page opens when it's made.
+- **Changing the default from the same menu.** The ☆ at the end of each line in **▾** makes that
+  template (or **Empty page**) what **New** uses here.
+
+The setting belongs to the database, so every view of it, and every page that shows it, uses
+the same template.
+
 ## Turning a page into a database
 
 From a page's **⋯** menu, choose **Turn into database**:

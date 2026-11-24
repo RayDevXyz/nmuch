@@ -1,6 +1,6 @@
 import type { JSONContent } from '@tiptap/core'
 import type * as Y from 'yjs'
-import { createRow, databaseDef, queryDatabase, removeView, setProperty, setView } from '../database/api'
+import { createRow, databaseDef, databaseTemplate, queryDatabase, removeView, setProperty, setView } from '../database/api'
 import { uid } from '../lib/id'
 import type { Page } from '../lib/types'
 import { childrenOf, createPage, openPage, withPage } from '../state/actions'
@@ -119,7 +119,9 @@ export function renderContent(nodes: JSONContent[], ctx: Context): JSONContent[]
       const text = render(n.text ?? '', ctx)
       return text ? { ...n, text } : null
     }
-    const attrs = n.attrs ? Object.fromEntries(Object.entries(n.attrs).map(([k, v]) => [k, k === 'id' ? null : typeof v === 'string' ? render(v, ctx) : v])) : undefined
+    // A button's fields are filled in when it is clicked, not when the template is used.
+    const keep = (k: string) => n.type === 'button' && k === 'settings'
+    const attrs = n.attrs ? Object.fromEntries(Object.entries(n.attrs).map(([k, v]) => [k, k === 'id' ? null : typeof v === 'string' && !keep(k) ? render(v, ctx) : v])) : undefined
     const content = n.content?.map(fix).filter((x): x is JSONContent => !!x)
     return { ...n, ...(attrs ? { attrs } : {}), ...(n.content ? { content } : {}) }
   }
@@ -177,6 +179,8 @@ async function makeTree(t: Tree, parentId: string | null, ctx: Context, title: s
 export interface UseOptions {
   /** The new page's title (already filled in by the form). */
   title: string
+  /** Make the page as a new row of this database (`parentId` is then the database). */
+  databaseId?: string
   values: Record<string, string>
   /** Where the new page goes (null: top level). */
   parentId: string | null
@@ -196,10 +200,14 @@ export function defaultTitle(t: Tree, values: Record<string, string>, parentId: 
 
 /** Make a page (with its sub-pages) from a template. Returns the new page's id. */
 export async function createFromTemplate(t: Tree, o: UseOptions): Promise<string> {
-  const title = o.title.trim() || defaultTitle(t, o.values, o.parentId)
+  const title = o.title.trim() || (o.databaseId ? rowTitle(t, o.values, o.databaseId) : defaultTitle(t, o.values, o.parentId))
   const ctx = contextFor(t, o.values, title, o.parentId)
-  const id = await makeTree(t, o.parentId, ctx, title)
-  if (o.open !== false) openPage(id, 'tab')
+  const id = o.databaseId ? await makeTree(t, o.databaseId, ctx, title, { db: o.databaseId, values: {} }) : await makeTree(t, o.parentId, ctx, title)
+  if (o.open !== false) {
+    // A page made on the server shows up in the app a moment later.
+    for (let i = 0; i < 40 && !getState().pages[id]; i++) await new Promise((r) => setTimeout(r, 100))
+    openPage(id, 'tab')
+  }
   return id
 }
 
@@ -253,4 +261,56 @@ export function findTemplate(name: string): Page | null {
   const n = name.trim().toLowerCase()
   const all = listTemplates()
   return all.find((p) => p.title.trim().toLowerCase() === n) ?? all.find((p) => p.title.toLowerCase().replace(/\{\{[^}]*\}\}/g, '').trim() === n) ?? all.find((p) => p.title.toLowerCase().startsWith(n)) ?? null
+}
+
+// ---------------------------------------------------------------- templates for database rows
+
+/** A row's title from a template: its title only when it has fields (`Meeting {{date}}`), else empty. */
+export function rowTitle(t: Tree, values: Record<string, string>, databaseId: string): string {
+  return t.page.title.includes('{{') ? defaultTitle(t, values, databaseId) : ''
+}
+
+/** Whether a template page is still there (not deleted or trashed). */
+export function templateExists(id: string | null | undefined): id is string {
+  const p = id ? getState().pages[id] : undefined
+  return !!p && p.trashedAt == null
+}
+
+const hasText = (ns: JSONContent[]): boolean =>
+  ns.some((n) => (n.type === 'text' ? !!n.text?.trim() : !['paragraph', 'heading'].includes(n.type ?? '') || hasText(n.content ?? [])))
+
+/**
+ * Fill an existing page from a template: its content, header and properties (and its sub-pages,
+ * made under the page). `append` adds the content below what is there; otherwise a page that
+ * already has text keeps it and gets nothing.
+ */
+export async function fillFromTemplate(pageId: string, templateId: string, o: { append?: boolean; values?: Record<string, string> } = {}): Promise<void> {
+  if (!templateExists(templateId)) return
+  for (let i = 0; i < 30 && !getState().pages[pageId]; i++) await new Promise((r) => setTimeout(r, 100))
+  const tree = await loadTree(templateId)
+  const page = getState().pages[pageId]
+  const ctx = contextFor(tree, o.values ?? {}, page?.title ?? '', page?.parentId ?? null)
+  const has = await withPage(pageId, (s) => hasText(s.notesJSON(true).flatMap((n) => n.content ?? [])))
+  if (has && !o.append) return
+  const content = await templateContent(tree, o.values ?? {}, pageId)
+  await withPage(pageId, (s) => {
+    const existing = s.notesJSON(true).flatMap((n) => n.content ?? [])
+    if (content.length) s.setContent({ type: 'doc', content: has ? [...existing, ...content] : content })
+    s.doc.transact(() => {
+      const header = s.doc.getMap('header')
+      for (const [k, v] of Object.entries(tree.header)) if (!header.has(k)) header.set(k, renderDeep(v, ctx))
+      const props = s.doc.getMap('properties')
+      for (const [k, v] of Object.entries(tree.props)) if (!props.has(k)) props.set(k, renderDeep(v, ctx))
+    })
+    return s.flush()
+  })
+}
+
+/**
+ * A row was just made in a database: give it the database's template (or `templateId`), if
+ * one is set. Fields in the template take their defaults; nothing is asked.
+ */
+export async function applyDatabaseTemplate(databaseId: string, rowId: string, templateId?: string | null, append = false): Promise<void> {
+  const id = templateId === undefined ? await databaseTemplate(databaseId).catch(() => null) : templateId
+  if (templateExists(id)) await fillFromTemplate(rowId, id, { append })
 }

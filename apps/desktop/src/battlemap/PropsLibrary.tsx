@@ -4,6 +4,7 @@ import type * as Y from 'yjs'
 import { DRAG_TYPE } from '../edgeless/SidePanel'
 import { toast } from '../state/store'
 import { ACCEPT, addToLibrary, libraryOf, readAsset, removeFromLibrary, useAssets, type Asset } from './assets'
+import { FiveeBrowser, type FiveeActions } from './FiveeBrowser'
 import { BUILTIN, builtinSrc, CATEGORIES, favourites, toggleFavourite, type PropCategory } from './props'
 
 /**
@@ -11,7 +12,43 @@ import { BUILTIN, builtinSrc, CATEGORIES, favourites, toggleFavourite, type Prop
  * uploads (the campaign's library), search over names and tags, and favourites. Click a prop to
  * put it in the middle of the view, or drag it onto the map. Drop files here to upload them.
  */
-export function PropsLibrary({ doc, campaign, onAdd }: { doc: Y.Doc; campaign: string | null; onAdd: (asset: string) => void }) {
+export function PropsLibrary({ doc, campaign, onAdd, fivee }: { doc: Y.Doc; campaign: string | null; onAdd: (asset: string) => void; fivee: FiveeActions | null }) {
+  const [source, setSource] = useState<'library' | 'fivee'>(() => {
+    try {
+      return localStorage.getItem('bw.propsSource') === 'fivee' ? 'fivee' : 'library'
+    } catch {
+      return 'library'
+    }
+  })
+  const pickSource = (s: 'library' | 'fivee') => {
+    setSource(s)
+    try {
+      localStorage.setItem('bw.propsSource', s)
+    } catch {
+      /* not remembered */
+    }
+  }
+  const switcher = fivee && (
+    <div className="bm-seg wide bm-source" role="tablist" aria-label="Where props come from">
+      <button role="tab" aria-selected={source === 'library'} className={source === 'library' ? 'on' : ''} onClick={() => pickSource('library')}>
+        Library
+      </button>
+      <button role="tab" aria-selected={source === 'fivee'} className={source === 'fivee' ? 'on' : ''} onClick={() => pickSource('fivee')}>
+        5etools
+      </button>
+    </div>
+  )
+  if (fivee && source === 'fivee')
+    return (
+      <div className="bm-library">
+        {switcher}
+        <FiveeBrowser actions={fivee} />
+      </div>
+    )
+  return <Library doc={doc} campaign={campaign} onAdd={onAdd} switcher={switcher} />
+}
+
+function Library({ doc, campaign, onAdd, switcher }: { doc: Y.Doc; campaign: string | null; onAdd: (asset: string) => void; switcher: React.ReactNode }) {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState<PropCategory | 'all' | 'fav' | 'mine'>('all')
   const [fav, setFav] = useState(favourites)
@@ -94,6 +131,7 @@ export function PropsLibrary({ doc, campaign, onAdd }: { doc: Y.Doc; campaign: s
         void upload(files)
       }}
     >
+      {switcher}
       <label className="bm-search">
         <Search size={13} />
         <input placeholder="Search props: barrel, light, trap…" value={q} onChange={(e) => setQ(e.target.value)} />

@@ -93,6 +93,28 @@ GIF, APNG, animated WebP, WebM and MP4.
 - Files dropped straight onto the map also become props if they move or are small. A large still
   picture becomes the map's background, as before.
 
+### Pictures from your 5etools
+
+If you have 5etools' pictures (its `img` folder), **Assets → Props → 5etools** shows them. Only
+the books turned on in the compendium's settings are listed.
+
+- **Tokens**: every monster with a token. Click one to place the monster with its hit points, AC,
+  size and picture. With a token selected, a click gives that token the picture instead.
+  Monsters placed with the Token tool (`K`) get their picture on their own.
+- **Creature art** and **Item art**: added as props.
+- **Maps**: the maps in your adventures and books, listed by adventure. Click one to put it on
+  the battle map as its picture. When 5etools gives the map's grid, the picture is scaled so its
+  squares are the battle map's squares, and it is placed so the lines meet. A hex map switches
+  the grid to hexes.
+
+Players see token pictures at the table too.
+
+**Where the pictures are:** by default `img/` under your 5etools address, as in the 5etools
+Docker image. If they're elsewhere, set the address with the ⚙ next to the collections, for
+example `http://192.168.1.20:5050/img/`. BrainWaves fetches them itself (a hosted BrainWaves on
+https can't load pictures from a plain http address). The pictures you use are kept in the map's
+page.
+
 ## 5. Light and sight
 
 Lights come from three places:

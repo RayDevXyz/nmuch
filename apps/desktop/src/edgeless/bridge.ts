@@ -29,6 +29,8 @@ export interface CanvasAssets {
   onLayers?: (layers: import('../battlemap/model').MapSettings['layers']) => void
   /** A battle map's settings, for the right panel's Map and Table tabs. */
   scenePanel?: import('./scene').ScenePanelProps | null
+  /** Battle maps: what the 5etools pictures in the prop library do. */
+  fivee?: import('../battlemap/FiveeBrowser').FiveeActions | null
 }
 
 let current: CanvasAssets | null = null

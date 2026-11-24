@@ -223,6 +223,11 @@ pub(crate) fn dispatch(
             let A { sources } = args(a)?;
             ok(core.dnd_set_sources(sources).map_err(e)?)
         }
+        "dndImageSource" => ok(core.dnd_image_source().map_err(e)?),
+        "dndSetImageSource" => {
+            let d: DndArgs = args(a)?;
+            ok(core.dnd_set_image_source(&d.url).map_err(e)?)
+        }
         "dndSetSource" => {
             let d: DndArgs = args(a)?;
             ok(core.dnd_set_source(&d.url).map_err(e)?)

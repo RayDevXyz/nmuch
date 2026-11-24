@@ -124,3 +124,29 @@
 .rp-scene input[type='color'] { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
 /* Four views fit the panel's heading. */
 .rp-view button { padding-left: 7px; padding-right: 7px; }
+
+/* ---------- pictures from 5etools (in the prop library), and tokens with a picture */
+.bm-source { margin-bottom: 2px; }
+.bm-fivee { display: flex; flex-direction: column; gap: 10px; }
+.bm-error { color: var(--danger, #e05a55); }
+.bm-thumb { display: block; width: 48px; height: 48px; border-radius: 6px; background: var(--panel); overflow: hidden; }
+.bm-thumb.round { border-radius: 50%; }
+.bm-thumb.failed { background: repeating-linear-gradient(45deg, var(--hover) 0 4px, transparent 4px 8px); }
+.bm-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.bm-tile.busy { opacity: 0.5; pointer-events: none; }
+.bm-books, .bm-maps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.bm-books button, .bm-maps button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: var(--radius-md, 8px); background: transparent; color: var(--foreground); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.bm-books button:hover, .bm-maps button:hover { background: var(--hover); }
+.bm-books span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-books small, .bm-map-text small { color: var(--muted-foreground); font-size: 11px; }
+.bm-maps .bm-thumb { flex: none; width: 64px; height: 48px; }
+.bm-map-text { display: flex; flex-direction: column; min-width: 0; }
+.bm-map-text b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+.bm-map-text small { display: inline-flex; align-items: center; gap: 3px; }
+.bm-back { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; }
+.bm-imgsrc { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line-soft); border-radius: var(--radius-md, 8px); }
+.bm-imgsrc label { display: flex; flex-direction: column; gap: 4px; color: var(--muted-foreground); font-size: 11.5px; }
+.bm-imgsrc input { height: var(--control-h, 28px); padding: 0 8px; border: 1px solid var(--line); border-radius: var(--radius-md, 8px); background: var(--input-bg, var(--panel)); color: var(--foreground); font: inherit; font-size: 12px; }
+.sc-token-disc.pictured { overflow: hidden; background: #111; }
+.sc-token-disc.pictured img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.bm-source button { height: 26px; font-size: 12px; }

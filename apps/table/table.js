@@ -162,6 +162,7 @@
     scene = s || {}
     const img = scene.image
     if (scene.layers) for (const l of scene.layers) load(l.hash, l.anim)
+    for (const t of scene.tokens || []) if (t.img) load(t.img)
     else if (img && img.hash) load(img.hash)
     if (!fitted && (img || scene.layers?.length || (scene.tokens || []).length)) fit()
     renderClaim()
@@ -490,9 +491,11 @@
       ctx.globalAlpha = 1
       return
     }
-    const ox = (g.offsetX || 0) % g.size, oy = (g.offsetY || 0) % g.size
-    for (let x = b.x + ox; x <= b.x + b.w; x += g.size) (ctx.moveTo(x, b.y), ctx.lineTo(x, b.y + b.h))
-    for (let y = b.y + oy; y <= b.y + b.h; y += g.size) (ctx.moveTo(b.x, y), ctx.lineTo(b.x + b.w, y))
+    // Lines on the world's grid (as the DM sees them), not counted from the map's edge.
+    const ox = g.offsetX || 0, oy = g.offsetY || 0
+    const x0 = ox + Math.ceil((b.x - ox) / g.size) * g.size, y0 = oy + Math.ceil((b.y - oy) / g.size) * g.size
+    for (let x = x0; x <= b.x + b.w; x += g.size) (ctx.moveTo(x, b.y), ctx.lineTo(x, b.y + b.h))
+    for (let y = y0; y <= b.y + b.h; y += g.size) (ctx.moveTo(b.x, y), ctx.lineTo(b.x + b.w, y))
     ctx.stroke()
     ctx.globalAlpha = 1
   }
@@ -534,14 +537,26 @@
     ctx.beginPath()
     ctx.arc(cx, cy, r * 0.92, 0, Math.PI * 2)
     ctx.fill()
+    const pic = t.img && images.get(t.img)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    if (ready(pic)) {
+      // Its picture (a 5etools token is already round, with its own frame).
+      ctx.save()
+      ctx.beginPath()
+      ctx.arc(cx, cy, r * 0.92, 0, Math.PI * 2)
+      ctx.clip()
+      ctx.drawImage(pic, cx - r * 0.92, cy - r * 0.92, r * 1.84, r * 1.84)
+      ctx.restore()
+    }
     ctx.lineWidth = r * 0.12
-    ctx.strokeStyle = mine() === t.id ? '#e3c27a' : '#17130e'
+    ctx.strokeStyle = mine() === t.id ? '#e3c27a' : ready(pic) ? t.color || '#17130e' : '#17130e'
+    ctx.beginPath()
+    ctx.arc(cx, cy, r * 0.92, 0, Math.PI * 2)
     ctx.stroke()
     ctx.fillStyle = '#fff8e6'
     ctx.font = `700 ${r * 0.8}px Cinzel, Georgia, serif`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText((t.name || '?').slice(0, 2).toUpperCase(), cx, cy + r * 0.05)
+    if (!ready(pic)) ctx.fillText((t.name || '?').slice(0, 2).toUpperCase(), cx, cy + r * 0.05)
     // name tag
     ctx.font = `600 ${Math.max(10, r * 0.42)}px EB Garamond, Georgia, serif`
     const label = t.name || ''

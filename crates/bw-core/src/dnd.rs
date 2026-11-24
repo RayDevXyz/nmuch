@@ -266,6 +266,43 @@ impl Core {
             .optional()?)
     }
 
+    /// Where 5etools' pictures are (its `img/` folder), when they're not under the site itself
+    /// (`None`: `<site>/img/`). An empty address clears it.
+    pub fn dnd_set_image_source(&mut self, url: &str) -> Result<Option<String>> {
+        let url = url.trim();
+        self.conn().execute(
+            "DELETE FROM module_grants WHERE module_id = ?1 AND kind = 'imgsource'",
+            [MODULE_ID],
+        )?;
+        if url.is_empty() {
+            return Ok(None);
+        }
+        let ok = (url.starts_with("http://") || url.starts_with("https://"))
+            && url.len() < 512
+            && !url.contains(char::is_whitespace);
+        if !ok {
+            return Err(Error::Invalid(format!("{url:?} is not an http(s) address")));
+        }
+        let url = if url.ends_with('/') { url.to_string() } else { format!("{url}/") };
+        self.conn().execute(
+            "INSERT INTO module_grants(module_id, kind, value, granted_at) VALUES (?1, 'imgsource', ?2, ?3)",
+            rusqlite::params![MODULE_ID, url, crate::store::now_millis()],
+        )?;
+        Ok(Some(url))
+    }
+
+    pub fn dnd_image_source(&self) -> Result<Option<String>> {
+        use rusqlite::OptionalExtension;
+        Ok(self
+            .conn()
+            .query_row(
+                "SELECT value FROM module_grants WHERE module_id = ?1 AND kind = 'imgsource'",
+                [MODULE_ID],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
     /// The 5etools books (source ids, e.g. `PHB`, `XGE`) to use; `None`: all of them.
     pub fn dnd_set_sources(&mut self, sources: Option<Vec<String>>) -> Result<()> {
         self.conn().execute(

@@ -1948,3 +1948,12 @@ body.resizing, body.resizing * { cursor: col-resize !important; user-select: non
 
 /* Phones: fields at 16px so the browser doesn't zoom in. */
 .workspace.is-narrow :is(.sync-field input, .tpl-search input, .para-capture input, .db-form input, .bwb-ask input) { font-size: 16px; }
+
+/* Touch: a note's drag strip big enough for a finger (about 30px on screen at any zoom, up to
+   twice its size zoomed out), with its handle showing. */
+.cv-root.touch .cv-note-grip { height: calc(30px / max(var(--cv-z, 1), 0.5)); }
+.cv-root.touch .cv-note-grip::after { top: 45%; opacity: 0.8; }
+@media (pointer: coarse) {
+  .cv-note-grip { height: calc(30px / max(var(--cv-z, 1), 0.5)); }
+  .cv-note-grip::after { top: 45%; opacity: 0.8; }
+}

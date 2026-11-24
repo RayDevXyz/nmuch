@@ -80,6 +80,8 @@ type Gesture =
   | { kind: 'marquee'; wx: number; wy: number; additive: string[] }
   | { kind: 'create'; tool: Tool; wx: number; wy: number }
   | { kind: 'connect'; source: End; wx: number; wy: number }
+  /** Two fingers: pan and zoom together. `m0` (screen, in the canvas) stays over the same world point. */
+  | { kind: 'pinch'; d0: number; m0: [number, number]; vp: Viewport }
 
 type Preview =
   | { kind: 'rect'; r: Rect; tool: Tool | 'marquee' }
@@ -126,6 +128,8 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   const [presenting, setPresenting] = useState<number | null>(null)
   const [heights, setHeights] = useState<Record<string, number>>({})
   const gesture = useRef<Gesture | null>(null)
+  /** Fingers on the canvas (touch pointers), in client coordinates. */
+  const touches = useRef(new Map<number, [number, number]>())
   const space = useRef(false)
   const [guides, setGuides] = useState<Guide[]>([])
   const [readout, setReadout] = useState<{ text: string; x: number; y: number } | null>(null)
@@ -428,8 +432,47 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
 
   // ---------- pointer gestures
 
+  /** The first two fingers, in canvas coordinates: their midpoint and distance. */
+  const fingers = (): { mid: [number, number]; d: number } | null => {
+    const pts = [...touches.current.values()].slice(0, 2)
+    if (pts.length < 2 || !root.current) return null
+    const b = root.current.getBoundingClientRect()
+    const [[x1, y1], [x2, y2]] = pts
+    return { mid: [(x1 + x2) / 2 - b.left, (y1 + y2) / 2 - b.top], d: Math.max(1, Math.hypot(x2 - x1, y2 - y1)) }
+  }
+
+  /** A second finger came down: whatever the first one started is undone, and the pinch begins. */
+  const startPinch = () => {
+    const g = gesture.current
+    if (g?.kind === 'move' && g.moved) {
+      const els: Record<string, Record<string, unknown>> = {}
+      const ns: Record<string, { xywh: XYWH }> = {}
+      g.orig.forEach((xywh, id) => (isNote(id) ? (ns[id] = { xywh }) : (els[id] = { xywh })))
+      doc.transact(() => (updateElements(doc, els), setNoteLayout(doc, ns)), CANVAS)
+    } else if (g?.kind === 'resize') {
+      doc.transact(() => (g.note ? setNoteLayout(doc, { [g.id]: { xywh: g.orig } }) : updateElements(doc, { [g.id]: { xywh: g.orig } })), CANVAS)
+    }
+    setPreview(null)
+    setGuides([])
+    setReadout(null)
+    const f = fingers()
+    gesture.current = f ? { kind: 'pinch', d0: f.d, m0: f.mid, vp } : null
+  }
+
   const onPointerDown = (e: React.PointerEvent) => {
     if (presenting !== null) return
+    // Fingers get bigger grips (a note's drag strip); a mouse or pen, the usual ones.
+    root.current?.classList.toggle('touch', e.pointerType === 'touch')
+    if (e.pointerType === 'touch') {
+      touches.current.set(e.pointerId, [e.clientX, e.clientY])
+      if (touches.current.size >= 2) {
+        if (touches.current.size === 2) {
+          root.current?.setPointerCapture(e.pointerId)
+          startPinch()
+        }
+        return
+      }
+    }
     const [wx, wy] = toWorld(e.clientX, e.clientY)
     const hit = itemAt(e.target)
     const middle = e.button === 1
@@ -496,6 +539,12 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       if (orig.size) gesture.current.others = snapTargets(new Set(orig.keys()))
       return
     }
+    // A finger on an empty spot moves the view (the selection box needs a mouse or a pen).
+    if (e.pointerType === 'touch') {
+      setSelected([])
+      gesture.current = { kind: 'pan', sx: e.clientX, sy: e.clientY, vp }
+      return
+    }
     gesture.current = { kind: 'marquee', wx, wy, additive: e.shiftKey ? selected : [] }
     if (!e.shiftKey) setSelected([])
   }
@@ -523,8 +572,19 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   }
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' && touches.current.has(e.pointerId)) touches.current.set(e.pointerId, [e.clientX, e.clientY])
     const g = gesture.current
     if (!g) return
+    if (g.kind === 'pinch') {
+      const f = fingers()
+      if (!f) return
+      const z = Math.max(MIN_Z, Math.min(MAX_Z, g.vp.z * (f.d / g.d0)))
+      // The world point that was under the fingers' midpoint stays under it.
+      const wx = g.m0[0] / g.vp.z + g.vp.x
+      const wy = g.m0[1] / g.vp.z + g.vp.y
+      setVp({ z, x: wx - f.mid[0] / z, y: wy - f.mid[1] / z })
+      return
+    }
     const [wx, wy] = toWorld(e.clientX, e.clientY)
     switch (g.kind) {
       case 'pan':
@@ -623,6 +683,15 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   }
 
   const onPointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touches.current.delete(e.pointerId)
+      if (gesture.current?.kind === 'pinch') {
+        // One finger left: keep moving the view with it; none: done.
+        const rest = [...touches.current.values()][0]
+        gesture.current = rest ? { kind: 'pan', sx: rest[0], sy: rest[1], vp } : null
+        return
+      }
+    }
     const g = gesture.current
     gesture.current = null
     setPreview(null)
@@ -926,7 +995,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       ref={root}
       className={`cv-root tool-${tool} ${scene ? 'scene' : ''} ${presenting !== null ? 'presenting' : ''} ${crowded && vp.z < 1.6 ? 'labels-few' : ''}`}
       tabIndex={0}
-      style={{ backgroundSize: `${grid}px ${grid}px`, backgroundPosition: `${-vp.x * vp.z}px ${-vp.y * vp.z}px` }}
+      style={{ backgroundSize: `${grid}px ${grid}px`, backgroundPosition: `${-vp.x * vp.z}px ${-vp.y * vp.z}px`, ['--cv-z' as string]: vp.z } as React.CSSProperties}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

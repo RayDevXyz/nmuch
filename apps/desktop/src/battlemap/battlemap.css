@@ -1,0 +1,126 @@
+/* Battle maps: the drawn layers, the drawing tools' options, the prop library, the map panel. */
+
+/* ---------- the drawn layers (world space) */
+.bm-layer { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: visible; }
+.bm-ground { position: absolute; pointer-events: none; }
+.bm-svg { position: absolute; overflow: visible; pointer-events: none; }
+.bm-svg .bm-hit { fill: transparent; pointer-events: fill; }
+.bm-svg .bm-hit.selected { fill: color-mix(in srgb, var(--accent) 12%, transparent); stroke: var(--accent); stroke-width: 2.5; stroke-dasharray: 8 5; vector-effect: non-scaling-stroke; }
+.bm-svg .bm-carve { fill: rgba(224, 90, 85, 0.06); stroke: rgba(224, 90, 85, 0.55); stroke-width: 1.5; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; pointer-events: fill; }
+.bm-svg .bm-carve.selected { fill: rgba(224, 90, 85, 0.16); stroke: #e05a55; stroke-width: 2.5; }
+.bm-svg .bm-wall-hit { fill: none; stroke: transparent; stroke-width: 16; stroke-linecap: round; pointer-events: stroke; }
+.bm-svg .bm-wall-hit.selected { stroke: color-mix(in srgb, var(--accent) 45%, transparent); stroke-width: 10; }
+.bm-layer.bm-locked .bm-hit, .bm-layer.bm-locked .bm-carve, .bm-layer.bm-locked .bm-wall-hit, .bm-locked[data-cid] { pointer-events: none; }
+/* Things drawn while a map tool is on can't be grabbed: the tool draws over them. */
+.cv-root.tool-room .bm-layer *, .cv-root.tool-carve .bm-layer *, .cv-root.tool-paint .bm-layer *, .cv-root.tool-wall .bm-layer *, .cv-root.tool-door .bm-layer *, .cv-root.tool-light .bm-layer * { pointer-events: none !important; }
+.bm-item { position: absolute; user-select: none; -webkit-user-drag: none; }
+.bm-prop { object-fit: fill; }
+.bm-item.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bm-item.bm-gm { opacity: 0.65; outline: 1.5px dashed #e05a55; outline-offset: 1px; }
+.bm-missing { background: repeating-linear-gradient(45deg, rgba(224, 90, 85, 0.2) 0 6px, transparent 6px 12px); border: 1px dashed #e05a55; }
+.bm-light-marker { position: absolute; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--lc) 35%, rgba(20, 16, 10, 0.75)); color: #fff6dd; box-shadow: 0 0 0 1.5px var(--lc), 0 0 18px var(--lc); cursor: move; }
+.bm-light-marker.selected { box-shadow: 0 0 0 2.5px var(--accent), 0 0 22px var(--lc); }
+.bm-light { position: absolute; pointer-events: none; }
+.cv-root.scene .cv-image.bm-item { cursor: default; }
+
+/* ---------- drawing previews (screen space) */
+.cv-preview.bm-preview { border-style: solid; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.cv-preview.bm-preview.round { border-radius: 50%; }
+.cv-preview.bm-preview.tool-carve { border-color: #e05a55; background: rgba(224, 90, 85, 0.14); }
+.cv-preview.bm-preview.tool-paint { border-color: #4f86a8; background: rgba(79, 134, 168, 0.2); }
+.bm-draft polyline { fill: color-mix(in srgb, var(--accent) 10%, transparent); stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; }
+.bm-draft polyline.bm-brush { fill: none; stroke: color-mix(in srgb, var(--accent) 30%, transparent); stroke-dasharray: none; stroke-linecap: round; stroke-linejoin: round; }
+.bm-draft circle { fill: var(--panel); stroke: var(--accent); stroke-width: 2; }
+
+/* ---------- the tool options, above the toolbar */
+.bm-options { position: absolute; z-index: 5; left: 50%; bottom: 72px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px); padding: 5px 8px; border-radius: var(--radius-lg, 10px); background: color-mix(in srgb, var(--panel) 94%, transparent); backdrop-filter: blur(10px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), 0 0 0 1px var(--line-soft); color: var(--foreground); font-size: 12px; white-space: nowrap; overflow-x: auto; scrollbar-width: none; }
+.bm-options-what { color: var(--muted-foreground); padding: 0 4px; }
+.bm-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius-md, 8px); background: var(--hover); }
+.bm-seg button { display: grid; place-items: center; min-width: 28px; height: 26px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: var(--muted-foreground); font: inherit; cursor: pointer; }
+.bm-seg button:hover { color: var(--foreground); }
+.bm-seg button.on { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
+.bm-field { display: inline-flex; align-items: center; gap: 6px; color: var(--muted-foreground); }
+.bm-field select { height: 28px; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--input-bg, var(--panel)); color: var(--foreground); font: inherit; }
+.bm-check { display: inline-flex; align-items: center; gap: 4px; color: var(--muted-foreground); }
+@media (max-width: 900px) { .bm-options { bottom: 118px; } }
+
+/* ---------- the map panel (inside the scene panel) */
+.sc-tabs { display: inline-flex; gap: 2px; }
+.sc-tabs button { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border: 1px solid transparent; background: transparent; color: #85765c; font: inherit; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+.sc-tabs button.on { color: #e3c27a; border-color: #4a3e2d; background: #17130e; }
+.sc-panel .bm-seg { background: #0e0b08; border: 1px solid #4a3e2d; border-radius: 0; }
+.sc-panel .bm-seg.wide { display: flex; }
+.sc-panel .bm-seg.wide button { flex: 1; }
+.sc-panel .bm-seg button { color: #b3a385; font-family: var(--dnd-title, serif); font-size: 11.5px; letter-spacing: 0.05em; border-radius: 0; }
+.sc-panel .bm-seg button.on { background: #2a2219; color: #e3c27a; box-shadow: inset 0 0 0 1px #c9a45c; }
+.sc-panel select.sc-input { padding: 0 4px; }
+.bm-layers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.bm-layers li { display: flex; align-items: center; gap: 2px; }
+.bm-layers li.off .bm-layer-name { opacity: 0.45; text-decoration: line-through; }
+.bm-layer-name { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 6px; border: 0; background: transparent; color: #e9dec6; font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; }
+.bm-layer-name:hover { background: #2a2219; }
+.bm-layer-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-layer-name small { margin-left: auto; color: #85765c; }
+.sc-icon:disabled { opacity: 0.3; cursor: default; }
+.bm-light-edit { display: flex; flex-direction: column; gap: 6px; }
+.bm-light-edit input[type='color'], .sc-sec input[type='color'] { width: 30px; height: 26px; padding: 0; border: 1px solid #4a3e2d; background: #0e0b08; }
+
+/* ---------- the prop library (right panel) */
+.cv-assets-tabs { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
+.bm-library { display: flex; flex-direction: column; gap: 10px; min-height: 100%; border-radius: var(--radius-md, 8px); }
+.bm-library.over { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--accent-soft); }
+.bm-library h4 { margin: 4px 0 0; color: var(--muted-foreground); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.bm-search { display: flex; align-items: center; gap: 6px; height: var(--control-h, 28px); padding: 0 8px; border: 1px solid var(--line); border-radius: var(--radius-md, 8px); background: var(--input-bg, var(--panel)); color: var(--muted-foreground); }
+.bm-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--foreground); font: inherit; font-size: 12px; }
+.bm-cats { display: flex; flex-wrap: wrap; gap: 4px; }
+.bm-cats button { height: 24px; padding: 0 8px; border: 1px solid var(--line-soft); border-radius: 999px; background: transparent; color: var(--muted-foreground); font: inherit; font-size: 11.5px; cursor: pointer; }
+.bm-cats button.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.bm-upload { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: var(--radius-md, 8px); background: transparent; color: var(--foreground); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.bm-upload small { flex-basis: 100%; color: var(--muted-foreground); font-size: 11px; }
+.bm-upload:hover { border-color: var(--accent); }
+.bm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
+.bm-tile { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px 4px; border: 1px solid var(--line-soft); border-radius: var(--radius-md, 8px); background: var(--hover); cursor: grab; outline: 0; }
+.bm-tile:hover, .bm-tile:focus-visible { border-color: var(--accent); }
+.bm-tile img, .bm-tile video { width: 48px; height: 48px; object-fit: contain; pointer-events: none; }
+.bm-tile-name { width: 100%; overflow: hidden; color: var(--muted-foreground); font-size: 10.5px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+.bm-tile-star, .bm-tile-del { position: absolute; top: 2px; display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: var(--faint, var(--muted-foreground)); cursor: pointer; opacity: 0; }
+.bm-tile-star { right: 2px; }
+.bm-tile-del { left: 2px; }
+.bm-tile:hover .bm-tile-star, .bm-tile:hover .bm-tile-del, .bm-tile-star.on { opacity: 1; }
+.bm-tile-star.on { color: #e3b341; }
+.bm-tile-star.on svg { fill: currentColor; }
+.bm-tile-anim { position: absolute; left: 4px; bottom: 18px; color: var(--accent); }
+
+/* ---------- the battle map's settings in the right panel: the app's own (Mira) look */
+.rp-scene-body { flex: 1; min-height: 0; overflow-y: auto; }
+.sc-panel.rp-scene { position: static; inset: auto; width: auto; overflow: visible; background: transparent; border: 0; box-shadow: none; color: var(--foreground); font-family: var(--font-sans, inherit); font-size: 12.5px; line-height: var(--ui-lh, 1.5); }
+.rp-scene .sc-sec { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); gap: 8px; }
+.rp-scene .sc-sec:last-child { border-bottom: 0; }
+.rp-scene .sc-sec h3 { font-family: inherit; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--muted-foreground); }
+.rp-scene .sc-sec h3 small { color: var(--faint, var(--muted-foreground)); }
+.rp-scene .sc-hint, .rp-scene .sc-link, .rp-scene .sc-rolls small, .rp-scene .sc-rolls em { color: var(--muted-foreground); font-size: 11.5px; }
+.rp-scene .sc-grid2 label, .rp-scene .sc-check, .rp-scene .sc-showing { color: var(--muted-foreground); font-size: 11.5px; }
+.rp-scene .sc-input, .rp-scene .sc-ini-roll { height: var(--control-h, 28px); border: 1px solid var(--line); border-radius: var(--radius-md, 8px); background: var(--input-bg, var(--panel)); color: var(--foreground); font-size: 12px; }
+.rp-scene .sc-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+.rp-scene .sc-btn { height: var(--control-h, 28px); padding: 0 var(--control-px, 8px); border: 1px solid var(--line); border-radius: var(--radius-md, 8px); background: var(--panel); color: var(--foreground); font-family: inherit; font-size: 12px; letter-spacing: 0; }
+.rp-scene .sc-btn:hover:not(:disabled) { border-color: var(--line); background: var(--hover); color: var(--foreground); }
+.rp-scene .sc-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.rp-scene .sc-btn.gold, .rp-scene .sc-btn.gold:hover:not(:disabled) { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.rp-scene .sc-icon { border-radius: 6px; color: var(--muted-foreground); }
+.rp-scene .sc-icon:hover { border-color: transparent; background: var(--hover); color: var(--foreground); }
+.rp-scene .sc-join, .rp-scene .sc-player, .rp-scene .sc-request { border: 1px solid var(--line-soft); border-radius: var(--radius-md, 8px); background: var(--hover); }
+.rp-scene .sc-join code, .rp-scene .sc-rolls b { color: var(--accent); }
+.rp-scene .sc-live-label { font-family: inherit; letter-spacing: 0; text-transform: none; font-size: 12.5px; }
+.rp-scene .sc-rolls li { border-bottom-color: var(--line-soft); font-size: 12px; }
+.rp-scene .sc-rolls b { font-family: inherit; font-size: 14px; }
+.rp-scene .sc-ini li.turn { border-left-color: var(--accent); background: var(--accent-soft); }
+.rp-scene .sc-ini li.turn .sc-ini-name { color: var(--accent); }
+.rp-scene .bm-seg { border: 0; border-radius: var(--radius-md, 8px); background: var(--hover); }
+.rp-scene .bm-seg button { border-radius: 6px; color: var(--muted-foreground); font-family: inherit; font-size: 12px; letter-spacing: 0; }
+.rp-scene .bm-seg button.on { background: var(--panel); color: var(--accent); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); }
+.rp-scene .bm-layer-name { border-radius: 6px; color: var(--foreground); font-size: 12.5px; }
+.rp-scene .bm-layer-name:hover { background: var(--hover); }
+.rp-scene .bm-layer-name small { color: var(--muted-foreground); }
+.rp-scene input[type='color'] { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+/* Four views fit the panel's heading. */
+.rp-view button { padding-left: 7px; padding-right: 7px; }

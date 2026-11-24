@@ -1,4 +1,4 @@
-import { Check, Dices, Eye, EyeOff, Radio, Search, Skull, Swords, User, X } from 'lucide-react'
+import { Check, Dices, Eye, EyeOff, Search, Skull, Swords, User, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import type * as Y from 'yjs'
 import { charactersDb, getRoles, getSheet } from '../dnd/api'
@@ -7,6 +7,9 @@ import { LiveSection, SubmissionsSection } from '../dnd/TablePanel'
 import { getScene, setScene, useLive, type Initiative, type Live, type MoveRequest, type SceneSettings } from '../dnd/live'
 import { toast, useApp } from '../state/store'
 import { addElement, COLORS, deleteItems, updateElements, type Element, type Rect, type TokenEl, type XYWH } from './model'
+import type { MapState } from '../battlemap/compute'
+import { GenerateSection, LayersSection, LightingSection, LookSection, MapItemsSection } from '../battlemap/MapPanel'
+import { LIGHT_PRESETS } from '../battlemap/tools'
 
 /**
  * A battle map (a page with the D&D role "scene"): the canvas plus a grid, fog of war, tokens,
@@ -40,8 +43,32 @@ export function useSceneSettings(pageId: string, enabled: boolean) {
   return [settings, update] as const
 }
 
+/** Pointy-top hexes `size` across: the centre of the hex nearest (x, y). */
+export function hexCenter(x: number, y: number, g: SceneSettings['grid']): [number, number] {
+  const w = g.size
+  const hh = (w * 2) / Math.sqrt(3)
+  const dy = hh * 0.75
+  const r0 = Math.round((y - g.offsetY - hh / 2) / dy)
+  let best: [number, number] = [x, y]
+  let bd = Infinity
+  for (let r = r0 - 1; r <= r0 + 1; r++) {
+    const cy = g.offsetY + hh / 2 + r * dy
+    const shift = ((r % 2) + 2) % 2 ? w / 2 : 0
+    const c = Math.round((x - g.offsetX - w / 2 - shift) / w)
+    const cx = g.offsetX + w / 2 + shift + c * w
+    const d = Math.hypot(cx - x, cy - y)
+    if (d < bd) (bd = d), (best = [cx, cy])
+  }
+  return best
+}
+
 /** Where a token of `cells` cells sits when dropped near (x, y) (its top-left corner). */
 export function snapToken(x: number, y: number, w: number, h: number, g: SceneSettings['grid']): [number, number] {
+  if (g.type === 'none') return [Math.round(x), Math.round(y)]
+  if (g.type === 'hex') {
+    const [cx, cy] = hexCenter(x + w / 2, y + h / 2, g)
+    return [Math.round(cx - w / 2), Math.round(cy - h / 2)]
+  }
   const s = g.size
   const cx = x + w / 2
   const cy = y + h / 2
@@ -71,12 +98,29 @@ const initials = (name: string) =>
 // ---------- world-space layers (inside the canvas's transformed world)
 
 /** Grid and fog under the tokens. The DM sees through the fog; players don't. */
-export function SceneUnder({ elements, settings, selected }: { elements: Element[]; settings: SceneSettings; selected: Set<string> }) {
-  const b = sceneBounds(elements)
+export function SceneUnder({ elements, settings, selected, bounds }: { elements: Element[]; settings: SceneSettings; selected: Set<string>; bounds?: Rect }) {
+  const b = bounds ?? sceneBounds(elements)
   const g = settings.grid
   const reveals = elements.filter((e): e is Extract<Element, { type: 'reveal' }> => e.type === 'reveal')
   const lines: string[] = []
-  if (g.show && g.size >= 8) {
+  if (g.show && g.size >= 8 && g.type === 'hex') {
+    // Pointy-top hexes, row by row.
+    const w = g.size
+    const hh = (w * 2) / Math.sqrt(3)
+    const dy = hh * 0.75
+    const r0 = Math.floor((b.y - g.offsetY) / dy) - 1
+    const r1 = Math.ceil((b.y + b.h - g.offsetY) / dy)
+    for (let r = r0; r <= r1 && lines.length < 4000; r++) {
+      const cy = g.offsetY + hh / 2 + r * dy
+      const shift = ((r % 2) + 2) % 2 ? w / 2 : 0
+      const c0 = Math.floor((b.x - g.offsetX - shift) / w) - 1
+      const c1 = Math.ceil((b.x + b.w - g.offsetX - shift) / w)
+      for (let c = c0; c <= c1; c++) {
+        const cx = g.offsetX + w / 2 + shift + c * w
+        lines.push(`M${cx},${cy - hh / 2}L${cx + w / 2},${cy - hh / 4}L${cx + w / 2},${cy + hh / 4}L${cx},${cy + hh / 2}L${cx - w / 2},${cy + hh / 4}`)
+      }
+    }
+  } else if (g.show && g.size >= 8 && g.type !== 'none') {
     const x0 = g.offsetX + Math.ceil((b.x - g.offsetX) / g.size) * g.size
     const y0 = g.offsetY + Math.ceil((b.y - g.offsetY) / g.size) * g.size
     for (let x = x0; x <= b.x + b.w && lines.length < 600; x += g.size) lines.push(`M${x},${b.y}V${b.y + b.h}`)
@@ -91,7 +135,7 @@ export function SceneUnder({ elements, settings, selected }: { elements: Element
   return (
     <>
       <svg className="sc-layer" style={{ left: b.x, top: b.y, width: b.w, height: b.h }} viewBox={`${b.x} ${b.y} ${b.w} ${b.h}`} aria-hidden>
-        {lines.length > 0 && <path d={lines.join('')} stroke={g.color} strokeOpacity={g.opacity} strokeWidth={1.2} fill="none" />}
+        {lines.length > 0 && <path strokeLinejoin="round" d={lines.join('')} stroke={g.color} strokeOpacity={g.opacity} strokeWidth={1.2} fill="none" />}
         {settings.fog && (
           <>
             <defs>
@@ -320,7 +364,11 @@ function countNamed(doc: Y.Doc, name: string): number {
 
 // ---------- the scene panel (screen space, on the right)
 
+export type ScenePanelProps = Omit<Parameters<typeof ScenePanel>[0], 'tab'>
+
+/** The battle map's settings, shown in the right panel: its Table tab (live) or its Map tab. */
 export function ScenePanel({
+  tab,
   pageId,
   doc,
   elements,
@@ -330,9 +378,20 @@ export function ScenePanel({
   onSelect,
   live,
   onShow,
+  mapState,
+  playerView,
+  onPlayerView,
+  viewCenter,
+  onFit,
 }: {
+  tab: 'table' | 'map'
   pageId: string
   onShow: () => void
+  mapState: MapState | null
+  playerView: boolean
+  onPlayerView: (on: boolean) => void
+  viewCenter: () => [number, number]
+  onFit: () => void
   doc: Y.Doc
   elements: Element[]
   settings: SceneSettings
@@ -341,21 +400,12 @@ export function ScenePanel({
   onSelect: (ids: string[]) => void
   live: Live
 }) {
-  const [open, setOpen] = useState(true)
   const liveState = useLive(live)
   const state = liveState.showing === pageId ? liveState : { ...liveState, requests: [] }
   const tokens = elements.filter((e): e is TokenEl => e.type === 'token')
   const picked = tokens.filter((t) => selected.includes(t.id))
   const title = useApp((s) => s.pages[pageId]?.title) || 'Battle map'
   const campaignTitle = useApp((s) => s.pages[live.campaignId]?.title)
-
-  if (!open)
-    return (
-      <button className="sc-panel-open" onClick={() => setOpen(true)} onPointerDown={(e) => e.stopPropagation()}>
-        <Radio size={14} /> Table {state.status === 'live' ? '· live' : ''}
-        {state.requests.length > 0 && <b className="sc-badge">{state.requests.length}</b>}
-      </button>
-    )
 
   const moveFor = (req: MoveRequest) => {
     const t = tokens.find((x) => x.id === req.token)
@@ -365,15 +415,20 @@ export function ScenePanel({
   }
 
   return (
-    <aside className="sc-panel" onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}>
-      <header className="sc-panel-head">
-        <span>
-          <Radio size={14} /> The table
-        </span>
-        <button className="sc-icon" aria-label="Hide the panel" onClick={() => setOpen(false)}>
-          <X size={14} />
-        </button>
-      </header>
+    <div className="sc-panel rp-scene" onKeyDown={(e) => e.stopPropagation()}>
+      {picked.length > 0 && <TokenSection doc={doc} tokens={picked} grid={settings.grid} />}
+      <MapItemsSection doc={doc} items={elements.filter((e) => selected.includes(e.id))} />
+      {tab === 'map' && (
+        <>
+          <GenerateSection doc={doc} settings={settings} elements={elements} viewCenter={viewCenter} onDone={(ids) => (onSelect([]), void ids, onFit())} />
+          <LookSection settings={settings} onSettings={onSettings} />
+          <LayersSection settings={settings} onSettings={onSettings} elements={elements} onSelect={onSelect} />
+          <LightingSection settings={settings} onSettings={onSettings} doc={doc} playerView={playerView} onPlayerView={onPlayerView} state={mapState} />
+          <MapSection doc={doc} elements={elements} settings={settings} onSettings={onSettings} bounds={mapState?.bounds} />
+        </>
+      )}
+      {tab === 'table' && (
+        <>
       <LiveSection live={live} title={campaignTitle || title} sceneId={pageId} onShow={onShow} />
       <SubmissionsSection live={live} campaignId={live.campaignId} />
       {state.requests.length > 0 && (
@@ -398,11 +453,11 @@ export function ScenePanel({
           })}
         </section>
       )}
-      {picked.length > 0 && <TokenSection doc={doc} tokens={picked} grid={settings.grid} />}
       <InitiativeSection settings={settings} onSettings={onSettings} tokens={tokens} onSelect={onSelect} />
       <DiceSection live={live} />
-      <MapSection doc={doc} elements={elements} settings={settings} onSettings={onSettings} />
-    </aside>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -449,12 +504,40 @@ function TokenSection({ doc, tokens, grid }: { doc: Y.Doc; tokens: TokenEl[]; gr
           + Heal
         </button>
       </div>
+      {one && (
+        <div className="sc-grid2">
+          <label title="How far it sees (empty: as far as there's light)">
+            Sight (ft)
+            <input className="sc-input" inputMode="numeric" placeholder="∞" value={one.sight ?? ''} onChange={(e) => set({ sight: Number(e.target.value.replace(/\D/g, '')) || undefined })} />
+          </label>
+          <label title="Sees in the dark this far (in grey)">
+            Darkvision (ft)
+            <input className="sc-input" inputMode="numeric" placeholder="0" value={one.darkvision ?? ''} onChange={(e) => set({ darkvision: Number(e.target.value.replace(/\D/g, '')) || undefined })} />
+          </label>
+          <label style={{ gridColumn: '1 / -1' }}>
+            Carries
+            <select
+              className="sc-input"
+              value={one.light ? (Object.entries(LIGHT_PRESETS).find(([, p]) => p.light.bright === one.light!.bright && p.light.color === one.light!.color)?.[0] ?? 'custom') : ''}
+              onChange={(e) => e.target.value !== 'custom' && set({ light: LIGHT_PRESETS[e.target.value] ? { ...LIGHT_PRESETS[e.target.value].light } : undefined })}
+            >
+              <option value="">No light</option>
+              {Object.entries(LIGHT_PRESETS).map(([id, p]) => (
+                <option key={id} value={id}>
+                  {p.label}
+                </option>
+              ))}
+              {one.light && !Object.values(LIGHT_PRESETS).some((p) => p.light.bright === one.light!.bright && p.light.color === one.light!.color) && <option value="custom">Its own light</option>}
+            </select>
+          </label>
+        </div>
+      )}
       <div className="sc-row">
         <button className={`sc-btn ${allHidden ? 'on' : ''}`} onClick={() => set({ hidden: !allHidden })} title="Hidden tokens are never sent to players">
           {allHidden ? <EyeOff size={13} /> : <Eye size={13} />} {allHidden ? 'Hidden' : 'Visible'}
         </button>
         {one && (
-          <button className={`sc-btn ${one.player ? 'on' : ''}`} onClick={() => set({ player: !one.player })} title="Players can claim and move player characters; they see their hit points">
+          <button className={`sc-btn ${one.player ? 'on' : ''}`} onClick={() => set(one.player ? { player: false } : { player: true, hidden: false })} title="Players can claim and move player characters; they see their hit points">
             <User size={13} /> {one.player ? 'Player character' : 'Creature'}
           </button>
         )}
@@ -597,7 +680,7 @@ function DiceSection({ live }: { live: Live }) {
   )
 }
 
-function MapSection({ doc, elements, settings, onSettings }: { doc: Y.Doc; elements: Element[]; settings: SceneSettings; onSettings: (patch: Partial<SceneSettings>) => void }) {
+function MapSection({ doc, elements, settings, onSettings, bounds }: { doc: Y.Doc; elements: Element[]; settings: SceneSettings; onSettings: (patch: Partial<SceneSettings>) => void; bounds?: Rect }) {
   const g = settings.grid
   const grid = (patch: Partial<SceneSettings['grid']>) => onSettings({ grid: { ...g, ...patch } })
   const reveals = elements.filter((e) => e.type === 'reveal')
@@ -607,7 +690,7 @@ function MapSection({ doc, elements, settings, onSettings }: { doc: Y.Doc; eleme
   }
   return (
     <section className="sc-sec">
-      <h3>Map</h3>
+      <h3>Grid & fog</h3>
       <div className="sc-grid2">
         <label>
           Square (px)
@@ -643,7 +726,7 @@ function MapSection({ doc, elements, settings, onSettings }: { doc: Y.Doc; eleme
               className="sc-btn"
               title="Clear the fog from the whole map"
               onClick={() => {
-                const b = sceneBounds(elements)
+                const b = bounds ?? sceneBounds(elements)
                 addElement(doc, { type: 'reveal', xywh: [Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h)] })
               }}
             >
@@ -655,7 +738,7 @@ function MapSection({ doc, elements, settings, onSettings }: { doc: Y.Doc; eleme
           </>
         )}
       </div>
-      <p className="sc-hint">Reveal tool (E): drag over what the players can see. Token tool (K): click to place. Alt-click pings everyone.</p>
+      <p className="sc-hint">Reveal tool (E): drag over what the players can see (with line of sight on, they also see what their characters see). Token tool (K): click to place. Alt-click pings everyone.</p>
     </section>
   )
 }

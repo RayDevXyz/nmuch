@@ -6,7 +6,7 @@ import type { NoteRef } from '../lib/core/page-sync'
 import { openPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
 import { campaignOf, liveFor, type Shown } from '../dnd/live'
-import { DEFAULT_SCENE, placeToken, sceneBounds, ScenePanel, SceneOver, SceneUnder, snapToken, TokenPicker, useSceneSettings } from './scene'
+import { DEFAULT_SCENE, placeToken, SceneOver, SceneUnder, snapToken, TokenPicker, useSceneSettings } from './scene'
 import {
   addElement,
   addNote,
@@ -49,6 +49,13 @@ import { alignBoxes, angleTo, distributeBoxes, resizeTurned, snapBox, snapEdges,
 import { DRAG_TYPE, presetById, rememberUpload, type Preset } from './SidePanel'
 import { DRAG as BURROW_DRAG, domainOf, droppedBookmark, getBookmark } from '../burrow/api'
 import { openExternal } from '../lib/storage'
+import { MapLayers } from '../battlemap/MapView'
+import { computeMap } from '../battlemap/compute'
+import { getToolOptions, isMapTool, LIGHT_PRESETS, ToolOptionsBar } from '../battlemap/tools'
+import { layerOf, nearestWall } from '../battlemap/model'
+import { normalize, simplify, type Pt } from '../battlemap/geom'
+import { builtinById } from '../battlemap/props'
+import { addToLibrary, readAsset, readAssets } from '../battlemap/assets'
 
 /** The canvas viewport: world point (x, y) is at the top-left; `z` is the zoom. */
 interface Viewport {
@@ -82,10 +89,14 @@ type Gesture =
   | { kind: 'connect'; source: End; wx: number; wy: number }
   /** Two fingers: pan and zoom together. `m0` (screen, in the canvas) stays over the same world point. */
   | { kind: 'pinch'; d0: number; m0: [number, number]; vp: Viewport }
+  /** A brush stroke on a battle map (a corridor, a river). */
+  | { kind: 'stroke'; tool: Tool; pts: Pt[] }
 
 type Preview =
   | { kind: 'rect'; r: Rect; tool: Tool | 'marquee' }
   | { kind: 'line'; from: [number, number]; to: [number, number]; target: string | null }
+  /** A shape or wall being drawn point by point, or a brush stroke. */
+  | { kind: 'poly'; pts: Pt[]; closed: boolean; width?: number }
   | null
 
 export interface CanvasProps {
@@ -164,10 +175,31 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   }, [live, sceneSettings, pageId])
   const [tokenPicker, setTokenPicker] = useState<{ wx: number; wy: number; sx: number; sy: number } | null>(null)
   const gridOf = () => (settingsRef.current ?? DEFAULT_SCENE).grid
+  // The drawn map: its floors, walls, light and the party's sight.
+  const mapState = useMemo(() => (scene && sceneSettings ? computeMap(elements, sceneSettings) : null), [scene, sceneSettings, elements])
+  const [playerView, setPlayerView] = useState(false)
+  /** A polygon or wall being drawn, point by point. */
+  const [draft, setDraft] = useState<{ tool: Tool; pts: Pt[]; hover: Pt | null } | null>(null)
+  useEffect(() => setDraft(null), [tool])
+  /** Items on a locked layer can't be picked. */
+  const layerLocked = (id: string) => {
+    if (!mapState) return false
+    const el = byIdRef.current.get(id)
+    return !!el && mapState.locked.has(layerOf(el))
+  }
+  /** A world point on the grid's corners (map tools snap there unless Ctrl is held). */
+  const snapPt = (x: number, y: number, free = false): Pt => {
+    const g = gridOf()
+    if (free || !getToolOptions().snap || g.type === 'none') return [Math.round(x), Math.round(y)]
+    const half = g.size / 2
+    return [Math.round((x - g.offsetX) / half) * half + g.offsetX, Math.round((y - g.offsetY) / half) * half + g.offsetY]
+  }
 
   // ---------- geometry of everything on the canvas
 
   const byId = useMemo(() => new Map(elements.map((e) => [e.id, e])), [elements])
+  const byIdRef = useRef(byId)
+  byIdRef.current = byId
   const placedNotes = notes.filter((n) => n.xywh)
   const noteRect = useCallback(
     (n: CanvasNote): Rect => {
@@ -281,7 +313,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     union([...placedNotes.map(noteRect), ...elements.flatMap((e) => (e.type === 'connector' || !isShown(e) ? [] : [turnedBounds(e.xywh, e.rotate)]))])
   function zoomToFit() {
     // A battle map fits its picture, beside the table panel.
-    if (scene && elements.some((e) => e.type === 'image')) return fit(sceneBounds(elements), 40, 2, 320)
+    if (scene && mapState && (mapState.drawn || elements.some((e) => e.type === 'image'))) return fit(mapState.bounds, 40, 2)
     fit(allBounds())
   }
   const zoomTo = (z: number) => {
@@ -360,6 +392,8 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       id = addElement(doc, { type: 'reveal', xywh: [r.x, r.y, r.w, r.h] })
       setSelected([id])
       return
+    } else if (isMapTool(t)) {
+      return createMap(t, r)
     } else if (t === 'pin') {
       const b = root.current!.getBoundingClientRect()
       setPinPicker({ wx: r.x, wy: r.y, sx: (r.x - vp.x) * vp.z + b.left, sy: (r.y - vp.y) * vp.z + b.top })
@@ -371,6 +405,124 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     }
     setSelected([id])
     setTool('select')
+  }
+
+  // ---------- building a battle map
+
+  /** A dragged box with its corners on the grid (as the shape will be made). */
+  const snapRect = (r: Rect): Rect => {
+    const [x1, y1] = snapPt(r.x, r.y)
+    const [x2, y2] = snapPt(r.x + r.w, r.y + r.h)
+    return normRect(x1, y1, x2, y2)
+  }
+
+  /** A room, a carved space or a patch of terrain, from a dragged box (or a clicked point). */
+  function createMap(t: Tool, r: Rect) {
+    const o = getToolOptions()
+    const g = gridOf()
+    if (t === 'light') {
+      const s = Math.round(g.size / 2)
+      const preset = LIGHT_PRESETS[o.light] ?? LIGHT_PRESETS.torch
+      const id = addElement(doc, { type: 'light', xywh: [Math.round(r.x - s / 2), Math.round(r.y - s / 2), s, s], light: { ...preset.light } })
+      setSelected([id])
+      return
+    }
+    if (t === 'door') return placeOpening([r.x, r.y])
+    if (r.w < 4 || r.h < 4) {
+      // A click: one square.
+      const [x, y] = snapPt(r.x - g.size / 2, r.y - g.size / 2)
+      r = { x, y, w: g.size, h: g.size }
+    }
+    addArea(t, o.shape === 'ellipse' ? 'ellipse' : 'rect', [r.x, r.y, r.w, r.h])
+  }
+  function addArea(t: Tool, shape: 'rect' | 'ellipse' | 'poly' | 'path', xywh: XYWH, pts?: Pt[], width?: number) {
+    const o = getToolOptions()
+    const terrain = t === 'paint'
+    addElement(doc, {
+      type: 'area',
+      shape,
+      xywh,
+      ...(pts ? { pts } : {}),
+      ...(width ? { width } : {}),
+      op: t === 'carve' ? 'carve' : 'add',
+      ...(t === 'carve' ? {} : { material: terrain ? o.terrain : o.floor }),
+      layer: terrain ? 'terrain' : 'architecture',
+    })
+  }
+  /** Finish a polygon (a room) or a wall drawn point by point. */
+  function finishDraft(d = draft) {
+    setDraft(null)
+    setPreview(null)
+    if (!d) return
+    const pts = d.pts.filter((p, i) => i === 0 || p[0] !== d.pts[i - 1][0] || p[1] !== d.pts[i - 1][1])
+    if (d.tool === 'wall') {
+      if (pts.length < 2) return
+      const n = normalize(pts)
+      addElement(doc, { type: 'wall', xywh: n.xywh, pts: n.pts, kind: 'wall' })
+      return
+    }
+    if (pts.length < 3) return
+    const n = normalize(pts)
+    addArea(d.tool, 'poly', n.xywh, n.pts)
+  }
+  /** A door (or window…) on the wall nearest the click, one square wide, centred on a square. */
+  function placeOpening(p: Pt) {
+    if (!mapState) return
+    const g = gridOf()
+    const hit = nearestWall(mapState.built, p, Math.max(24, 30 / vp.z))
+    if (!hit) return toast('Click on a wall (a room’s edge or a wall you drew) to put a door in it')
+    const [a, b] = hit.seg
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+    const size = Math.min(g.size, len)
+    // Centre it on the middle of a square along the wall.
+    let s = hit.t * len
+    if (getToolOptions().snap) s = Math.floor(s / g.size) * g.size + g.size / 2
+    s = Math.max(size / 2, Math.min(len - size / 2, s))
+    const ux = (b[0] - a[0]) / len
+    const uy = (b[1] - a[1]) / len
+    const c: Pt = [a[0] + ux * s, a[1] + uy * s]
+    const n = normalize([
+      [c[0] - (ux * size) / 2, c[1] - (uy * size) / 2],
+      [c[0] + (ux * size) / 2, c[1] + (uy * size) / 2],
+    ])
+    const id = addElement(doc, { type: 'wall', xywh: n.xywh, pts: n.pts, kind: getToolOptions().opening })
+    setSelected([id])
+  }
+  /** A prop from the library (`b:id` or `u:hash`), centred on a point (or the middle of the view). */
+  function addProp(asset: string, at?: [number, number]) {
+    const g = gridOf()
+    const [cx, cy] = at ?? viewCenter()
+    let w = g.size
+    let h = g.size
+    if (asset.startsWith('b:')) {
+      const def = builtinById.get(asset.slice(2))
+      if (def) (w = def.w * g.size), (h = def.h * g.size)
+    } else {
+      const a = readAssets(doc)[asset.slice(2)]
+      if (a) {
+        const cells = Math.max(1, Math.min(4, Math.round(Math.max(a.w, a.h) / 140)))
+        const k = (cells * g.size) / Math.max(a.w, a.h)
+        ;(w = Math.round(a.w * k)), (h = Math.round(a.h * k))
+      }
+    }
+    const [x, y] = g.type === 'none' ? [cx - w / 2, cy - h / 2] : snapToken(cx - w / 2, cy - h / 2, w, h, g)
+    const id = addElement(doc, { type: 'prop', asset, xywh: [Math.round(x), Math.round(y), Math.round(w), Math.round(h)], layer: 'props' })
+    setTool('select')
+    setSelected([id])
+  }
+  /** Files dropped on a battle map: moving pictures and videos become props; still pictures, the map. */
+  async function dropOnMap(files: File[], wx: number, wy: number) {
+    for (const [i, f] of files.entries()) {
+      try {
+        const a = await readAsset(f)
+        if (a.animated || a.video || f.size < 400_000) {
+          await addToLibrary(campaign, doc, a)
+          addProp(`u:${a.hash}`, [wx + i * 40, wy + i * 40])
+        } else void addImage(f, { x: wx + i * 40, y: wy + i * 40 })
+      } catch (e) {
+        toast(String(e).replace(/^Error:\s*/, ''))
+      }
+    }
   }
 
   // Focus a note created on the canvas once its editor exists.
@@ -501,6 +653,18 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       gesture.current = { kind: 'connect', source: target ? { id: target } : { point: [wx, wy] }, wx, wy }
       return
     }
+    if (scene && (tool === 'wall' || ((tool === 'room' || tool === 'carve' || tool === 'paint') && getToolOptions().shape === 'poly'))) {
+      // Point by point: each click a corner; a click on the first corner closes a room.
+      const p = snapPt(wx, wy, e.ctrlKey || e.metaKey)
+      const pts = draft?.tool === tool ? draft.pts : []
+      if (tool !== 'wall' && pts.length >= 3 && Math.hypot(p[0] - pts[0][0], p[1] - pts[0][1]) * vp.z < 10) return finishDraft({ tool, pts, hover: null })
+      setDraft({ tool, pts: [...pts, p], hover: p })
+      return
+    }
+    if (scene && (tool === 'room' || tool === 'carve' || tool === 'paint') && getToolOptions().shape === 'path') {
+      gesture.current = { kind: 'stroke', tool, pts: [[Math.round(wx), Math.round(wy)]] }
+      return
+    }
     if (tool !== 'select') {
       gesture.current = { kind: 'create', tool, wx, wy }
       return
@@ -517,11 +681,11 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         return
       }
       const orig = n?.xywh ?? el?.xywh
-      const ratio = el?.type === 'image' || el?.type === 'pin' || el?.type === 'token'
+      const ratio = el?.type === 'image' || el?.type === 'pin' || el?.type === 'token' || (el?.type === 'prop' && el.asset.startsWith('u:'))
       if (orig) gesture.current = { kind: 'resize', id, handle, wx, wy, orig: [...orig] as XYWH, note: !!n, deg: el?.rotate ?? 0, ratio, others: snapTargets(new Set([id])) }
       return
     }
-    if (hit && hit.part !== 'frame-body') {
+    if (hit && hit.part !== 'frame-body' && !layerLocked(hit.id)) {
       // A click takes the whole group; Ctrl/⌘-click picks one item inside it.
       const deep = e.ctrlKey || e.metaKey
       const take = deep ? [hit.id] : withGroups([hit.id])
@@ -554,7 +718,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     const out = new Map<string, XYWH>()
     const add = (id: string) => {
       const el = byId.get(id)
-      if (el?.locked) return
+      if (el?.locked || layerLocked(id)) return
       if (el && el.type !== 'connector') out.set(id, [...el.xywh] as XYWH)
       const n = notes.find((x) => x.id === id)
       if (n?.xywh) out.set(id, [...n.xywh] as XYWH)
@@ -574,7 +738,20 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   const onPointerMove = (e: React.PointerEvent) => {
     if (e.pointerType === 'touch' && touches.current.has(e.pointerId)) touches.current.set(e.pointerId, [e.clientX, e.clientY])
     const g = gesture.current
+    if (draft && !g) {
+      const [hx, hy] = toWorld(e.clientX, e.clientY)
+      const p = snapPt(hx, hy, e.ctrlKey || e.metaKey)
+      setPreview({ kind: 'poly', pts: [...draft.pts, p], closed: draft.tool !== 'wall' })
+      return
+    }
     if (!g) return
+    if (g.kind === 'stroke') {
+      const [sx, sy] = toWorld(e.clientX, e.clientY)
+      const last = g.pts[g.pts.length - 1]
+      if (Math.hypot(sx - last[0], sy - last[1]) * vp.z > 4) g.pts.push([Math.round(sx), Math.round(sy)])
+      setPreview({ kind: 'poly', pts: [...g.pts], closed: false, width: getToolOptions().brush * gridOf().size })
+      return
+    }
     if (g.kind === 'pinch') {
       const f = fingers()
       if (!f) return
@@ -659,7 +836,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         const r = normRect(g.wx, g.wy, wx, wy)
         setPreview({ kind: 'rect', r, tool: 'marquee' })
         // Locked and hidden items stay out of a marquee; groups come whole.
-        const pickable = (el: Element) => !el.locked && isShown(el)
+        const pickable = (el: Element) => !el.locked && isShown(el) && !layerLocked(el.id) && !(mapState && mapState.hidden.has(layerOf(el)))
         const inside = [
           ...elements
             .filter((el) => pickable(el) && el.type !== 'connector' && el.type !== 'frame' && (scene && el.type === 'image' ? contains(r, rectOf(el.xywh)) : intersects(r, turnedBounds(el.xywh, el.rotate))))
@@ -699,6 +876,21 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     setReadout(null)
     if (!g) return
     const [wx, wy] = toWorld(e.clientX, e.clientY)
+    if (g.kind === 'stroke') {
+      const width = getToolOptions().brush * gridOf().size
+      const pts = simplify(g.pts, Math.max(2, width / 6))
+      if (pts.length === 1) pts.push([pts[0][0] + 1, pts[0][1]])
+      const n = normalize(pts)
+      addArea(g.tool, 'path', n.xywh, n.pts, width)
+      return
+    }
+    if (g.kind === 'create' && isMapTool(g.tool) && g.tool !== 'door' && g.tool !== 'light') {
+      const free = e.ctrlKey || e.metaKey
+      const [x1, y1] = snapPt(g.wx, g.wy, free)
+      const [x2, y2] = snapPt(wx, wy, free)
+      const r = normRect(x1, y1, x2, y2)
+      return createMap(g.tool, Math.hypot(wx - g.wx, wy - g.wy) * vp.z < 6 ? { x: g.wx, y: g.wy, w: 0, h: 0 } : r)
+    }
     if (g.kind === 'create') {
       const r = normRect(g.wx, g.wy, wx, wy)
       const clicked = r.w * vp.z < 6 && r.h * vp.z < 6
@@ -774,7 +966,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     if (mod && e.key.toLowerCase() === 'y') return void (e.preventDefault(), um?.redo())
     if (mod && e.key.toLowerCase() === 'a') {
       e.preventDefault()
-      return setSelected([...elements.filter((el) => isShown(el) && !el.locked).map((el) => el.id), ...placedNotes.map((n) => n.id)])
+      return setSelected([...elements.filter((el) => isShown(el) && !el.locked && !layerLocked(el.id) && !(mapState && mapState.hidden.has(layerOf(el)))).map((el) => el.id), ...placedNotes.map((n) => n.id)])
     }
     if (mod && e.key.toLowerCase() === 'd') {
       e.preventDefault()
@@ -801,6 +993,9 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       e.preventDefault()
       return remove()
     }
+    if (draft && e.key === 'Enter') return void (e.preventDefault(), finishDraft())
+    if (draft && e.key === 'Escape') return void (setDraft(null), setPreview(null))
+    if (draft && e.key === 'Backspace') return void (e.preventDefault(), setDraft({ ...draft, pts: draft.pts.slice(0, -1) }))
     if (e.key === 'Escape') return void (setSelected([]), setTool('select'))
     if (e.key === 'Enter' && selected.length === 1) {
       const id = selected[0]
@@ -822,7 +1017,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       doc.transact(() => (updateElements(doc, els), setNoteLayout(doc, ns)), CANVAS)
       return
     }
-    const keys: Record<string, Tool> = { v: 'select', h: 'hand', n: 'note', r: 'rect', o: 'ellipse', d: 'diamond', t: 'text', c: 'connector', f: 'frame', i: 'image', p: 'pin', ...(scene ? ({ k: 'token', e: 'reveal' } as const) : {}) }
+    const keys: Record<string, Tool> = { v: 'select', h: 'hand', n: 'note', r: 'rect', o: 'ellipse', d: 'diamond', t: 'text', c: 'connector', f: 'frame', i: 'image', p: 'pin', ...(scene ? ({ k: 'token', e: 'reveal', b: 'room', x: 'carve', g: 'paint', w: 'wall', q: 'door', l: 'light' } as const) : {}) }
     const k = keys[e.key.toLowerCase()]
     if (k) setTool(k)
     if (e.key === ' ') space.current = true
@@ -960,6 +1155,29 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       onTool: setTool,
       scene,
       onAdd: (p) => addPreset(p),
+      onAddProp: (asset) => addProp(asset),
+      campaign: campaign ?? null,
+      mapState,
+      onLayers: (layers) => sceneSettings && setSceneSettings({ map: { ...(sceneSettings.map ?? {}), layers } }),
+      scenePanel:
+        scene && sceneSettings && live
+          ? {
+              pageId,
+              onShow: () => live.show(shown()),
+              doc,
+              elements,
+              settings: sceneSettings,
+              onSettings: setSceneSettings,
+              selected,
+              onSelect: setSelected,
+              live,
+              mapState,
+              playerView,
+              onPlayerView: setPlayerView,
+              viewCenter,
+              onFit: () => requestAnimationFrame(() => zoomToFit()),
+            }
+          : null,
       onUpload: () => ((pendingImage.current = null), imageInput.current?.click()),
       onAddImage: (img) => {
         const [cx, cy] = viewCenter()
@@ -977,6 +1195,12 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
     })
   })
   useEffect(() => () => retractCanvas(pageId), [pageId])
+  // A battle map opens with its settings beside it (the Table tab), unless the panel shows them already.
+  useEffect(() => {
+    if (!scene) return
+    const s = getState()
+    if (s.rightView === 'graph' || !s.rightOpen) setState({ rightOpen: true, rightView: s.rightView === 'graph' ? 'table' : s.rightView })
+  }, [scene, pageId])
 
   // ---------- render
 
@@ -1010,7 +1234,12 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       }}
       onDrop={(e) => {
         const [wx, wy] = toWorld(e.clientX, e.clientY)
-        const preset = presetById(e.dataTransfer.getData(DRAG_TYPE))
+        const dragged = e.dataTransfer.getData(DRAG_TYPE)
+        if (scene && dragged.startsWith('prop:')) {
+          e.preventDefault()
+          return addProp(dragged.slice(5), [wx, wy])
+        }
+        const preset = presetById(dragged)
         if (preset) {
           e.preventDefault()
           return addPreset(preset, [wx, wy])
@@ -1024,6 +1253,13 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           void getBookmark(bm.id).then((b) => updateElements(doc, { [id]: { image: b.image_url || undefined, site: b.site_name || domainOf(b.url) || undefined, text: b.title || bm.title || bm.url } }), () => {})
           return
         }
+        if (scene && e.dataTransfer.files.length) {
+          const all = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'))
+          if (all.length) {
+            e.preventDefault()
+            return void dropOnMap(all, wx, wy)
+          }
+        }
         const files = [...e.dataTransfer.files].filter((f) => f.type.startsWith('image/'))
         if (files.length) {
           e.preventDefault()
@@ -1031,9 +1267,13 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         }
       }}
       onDoubleClick={(e) => {
+        if (draft) return finishDraft()
         if (tool !== 'select' || presenting !== null) return
         const hit = itemUnder(e.clientX, e.clientY)
         const el = hit ? byId.get(hit.id) : undefined
+        // A door opens and shuts.
+        if (el?.type === 'wall') return void (el.kind && el.kind !== 'wall' && updateElements(doc, { [el.id]: { open: !el.open || undefined } }))
+        if (el?.type === 'area' || el?.type === 'prop' || el?.type === 'light') return
         if (el?.type === 'pin') return void openPage(el.page, e.ctrlKey || e.metaKey ? 'tab' : 'replace')
         if (el?.type === 'token') return void (el.page && openPage(el.page, 'tab'))
         if (el?.type === 'reveal') return
@@ -1051,14 +1291,11 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       data-testid="canvas"
     >
       <div className="cv-world" style={{ transform: `scale(${vp.z}) translate(${-vp.x}px, ${-vp.y}px)` }}>
-        {/* A battle map's picture stays under the grid and the fog. */}
-        {scene &&
-          elements.map((el) =>
-            el.type === 'image' && isShown(el) ? (
-              <img key={el.id} className={`cv-image ${selectedSet.has(el.id) ? 'selected' : ''} locked`} data-cid={el.id} src={el.src} alt="" draggable={false} style={{ ...box(rectOf(el.xywh)), ...layerStyle(el) }} />
-            ) : null,
-          )}
-        {scene && sceneSettings && <SceneUnder elements={elements} settings={sceneSettings} selected={selectedSet} />}
+        {/* A battle map's drawn layers (pictures, floors, walls, props, light) stay under the grid and the fog. */}
+        {scene && sceneSettings && mapState && (
+          <MapLayers idp={`bm-${pageId}`} doc={doc} elements={elements} settings={sceneSettings} state={mapState} selected={selectedSet} playerView={playerView} />
+        )}
+        {scene && sceneSettings && <SceneUnder elements={elements} settings={sceneSettings} selected={selectedSet} bounds={mapState?.bounds} />}
         {frames.filter(isShown).map((f) => (
           <FrameView key={f.id} el={f} selected={selectedSet.has(f.id)} editing={editing === f.id} onText={(text) => (updateElements(doc, { [f.id]: { text } }), setEditing(null))} />
         ))}
@@ -1074,6 +1311,8 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
         {/* Everything else in its stacking order (Layers, Position). */}
         {elements.map((el) => {
           if (!isShown(el)) return null
+          if (el.type === 'area' || el.type === 'wall' || el.type === 'prop' || el.type === 'light') return null
+          if (mapState && mapState.hidden.has(layerOf(el))) return null
           const sel = selectedSet.has(el.id)
           if (el.type === 'image')
             return scene ? null : (
@@ -1180,7 +1419,26 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           {readout.text}
         </div>
       )}
-      {preview?.kind === 'rect' && <div className={`cv-preview ${preview.tool === 'marquee' ? 'marquee' : ''}`} style={box(toScreen(preview.r))} />}
+      {preview?.kind === 'rect' && (
+        <div
+          className={`cv-preview ${preview.tool === 'marquee' ? 'marquee' : ''} ${isMapTool(String(preview.tool)) ? `bm-preview tool-${preview.tool}` : ''} ${isMapTool(String(preview.tool)) && getToolOptions().shape === 'ellipse' ? 'round' : ''}`}
+          style={box(toScreen(scene && isMapTool(String(preview.tool)) && preview.tool !== 'door' && preview.tool !== 'light' ? snapRect(preview.r) : preview.r))}
+        />
+      )}
+      {preview?.kind === 'poly' && (
+        <svg className="cv-preview-line bm-draft">
+          {preview.width ? (
+            <polyline points={preview.pts.map(([x, y]) => `${(x - vp.x) * vp.z},${(y - vp.y) * vp.z}`).join(' ')} strokeWidth={preview.width * vp.z} className="bm-brush" />
+          ) : (
+            <>
+              <polyline points={[...preview.pts, ...(preview.closed && preview.pts.length > 2 ? [preview.pts[0]] : [])].map(([x, y]) => `${(x - vp.x) * vp.z},${(y - vp.y) * vp.z}`).join(' ')} />
+              {preview.pts.slice(0, -1).map(([x, y], i) => (
+                <circle key={i} cx={(x - vp.x) * vp.z} cy={(y - vp.y) * vp.z} r={i === 0 && preview.closed ? 6 : 3.5} />
+              ))}
+            </>
+          )}
+        </svg>
+      )}
       {preview?.kind === 'line' && (
         <svg className="cv-preview-line">
           {preview.target && rectOfId(preview.target) && <rect className="cv-target" {...rectAttrs(toScreen(rectOfId(preview.target)!))} />}
@@ -1246,9 +1504,6 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
           onClose={() => setTokenPicker(null)}
         />
       )}
-      {scene && sceneSettings && live && presenting === null && (
-        <ScenePanel pageId={pageId} onShow={() => live.show(shown())} doc={doc} elements={elements} settings={sceneSettings} onSettings={setSceneSettings} selected={selected} onSelect={setSelected} live={live} />
-      )}
       {pinPicker && (
         <PinPicker
           at={pinPicker}
@@ -1263,6 +1518,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       )}
       {presenting === null ? (
         <>
+          {scene && isMapTool(tool) && <ToolOptionsBar tool={tool} />}
           <CanvasToolbar tool={tool} onTool={setTool} scene={scene} onUndo={() => um?.undo()} onRedo={() => um?.redo()} />
           <ZoomBar z={vp.z} onZoomTo={zoomTo} onZoom={zoomBy} onFit={zoomToFit} frames={frames.length} onPresent={() => present(0)} />
         </>

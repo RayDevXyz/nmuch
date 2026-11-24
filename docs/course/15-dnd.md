@@ -26,6 +26,11 @@ where your players join your battle maps from their own devices.
 - **Battle maps and the table:** on a campaign, **+ Battle map** opens a canvas: the map image
   (**I**), tokens (**K**) and fog of war you reveal (**E**). **Go live** gives you a link for your
   players; they see the map live on their own devices. **Alt-click** pings a spot.
+- **Building the map:** draw rooms (**B**) that merge into one floor with walls, carve (**X**),
+  paint terrain (**G**), add walls (**W**), doors (**Q**) and lights (**L**). Props are in
+  **Assets → Props** (or upload your own, animated ones too). **Map → Generate** makes a
+  dungeon, wilderness, village, town, tavern, camp or ship you can edit. **Map → Light & sight**
+  turns on darkness and the party's line of sight.
 
 ## Try it
 
@@ -35,6 +40,8 @@ where your players join your battle maps from their own devices.
 - [ ] Plan a story arc from a template on the campaign page.
 - [ ] Make a character with `/character`.
 - [ ] Make a battle map, place a token and reveal part of the fog.
+- [ ] Generate a dungeon, open a door, make it pitch black, give a character a torch and click
+  **See as players**.
 - [ ] Turn off a book you don't use, then publish the players' compendium.
 - [ ] Publish a session's notes to the table as an expedition log, and open the join link to
   read it as a player.
@@ -42,4 +49,5 @@ where your players join your battle maps from their own devices.
 ## Learn more
 
 - [Dungeons & Dragons](../guide/dnd.md)
+- [Battle maps](../guide/battlemap.md)
 - [The table](../guide/table.md)

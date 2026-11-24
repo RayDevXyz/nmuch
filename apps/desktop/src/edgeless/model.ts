@@ -29,7 +29,10 @@ interface Base {
   visible?: boolean
   /** Elements with the same group id are selected and moved together. */
   group?: string
+  /** On a battle map: the layer it's on (see `battlemap/model.ts`); absent is the type's default. */
+  layer?: MapLayer
 }
+export type MapLayer = 'terrain' | 'architecture' | 'props' | 'gm' | 'tokens'
 /** How text is set, in text boxes and on shapes. */
 export interface TextStyle {
   fontSize?: number
@@ -98,12 +101,66 @@ export interface TokenEl extends Base {
   maxHp?: number
   ac?: number
   color?: string
+  /** How far it sees (feet; absent: no limit) and its darkvision (feet). */
+  sight?: number
+  darkvision?: number
+  /** A light it carries (a torch). */
+  light?: Light
 }
 /** An area of a battle map cleared of fog: its bounds, or a polygon within them. */
 export interface RevealEl extends Base {
   type: 'reveal'
   xywh: XYWH
   points?: [number, number][]
+}
+/** A light: a point light, or a cone when `cone` is set. Radii are in feet. */
+export interface Light {
+  /** Bright light, in feet. */
+  bright: number
+  /** Dim light beyond the bright, in feet. */
+  dim: number
+  color?: string
+  flicker?: boolean
+  /** A cone: its direction (degrees, 0 = east, clockwise) and width (degrees). */
+  cone?: { dir: number; angle: number }
+  /** false: put out. */
+  on?: boolean
+}
+/**
+ * A battle map's floor or ground: a shape that adds to (or carves from) the architecture, or a
+ * patch of terrain (water, lava…). `pts` are 0–1 within `xywh` (a polygon, or a brush path's
+ * centre line drawn `width` wide), so moving and resizing need nothing more.
+ */
+export interface AreaEl extends Base {
+  type: 'area'
+  xywh: XYWH
+  shape: 'rect' | 'ellipse' | 'poly' | 'path'
+  op?: 'add' | 'carve'
+  pts?: [number, number][]
+  width?: number
+  material?: string
+}
+/** A wall, or an opening in one: a door, a secret door, a window, a half wall, bars. `pts` as in an area. */
+export interface WallEl extends Base {
+  type: 'wall'
+  xywh: XYWH
+  pts: [number, number][]
+  kind?: 'wall' | 'door' | 'secret' | 'window' | 'half' | 'bars'
+  open?: boolean
+}
+/** A prop from the library (`b:<id>`) or an upload (`u:<hash>`), maybe giving light. */
+export interface PropEl extends Base {
+  type: 'prop'
+  xywh: XYWH
+  asset: string
+  light?: Light
+  flip?: boolean
+}
+/** A light on its own (a glowing crystal, sunlight through a hole); only the DM sees its marker. */
+export interface LightEl extends Base {
+  type: 'light'
+  xywh: XYWH
+  light: Light
 }
 /** A link card (from Burrow, say); `text` is its title. */
 export interface BookmarkEl extends Base {
@@ -114,8 +171,8 @@ export interface BookmarkEl extends Base {
   image?: string
   site?: string
 }
-export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl | BookmarkEl
-export type Boxed = ShapeEl | TextEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl | BookmarkEl
+export type Element = ShapeEl | TextEl | ConnectorEl | FrameEl | ImageEl | PinEl | TokenEl | RevealEl | BookmarkEl | AreaEl | WallEl | PropEl | LightEl
+export type Boxed = Exclude<Element, ConnectorEl>
 /** An element before it has an id and a place in the stacking order. */
 export type NewElement = Element extends infer E ? (E extends Element ? Omit<E, 'id' | 'index'> & { index?: string } : never) : never
 
@@ -163,7 +220,7 @@ export function textCss(s: TextStyle, fallbackSize: number): React.CSSProperties
 }
 
 /** Elements that turn (pins, tokens, frames and fog stay upright). */
-export const canRotate = (el: Element) => el.type === 'shape' || el.type === 'text' || el.type === 'image'
+export const canRotate = (el: Element) => el.type === 'shape' || el.type === 'text' || el.type === 'image' || el.type === 'prop' || (el.type === 'area' && el.shape !== 'path')
 /** Whether an element is drawn. */
 export const shown = (el: Element) => el.visible !== false
 
@@ -174,6 +231,8 @@ function isXYWH(v: unknown): v is XYWH {
   return Array.isArray(v) && v.length === 4 && v.every((n) => typeof n === 'number' && Number.isFinite(n))
 }
 
+const BOXED = ['shape', 'text', 'frame', 'image', 'pin', 'token', 'reveal', 'bookmark', 'area', 'wall', 'prop', 'light']
+
 export function readElements(doc: Y.Doc): Element[] {
   const out: Element[] = []
   surfaceOf(doc).forEach((m, id) => {
@@ -181,7 +240,7 @@ export function readElements(doc: Y.Doc): Element[] {
     const el = { ...m.toJSON(), id } as Element
     if (el.type === 'connector') {
       if (el.source && el.target) out.push(el)
-    } else if (['shape', 'text', 'frame', 'image', 'pin', 'token', 'reveal', 'bookmark'].includes(el.type) && isXYWH((el as Boxed).xywh)) {
+    } else if (BOXED.includes(el.type) && isXYWH((el as Boxed).xywh)) {
       out.push(el)
     }
   })

@@ -1,6 +1,7 @@
 import { ResizeHandle } from './ResizeHandle'
 import { useCanvasAssets } from '../edgeless/bridge'
 import { AssetsPanel } from '../edgeless/SidePanel'
+import { ScenePanel } from '../edgeless/scene'
 import { GROUPS } from './HelpModal'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation, type SimulationLinkDatum, type SimulationNodeDatum } from 'd3-force'
@@ -207,7 +208,10 @@ export function RightPanel() {
   const width = useApp((s) => s.rightWidth)
   const rightView = useApp((s) => s.rightView)
   const canvas = useCanvasAssets()
-  const assets = !!canvas && canvas.pageId === activeId && rightView === 'assets'
+  const onCanvas = !!canvas && canvas.pageId === activeId
+  const scenePanel = onCanvas ? canvas.scenePanel : null
+  const assets = onCanvas && (rightView === 'assets' || (!scenePanel && (rightView === 'map' || rightView === 'table')))
+  const sceneTab = scenePanel && (rightView === 'map' || rightView === 'table') ? rightView : null
   const handle = <ResizeHandle edge="left" width={width} min={240} max={620} initial={290} onWidth={(w) => setState({ rightWidth: w })} label="Right panel width" />
   // While a canvas is open, this panel can show its assets instead (and switch back).
   const viewSwitch = canvas && canvas.pageId === activeId && (
@@ -215,11 +219,40 @@ export function RightPanel() {
       <button role="tab" aria-selected={assets} className={assets ? 'on' : ''} onClick={() => setState({ rightView: 'assets' })}>
         Assets
       </button>
-      <button role="tab" aria-selected={!assets} className={!assets ? 'on' : ''} onClick={() => setState({ rightView: 'graph' })}>
+      {scenePanel && (
+        <>
+          <button role="tab" aria-selected={sceneTab === 'map'} className={sceneTab === 'map' ? 'on' : ''} onClick={() => setState({ rightView: 'map' })}>
+            Map
+          </button>
+          <button role="tab" aria-selected={sceneTab === 'table'} className={sceneTab === 'table' ? 'on' : ''} onClick={() => setState({ rightView: 'table' })}>
+            Table
+          </button>
+        </>
+      )}
+      <button role="tab" aria-selected={!assets && !sceneTab} className={!assets && !sceneTab ? 'on' : ''} onClick={() => setState({ rightView: 'graph' })}>
         Graph
       </button>
     </div>
   )
+
+  if (sceneTab && scenePanel)
+    return (
+      <aside className="right-panel rp-assets" style={{ width }}>
+        {handle}
+        <div className="right-heading">
+          <span>{sceneTab === 'map' ? 'Map' : 'Table'}</span>
+          <div className="right-heading-actions">
+            {viewSwitch}
+            <IconButton label="Hide the panel" onClick={() => setState({ rightOpen: false })}>
+              <X />
+            </IconButton>
+          </div>
+        </div>
+        <div className="rp-scene-body">
+          <ScenePanel {...scenePanel} tab={sceneTab} />
+        </div>
+      </aside>
+    )
 
   if (assets && canvas)
     return (

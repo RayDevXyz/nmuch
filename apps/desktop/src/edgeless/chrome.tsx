@@ -4,6 +4,12 @@ import {
   CircleUserRound,
   CloudFog,
   Diamond,
+  BrickWall,
+  DoorOpen,
+  Eraser,
+  Lightbulb,
+  Paintbrush,
+  SquareDashed,
   Frame,
   Hand,
   Image as ImageIcon,
@@ -22,8 +28,9 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { getState, setState, useApp } from '../state/store'
+import type { MapTool } from '../battlemap/tools'
 
-export type Tool = 'select' | 'hand' | 'note' | 'rect' | 'ellipse' | 'diamond' | 'text' | 'connector' | 'frame' | 'image' | 'pin' | 'token' | 'reveal'
+export type Tool = 'select' | 'hand' | 'note' | 'rect' | 'ellipse' | 'diamond' | 'text' | 'connector' | 'frame' | 'image' | 'pin' | 'token' | 'reveal' | MapTool
 
 const MIN_Z = 0.1
 const MAX_Z = 4
@@ -97,6 +104,15 @@ const SCENE: ToolDef[] = [
   { tool: 'token', label: 'Token: a character or monster', key: 'K', icon: CircleUserRound },
   { tool: 'reveal', label: 'Reveal: drag over an area to clear its fog', key: 'E', icon: CloudFog },
 ]
+/** Building the map itself. */
+const BUILD: ToolDef[] = [
+  { tool: 'room', label: 'Room: draw floor (rooms that overlap merge)', key: 'B', icon: SquareDashed },
+  { tool: 'carve', label: 'Carve: cut floor away', key: 'X', icon: Eraser },
+  { tool: 'paint', label: 'Terrain: paint water, lava, grass…', key: 'G', icon: Paintbrush },
+  { tool: 'wall', label: 'Wall: click the corners, double-click to finish', key: 'W', icon: BrickWall },
+  { tool: 'door', label: 'Door, window or secret door: click on a wall', key: 'Q', icon: DoorOpen },
+  { tool: 'light', label: 'Light: click where it shines from', key: 'L', icon: Lightbulb },
+]
 
 /**
  * Bottom centre: the drawing tools in one floating bar, and a button that shows the canvas's
@@ -104,7 +120,7 @@ const SCENE: ToolDef[] = [
  */
 export function CanvasToolbar({ tool, onTool, scene, onUndo, onRedo }: { tool: Tool; onTool: (t: Tool) => void; scene: boolean; onUndo: () => void; onRedo: () => void }) {
   const showing = useApp((s) => s.rightOpen && s.rightView === 'assets')
-  const groups = scene ? [...GROUPS, SCENE] : GROUPS
+  const groups = scene ? [...GROUPS, BUILD, SCENE] : GROUPS
   return (
     <div className="cv-toolbar" role="toolbar" aria-label="Canvas tools" onPointerDown={(e) => e.stopPropagation()}>
       <div className="cv-toolbar-group">

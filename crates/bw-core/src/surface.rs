@@ -15,6 +15,12 @@
 //! | `token`     | `xywh`, `text` (name), `page` (character/NPC/monster page), `hidden` (DM only), `hp`, `maxHp`, `ac`, `color`, `owner` |
 //! | `reveal`    | `xywh` (its bounds), optional `points` (a polygon): an area cleared of fog |
 //! | `bookmark`  | `xywh`, `url`, `text` (title), `burrowId`, `image`, `site`: a link card (e.g. from Burrow) |
+//! | `area`      | `xywh`, `shape` (rect / ellipse / poly / path), `pts` (0–1 in the box), `width`, `op` (add / carve), `material`: a battle map's floor or terrain |
+//! | `wall`      | `xywh`, `pts` (0–1 in the box), `kind` (wall / door / secret / window / half / bars), `open`: a battle map's wall or opening |
+//! | `prop`      | `xywh`, `asset` (`b:<built-in>` or `u:<upload hash>`), `light`, `flip`: a battle map's prop |
+//! | `light`     | `xywh`, `light` (`bright`, `dim` in feet, `color`, `flicker`, `cone`): a light on a battle map |
+//!
+//! Battle map elements also carry `layer` (terrain / architecture / props / gm / tokens).
 //!
 //! Every element also has `id`, `type` and `index`, a fractional key for the stacking order
 //! (and the order frames are presented in). Any element may also carry `rotate` (degrees),
@@ -37,7 +43,7 @@ use crate::doc::to_json;
 use crate::error::{Error, Result};
 use crate::schema::keys;
 
-pub const TYPES: [&str; 9] = [
+pub const TYPES: [&str; 13] = [
     "shape",
     "text",
     "connector",
@@ -47,6 +53,10 @@ pub const TYPES: [&str; 9] = [
     "token",
     "reveal",
     "bookmark",
+    "area",
+    "wall",
+    "prop",
+    "light",
 ];
 
 /// Largest image an element may hold (as a data URL).
@@ -144,6 +154,16 @@ pub fn validate(id: &str, element: Value) -> Result<BTreeMap<String, Value>> {
             .is_some_and(|u| (u.starts_with("http://") || u.starts_with("https://")) && u.len() <= 4096)
     {
         return Err(bad(id, "a bookmark needs an http(s) url"));
+    }
+    if kind == "wall" || (kind == "area" && matches!(fields.get("shape").and_then(Value::as_str), Some("poly" | "path"))) {
+        let ok = matches!(fields.get("pts"), Some(Value::Array(p)) if p.len() >= 2 && p.len() <= 4000
+            && p.iter().all(|pt| matches!(pt, Value::Array(xy) if xy.len() == 2 && xy.iter().all(|n| n.as_f64().is_some_and(f64::is_finite)))));
+        if !ok {
+            return Err(bad(id, "pts are 2 to 4000 [x, y] pairs"));
+        }
+    }
+    if kind == "prop" && !fields.get("asset").and_then(Value::as_str).is_some_and(|a| a.starts_with("b:") || a.starts_with("u:")) {
+        return Err(bad(id, "a prop's asset is b:<built-in> or u:<upload>"));
     }
     if kind == "token" && fields.get("hidden").is_some_and(|h| !h.is_boolean()) {
         return Err(bad(id, "a token's hidden is true or false"));

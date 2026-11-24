@@ -1,3 +1,4 @@
+import { tabKey } from '../lib/storage'
 import { useEffect, useState } from 'react'
 import { refreshModules } from '../modules/api'
 import { CircleHelp, Clock3, GraduationCap, Download, FilePlus2, FileStack, HardDrive, KeyRound, Moon, Palette, Smartphone, Search, Sun, Blocks, Puzzle, RefreshCw } from 'lucide-react'
@@ -161,8 +162,8 @@ export function AppMenu({ x, y, onClose }: { x: number; y: number; onClose: () =
       <MenuList
         onDone={onClose}
         items={[
-          { label: 'New page', icon: <FilePlus2 size={14} />, hint: 'Ctrl N', onSelect: () => createPage() },
-          { label: 'New page from template…', icon: <FileStack size={14} />, hint: 'Ctrl Shift N', onSelect: () => openTemplateDialog({ parentId: null }) },
+          { label: 'New page', icon: <FilePlus2 size={14} />, hint: tabKey('N'), onSelect: () => createPage() },
+          { label: 'New page from template…', icon: <FileStack size={14} />, hint: tabKey('Shift N'), onSelect: () => openTemplateDialog({ parentId: null }) },
           { label: 'Quick find', icon: <Search size={14} />, hint: 'Ctrl K', onSelect: () => setState({ quickFind: true }) },
           { label: 'Recent pages', icon: <Clock3 size={14} />, onSelect: () => setView('recent') },
           { label: 'Learn BrainWaves', icon: <GraduationCap size={14} />, onSelect: () => void learnBrainWaves() },

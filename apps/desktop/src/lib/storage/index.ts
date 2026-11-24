@@ -68,3 +68,6 @@ export async function openExternal(url: string) {
   }
   window.open(url, '_blank', 'noopener')
 }
+
+/** How a shortcut the browser keeps for itself is pressed here: Ctrl in the desktop app, Alt in a browser. */
+export const tabKey = (rest: string) => `${isTauri ? 'Ctrl' : 'Alt'} ${rest}`

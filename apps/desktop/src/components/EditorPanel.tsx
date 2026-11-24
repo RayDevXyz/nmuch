@@ -1,3 +1,4 @@
+import { tabKey } from '../lib/storage'
 import { useRef, useState } from 'react'
 import { showsCanvas, useRoles } from '../dnd/api'
 import { Archive, ArchiveRestore, ChevronRight, Search, FileStack, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, BookmarkCheck, Palette, Plus, Shapes, Star, Table2, Trash2, X } from 'lucide-react'
@@ -138,7 +139,7 @@ export function EditorPanel() {
           {tabs.map((id) => (
             <Tab key={id} id={id} />
           ))}
-          <button className="new-tab" aria-label="New page in new tab" title="New page (Ctrl N)" onClick={() => createPage({ open: 'tab' })}>
+          <button className="new-tab" aria-label="New page in new tab" title={`New page (${tabKey('N')})`} onClick={() => createPage({ open: 'tab' })}>
             <Plus />
           </button>
         </div>

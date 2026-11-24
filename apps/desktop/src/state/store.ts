@@ -52,6 +52,8 @@ export interface AppState {
   importDialog: boolean
   /** The "Sync with a server" dialog (desktop app). */
   syncDialog: boolean
+  /** The hosted account dialog (password, API tokens). */
+  accountDialog: boolean
   /** The template form, and what to do with its result. */
   templateDialog: import('../templates/TemplateDialog').TemplateRequest | null
   widgetsDialog: boolean
@@ -107,6 +109,7 @@ let state: AppState = {
   help: false,
   importDialog: false,
   syncDialog: false,
+  accountDialog: false,
   templateDialog: null,
   widgetsDialog: false,
   modulesDialog: false,

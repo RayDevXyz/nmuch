@@ -8,6 +8,7 @@ import { RightPanel } from './components/RightPanel'
 import { QuickFind } from './components/QuickFind'
 import { HelpModal } from './components/HelpModal'
 import { SyncDialog } from './sync/SyncDialog'
+import { AccountHost } from './components/TopBar'
 import { openTemplateDialog, TemplateDialog } from './templates/TemplateDialog'
 import { CalloutStyleMenu } from './callouts/CalloutStyle'
 import { LinkDatabaseDialog } from './database/LinkDatabase'
@@ -165,6 +166,7 @@ export default function App() {
       {help && <HelpModal />}
       {importDialog && <ImportDialog />}
       <SyncDialog />
+      <AccountHost />
       <TemplateDialog />
       <ParaDialogs />
       <PublishHost />

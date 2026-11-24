@@ -181,13 +181,17 @@ export function AppMenu({ x, y, onClose }: { x: number; y: number; onClose: () =
   )
 }
 
-/** The Settings panel and, from it, the account dialog. */
+/**
+ * The Settings panel. The account dialog it opens lives with the app (the panel closes as the
+ * dialog opens, so the dialog can't belong to it).
+ */
 export function SettingsHost({ at, onClose }: { at: { x: number; y: number; anchorTop?: number }; onClose: () => void }) {
-  const [account, setAccount] = useState(false)
-  return (
-    <>
-      <SettingsPanel x={at.x} y={at.y} anchorTop={at.anchorTop} onClose={onClose} onAccount={() => setAccount(true)} />
-      {account && hostedUser() && <AccountDialog user={hostedUser()!} onClose={() => setAccount(false)} />}
-    </>
-  )
+  return <SettingsPanel x={at.x} y={at.y} anchorTop={at.anchorTop} onClose={onClose} onAccount={() => setState({ accountDialog: true })} />
+}
+
+/** The hosted account dialog, when it's open. */
+export function AccountHost() {
+  const open = useApp((s) => s.accountDialog)
+  const user = hostedUser()
+  return open && user ? <AccountDialog user={user} onClose={() => setState({ accountDialog: false })} /> : null
 }

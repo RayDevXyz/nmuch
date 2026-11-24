@@ -418,3 +418,13 @@ fn a_campaign_keeps_its_table_room_and_character_rules() {
     let scene = core.dnd_create_scene(&c.id, "Map").unwrap();
     assert!(core.dnd_campaign_table(&scene).is_err(), "only campaigns have a table");
 }
+
+#[test]
+fn dnd_sources_setting() {
+    let mut core = bw_core::Core::open_in_memory().unwrap();
+    assert_eq!(core.dnd_sources().unwrap(), None);
+    core.dnd_set_sources(Some(vec!["PHB".into(), " XGE ".into(), "".into()])).unwrap();
+    assert_eq!(core.dnd_sources().unwrap(), Some(vec!["PHB".to_string(), "XGE".to_string()]));
+    core.dnd_set_sources(None).unwrap();
+    assert_eq!(core.dnd_sources().unwrap(), None);
+}

@@ -1,4 +1,4 @@
-# The table: battle maps your players join
+# The table: your players' hub, with battle maps they join
 
 BrainWaves is where you, the DM, prepare and run a fight: the dungeon picture, the grid, who
 stands where, what's still hidden in the fog. **The table** is a small server you run on your
@@ -18,8 +18,14 @@ What players can do at the table:
   You accept it (the token moves, snapped to the grid) or decline it.
 - **Roll dice**: d4 to d100, or anything like `2d6+3`, `d20 adv`, `4d6kh3`. Everyone sees
   the rolls.
-- **Build characters** for the campaign, which you approve or send back, and see their
+- **Build characters** for the campaign, which you approve or send back, and read their own
   sheets.
+- **Read the journal** you publish: expedition logs, the story so far, handouts.
+- **Look things up** in the compendium you publish: spells, items, races, classes,
+  backgrounds, feats and conditions from your 5etools.
+
+The table site is the players' **hub**: four tabs, **Table** (the battle map), **Journal**,
+**Compendium** and **Characters**. See [The players' hub](#the-players-hub) below.
 - See their character's hit points, the initiative order, and who else is at the table.
 
 They can't see hidden tokens, creatures standing in the fog, monsters' hit points (only
@@ -162,7 +168,7 @@ many skills, and so on).
 **Seeing their character.** Players click their character to see the sheet: scores, saves and
 skills with their bonuses, hit points, AC, spells, equipment and backstory. The sheet stays in
 BrainWaves, and players see your changes (damage, a level up) within a few seconds. They can
-also open the other party members' sheets. When you put their character's token on the map
+only see their own characters; the sheet is read-only. When you put their character's token on the map
 you're showing, their page picks that token for them.
 
 ![A player's character sheet on the table site](../images/table-character-sheet.png)
@@ -170,6 +176,41 @@ you're showing, their page picks that token for them.
 Players are known by their browser: the table site keeps a random id there, so their
 characters are waiting when they come back. A player who switches to another browser or device
 starts afresh there (you can still give them a character from BrainWaves).
+
+## The players' hub
+
+Everything here is published from BrainWaves, so players can read it any time, even when your
+BrainWaves and your 5etools aren't running.
+
+**The compendium.** On the campaign's page, in the **Players' table** panel, under **Players'
+compendium**:
+
+1. Choose which kinds of entries players get: spells, items, races, classes, backgrounds, feats,
+   conditions. Monsters are never sent, so stat blocks aren't spoiled.
+2. It uses the books turned on in the compendium's settings (Ctrl Shift D → ⚙ → **Books to
+   use**), so turn off the ones you don't play with first.
+3. **Publish compendium.** **Publish again** after changing books; 🗑 takes it off the table site.
+
+Players search it, filter by kind, read each entry as a card and follow its links. 5e cards in a
+journal page, and spells and equipment on a character sheet, open there too.
+
+**The journal.** Open any page (a session's notes, the story so far, a letter the party found)
+and choose **⋯ → Publish to table**. Pick the campaign (the page's own campaign is chosen for
+you) and what it is:
+
+| Kind | Shown under |
+|---|---|
+| Expedition log | Expedition logs, newest first |
+| Story so far | The story so far, at the top |
+| Page | Handouts & pages |
+
+The page goes as it is at that moment: publish it again after you edit it (**Update on the
+table**), or **Unpublish** it. Links to other pages show as their titles, 5e cards open in the
+players' compendium, and databases, buttons and other BrainWaves-only blocks are left out.
+Players see new pages arrive while they're on the site, with a dot on the Journal tab.
+
+**Characters.** Each player sees only their own characters (built and approved as above), as a
+read-only sheet. You keep the sheet in BrainWaves; changes show up within a few seconds.
 
 ## 5. Reaching the table from outside your home
 

@@ -9,6 +9,7 @@ import { openPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
 import { createScene, listScenes, liveFor } from './live'
 import { LiveSection, RulesSection, SubmissionsSection } from './TablePanel'
+import { HubSection } from './HubSection'
 import { addBeats, dndCampaign, dndWorkspace, TEMPLATES, type Campaign, type Workspace } from './api'
 import { openCharacterWizard } from './CharacterWizard'
 import { openCompendium } from './Compendium'
@@ -305,10 +306,11 @@ function PlayersTable({ campaignId, title }: { campaignId: string; title: string
   const live = liveFor(campaignId)
   return (
     <Panel title="Players' table" icon={<Radio size={14} />}>
-      <p className="cp-empty">Players join with one link for the whole campaign. They build characters there for you to approve, and see the battle map you show.</p>
+      <p className="cp-empty">Players join with one link for the whole campaign: their hub. They build characters there for you to approve, read their sheets, the journal you publish and the compendium, and see the battle map you show.</p>
       <div className="cp-table">
         <LiveSection live={live} title={title} />
         <SubmissionsSection live={live} campaignId={campaignId} />
+        <HubSection campaignId={campaignId} />
         <RulesSection live={live} campaignId={campaignId} />
       </div>
     </Panel>

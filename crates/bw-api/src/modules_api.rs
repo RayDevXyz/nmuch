@@ -213,6 +213,16 @@ pub(crate) fn dispatch(
 
         // ---- the D&D module (5e content itself is fetched by `fivee.rs`)
         "dndSource" => ok(core.dnd_source().map_err(e)?),
+        "dndSources" => ok(core.dnd_sources().map_err(e)?),
+        "dndSetSources" => {
+            #[derive(Deserialize)]
+            struct A {
+                #[serde(default)]
+                sources: Option<Vec<String>>,
+            }
+            let A { sources } = args(a)?;
+            ok(core.dnd_set_sources(sources).map_err(e)?)
+        }
         "dndSetSource" => {
             let d: DndArgs = args(a)?;
             ok(core.dnd_set_source(&d.url).map_err(e)?)

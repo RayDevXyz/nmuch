@@ -21,14 +21,62 @@
 </section>
 
 <!-- The table -->
-<section id="table" class="screen" hidden>
+<section id="table" class="screen view-table" hidden>
   <canvas id="map"></canvas>
   <header class="bar">
     <span class="room" id="room-name">Table</span>
-    <span id="dm-status" class="dm off">DM away</span>
+    <nav class="hub-tabs" aria-label="Hub">
+      <button data-tab="table" class="on"><span>⚔</span>Table</button>
+      <button data-tab="journal"><span>📜</span>Journal<i id="tab-journal-dot" class="dot" hidden></i></button>
+      <button data-tab="compendium"><span>📖</span>Compendium</button>
+      <button data-tab="characters"><span>🛡</span>Characters</button>
+    </nav>
     <span class="grow"></span>
+    <span id="dm-status" class="dm off">DM away</span>
     <span id="players" class="players"></span>
   </header>
+
+  <!-- The journal: what the DM published -->
+  <section id="view-journal" class="hub-view" hidden>
+    <div class="hub-split">
+      <aside class="hub-list" id="journal-list"></aside>
+      <div class="hub-read" id="journal-read">
+        <button class="small hub-back" id="journal-back">← Journal</button>
+        <div id="journal-page"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- The compendium: the player-facing part of the DM's 5etools -->
+  <section id="view-compendium" class="hub-view" hidden>
+    <div id="comp-empty" class="hub-empty">📖<p>Your DM hasn't published the compendium yet. They do that from BrainWaves: the campaign's Players' table panel.</p></div>
+    <div id="comp-main" class="hub-split" hidden>
+      <aside class="hub-list">
+        <input id="comp-q" class="hub-search" placeholder="Search spells, items, classes…" autocomplete="off" />
+        <div id="comp-chips" class="chips"></div>
+        <ul id="comp-results" class="comp-results"></ul>
+        <p id="comp-sources" class="muted small"></p>
+      </aside>
+      <div class="hub-read">
+        <button class="small hub-back" id="comp-close">← Results</button>
+        <div id="comp-entry"><div class="jp-empty">📖<p>Search, then choose an entry to read it.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Your characters -->
+  <section id="view-characters" class="hub-view" hidden>
+    <div class="hub-split">
+      <aside class="hub-list">
+        <h3>Your characters</h3>
+        <div id="chars"></div>
+      </aside>
+      <div class="hub-read">
+        <button class="small hub-back" id="sheet-back">← Characters</button>
+        <div id="char-sheet"><div class="jp-empty">🛡<p>Your characters' sheets show here once your DM approves them.</p></div></div>
+      </div>
+    </div>
+  </section>
   <nav class="tools" aria-label="Tools">
     <button data-tool="pan" class="active" title="Move around (drag), zoom (wheel / pinch)">✥<span>Look</span></button>
     <button data-tool="ping" title="Click a spot to ping it for everyone">◎<span>Ping</span></button>
@@ -36,10 +84,6 @@
     <button data-tool="move" title="Drag your character to where they should go; the DM accepts or declines">➜<span>Move</span></button>
   </nav>
   <aside class="side">
-    <section class="panel" id="chars-panel">
-      <h2>Characters</h2>
-      <div id="chars"></div>
-    </section>
     <section class="panel">
       <h2>On the map</h2>
       <div id="claim"></div>
@@ -71,5 +115,6 @@
 </div>
 <script src="/assets/table.js"></script>
 <script src="/assets/characters.js"></script>
+<script src="/assets/hub.js"></script>
 </body>
 </html>

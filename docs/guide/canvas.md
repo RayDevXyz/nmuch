@@ -11,7 +11,7 @@ Every page can also be a canvas: a large board where its text sits in notes you 
 | To | Do |
 |---|---|
 | Pan | Wheel or trackpad, the hand tool (H), or hold Space and drag |
-| Zoom | Ctrl + wheel or pinch, the − / + buttons in the zoom bar (bottom left), Ctrl 1 to fit |
+| Zoom | Ctrl + wheel or pinch, the − / + buttons in the zoom bar (top right), Ctrl 1 to fit |
 | Add a note | N, then click or drag. It shows in the document too. |
 | Add text | T, or double-click on empty space |
 | Add a shape | R (rectangle), O (ellipse) or D (diamond), then click or drag |
@@ -25,7 +25,7 @@ Every page can also be a canvas: a large board where its text sits in notes you 
 | Style | The context bar at the top: colors, border, font, size, transparency, position |
 | Keep a note out of the document | Select it, then click **In document** to switch it to **Canvas only** |
 | Duplicate, delete, nudge | Ctrl D, Del, arrow keys (Shift for 10px) |
-| Undo / redo | Ctrl Z / Ctrl Shift Z (note text keeps its own undo) |
+| Undo / redo | Ctrl Z / Ctrl Shift Z, or the first two buttons of the tool bar (note text keeps its own undo) |
 | Present | ▶ in the zoom bar (shown once a frame exists). ← → move between frames, Esc exits. |
 
 ![Presenting a frame](../images/phase5-present.png)
@@ -34,10 +34,11 @@ Every page can also be a canvas: a large board where its text sits in notes you 
 
 The canvas is laid out like a design editor (LidoJS, Canva).
 
-**The tool bar** floats at the bottom of the canvas: Select and Pan; Note, Text, Rectangle,
+**The tool bar** floats at the bottom of the canvas: Undo and Redo; Select and Pan; Note, Text, Rectangle,
 Ellipse, Diamond, Connector and Frame; Picture and Pin (and Token and Reveal on battle maps). The
-last button, **Assets**, shows or hides the canvas's assets in the right panel. The zoom bar (undo,
-redo, zoom, fit, present) sits at the bottom left.
+last button, **Assets**, shows or hides the canvas's assets in the right panel. The zoom bar (zoom,
+fit, present) sits in the top right corner; on battle maps, in the top left, beside the table
+panel.
 
 **The assets** are in the right panel while a canvas is open. Its **Assets | Graph** switch goes
 back to the usual graph and backlinks, and back again; the panel remembers which you chose.

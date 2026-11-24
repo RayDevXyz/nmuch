@@ -1787,8 +1787,22 @@ body.resizing, body.resizing * { cursor: col-resize !important; user-select: non
   .workspace .right-panel.rp-assets { display: flex !important; position: fixed; top: 0; right: 0; bottom: 0; z-index: 60; width: min(340px, 92vw) !important; box-shadow: -12px 0 30px rgba(0, 0, 0, 0.35); }
   .rp-assets .resize-handle { display: none; }
 }
-/* Zoom at the bottom left, the tools in the middle; they make room for each other. */
+/* Zoom in the top right corner (top left on battle maps, where the table panel is); the context
+   bar in the top middle keeps clear of it. */
 .cv-root { container-type: inline-size; container-name: canvas; }
-.cv-root .cv-zoom { left: 16px; right: auto; bottom: 18px; }
-@container canvas (max-width: 1180px) { .cv-zoom-slider { display: none; } }
-@container canvas (max-width: 1010px) { .cv-toolbar { bottom: 66px; } }
+.cv-root .cv-zoom { top: 12px; right: 12px; left: auto; bottom: auto; border-radius: 12px; }
+.cv-root.scene .cv-zoom { left: 12px; right: auto; }
+.cv-root .cv-context { max-width: calc(100% - 640px) !important; }
+@container canvas (max-width: 1180px) {
+  .cv-zoom-slider { display: none; }
+  .cv-root .cv-context { max-width: calc(100% - 400px) !important; }
+}
+@container canvas (max-width: 860px) {
+  /* Not enough room to centre it: the selection bar starts at the left, clear of the zoom. */
+  .cv-root .cv-context { left: 12px !important; transform: none; max-width: calc(100% - 200px) !important; }
+  .cv-root.scene .cv-context { left: auto !important; right: 12px; }
+}
+/* The tool bar never spills out of the canvas: it scrolls sideways when the canvas is narrow. */
+.cv-root .cv-toolbar { max-width: calc(100% - 24px); overflow-x: auto; scrollbar-width: none; }
+.cv-root .cv-toolbar::-webkit-scrollbar { display: none; }
+.cv-toolbar-group { flex: none; }

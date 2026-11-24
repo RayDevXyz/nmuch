@@ -924,7 +924,7 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
   return (
     <div
       ref={root}
-      className={`cv-root tool-${tool} ${presenting !== null ? 'presenting' : ''} ${crowded && vp.z < 1.6 ? 'labels-few' : ''}`}
+      className={`cv-root tool-${tool} ${scene ? 'scene' : ''} ${presenting !== null ? 'presenting' : ''} ${crowded && vp.z < 1.6 ? 'labels-few' : ''}`}
       tabIndex={0}
       style={{ backgroundSize: `${grid}px ${grid}px`, backgroundPosition: `${-vp.x * vp.z}px ${-vp.y * vp.z}px` }}
       onPointerDown={onPointerDown}
@@ -1194,8 +1194,8 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       )}
       {presenting === null ? (
         <>
-          <CanvasToolbar tool={tool} onTool={setTool} scene={scene} />
-          <ZoomBar z={vp.z} onZoomTo={zoomTo} onZoom={zoomBy} onFit={zoomToFit} onUndo={() => um?.undo()} onRedo={() => um?.redo()} frames={frames.length} onPresent={() => present(0)} />
+          <CanvasToolbar tool={tool} onTool={setTool} scene={scene} onUndo={() => um?.undo()} onRedo={() => um?.redo()} />
+          <ZoomBar z={vp.z} onZoomTo={zoomTo} onZoom={zoomBy} onFit={zoomToFit} frames={frames.length} onPresent={() => present(0)} />
         </>
       ) : (
         <div className="cv-present-bar">

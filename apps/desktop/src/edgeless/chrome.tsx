@@ -31,14 +31,12 @@ const MAX_Z = 4
 const toSlider = (z: number) => Math.round((Math.log(z / MIN_Z) / Math.log(MAX_Z / MIN_Z)) * 100)
 const fromSlider = (v: number) => MIN_Z * Math.pow(MAX_Z / MIN_Z, v / 100)
 
-/** Bottom right: undo and redo, the zoom slider, fit, and presenting frames. */
+/** Top right: zoom out and in, the zoom slider, fit, and presenting frames. */
 export function ZoomBar({
   z,
   onZoomTo,
   onZoom,
   onFit,
-  onUndo,
-  onRedo,
   frames,
   onPresent,
 }: {
@@ -46,20 +44,11 @@ export function ZoomBar({
   onZoomTo: (z: number) => void
   onZoom: (f: number) => void
   onFit: () => void
-  onUndo: () => void
-  onRedo: () => void
   frames: number
   onPresent: () => void
 }) {
   return (
     <div className="cv-zoom" onPointerDown={(e) => e.stopPropagation()}>
-      <button aria-label="Undo" title="Undo (Ctrl Z)" onClick={onUndo}>
-        <Undo2 size={14} />
-      </button>
-      <button aria-label="Redo" title="Redo (Ctrl Shift Z)" onClick={onRedo}>
-        <Redo2 size={14} />
-      </button>
-      <span className="cv-sep" />
       <button aria-label="Zoom out" title="Zoom out (Ctrl -)" onClick={() => onZoom(0.8)}>
         <Minus size={14} />
       </button>
@@ -113,11 +102,19 @@ const SCENE: ToolDef[] = [
  * Bottom centre: the drawing tools in one floating bar, and a button that shows the canvas's
  * assets (shapes, text, pictures, layers) in the right panel.
  */
-export function CanvasToolbar({ tool, onTool, scene }: { tool: Tool; onTool: (t: Tool) => void; scene: boolean }) {
+export function CanvasToolbar({ tool, onTool, scene, onUndo, onRedo }: { tool: Tool; onTool: (t: Tool) => void; scene: boolean; onUndo: () => void; onRedo: () => void }) {
   const showing = useApp((s) => s.rightOpen && s.rightView === 'assets')
   const groups = scene ? [...GROUPS, SCENE] : GROUPS
   return (
     <div className="cv-toolbar" role="toolbar" aria-label="Canvas tools" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="cv-toolbar-group">
+        <button className="cv-tb" title="Undo (Ctrl Z)" aria-label="Undo" onClick={onUndo}>
+          <Undo2 size={17} />
+        </button>
+        <button className="cv-tb" title="Redo (Ctrl Shift Z)" aria-label="Redo" onClick={onRedo}>
+          <Redo2 size={17} />
+        </button>
+      </div>
       {groups.map((g, i) => (
         <div key={i} className="cv-toolbar-group">
           {g.map((t) => (

@@ -3,6 +3,12 @@ import type * as Y from 'yjs'
 import { coreClient } from '../lib/storage'
 import { getState } from '../state/store'
 import { COLORS, readElements, type Element } from '../edgeless/model'
+import { computeMap, type MapState } from '../battlemap/compute'
+import { pointIn, tidy } from '../battlemap/geom'
+import { readExplored } from '../battlemap/lighting'
+import { layerOf } from '../battlemap/model'
+import { lookOf, renderArchitecture, renderTerrain, svgDocument } from '../battlemap/render'
+import { propSrc, readAssets } from '../battlemap/assets'
 
 /**
  * A scene, live at the table (`crates/bw-table`). The DM's BrainWaves computes what players may
@@ -24,8 +30,13 @@ import { COLORS, readElements, type Element } from '../edgeless/model'
  */
 
 export interface SceneSettings {
-  grid: { size: number; offsetX: number; offsetY: number; show: boolean; color: string; opacity: number; feet: number }
+  /** `type`: squares (the default), hexes, or no grid at all (tokens move freely). */
+  grid: { size: number; offsetX: number; offsetY: number; show: boolean; color: string; opacity: number; feet: number; type?: 'square' | 'hex' | 'none' }
   fog: boolean
+  /** The drawn map: theme and layers (see `battlemap/model.ts`). */
+  map?: Partial<import('../battlemap/model').MapSettings>
+  /** Ambient light and the players' line of sight. */
+  lighting?: Partial<import('../battlemap/model').LightingSettings>
   room: string | null
   initiative?: Initiative
 }
@@ -163,16 +174,131 @@ const inside = (x: number, y: number, el: Element & { type: 'reveal' }): boolean
   return x >= rx && x <= rx + rw && y >= ry && y <= ry + rh
 }
 
+/** One thing players draw, in order: a picture (the map's layers, props), or the ground's colour. */
+export interface Drawn {
+  kind: 'img' | 'rect'
+  hash?: string
+  /** A moving picture (GIF, APNG…) or a video: drawn every frame. */
+  anim?: 'img' | 'video'
+  x: number
+  y: number
+  w: number
+  h: number
+  rotate?: number
+  flip?: boolean
+  opacity?: number
+  filter?: string
+  color?: string
+}
+
+/** The map's drawn layers as players get them, and the pictures they need (by hash). */
+export async function mapForPlayers(elements: Element[], settings: SceneSettings, state: MapState, doc: Y.Doc | null): Promise<{ layers: Drawn[]; files: Map<string, string> }> {
+  const files = new Map<string, string>()
+  const layers: Drawn[] = []
+  const assets = doc ? readAssets(doc) : {}
+  const look = lookOf(state.map.theme, settings.grid.size)
+  const b = state.bounds
+  const add = async (src: string): Promise<string> => {
+    let hit = hashes.get(src)
+    if (!hit) {
+      const data = toBase64(src)
+      hit = { hash: await sha256(data), data }
+      if (hashes.size > 400) hashes.clear()
+      hashes.set(src, hit)
+    }
+    files.set(hit.hash, hit.data)
+    return hit.hash
+  }
+  /** The drawn layers' pictures, made again only when the drawing (or its look) changes. */
+  const drawnSvg = (which: 'terrain' | 'arch'): string => {
+    let per = svgs.get(state.built)
+    if (!per) svgs.set(state.built, (per = new Map()))
+    const key = `${which}|${state.map.theme}|${settings.grid.size}|${b.x},${b.y},${b.w},${b.h}`
+    let url = per.get(key)
+    if (url === undefined) {
+      const r = which === 'terrain' ? renderTerrain(state.built, opts) : renderArchitecture(state.built, opts)
+      url = r.body ? svgUrl(svgDocument(r.defs, r.body, b, svgScale(b))) : ''
+      per.set(key, url)
+    }
+    return url
+  }
+  const items = async (layer: string, kinds: string[]) => {
+    for (const e of elements) {
+      if (e.visible === false || layerOf(e) !== layer || !kinds.includes(e.type)) continue
+      if (e.type === 'image') layers.push({ kind: 'img', hash: await add(e.src), x: e.xywh[0], y: e.xywh[1], w: e.xywh[2], h: e.xywh[3], rotate: e.rotate, opacity: e.opacity })
+      else if (e.type === 'prop') {
+        const src = propSrc(e.asset, assets)
+        if (!src) continue
+        layers.push({
+          kind: 'img',
+          hash: await add(src.src),
+          ...(src.video ? { anim: 'video' as const } : src.animated ? { anim: 'img' as const } : {}),
+          x: e.xywh[0],
+          y: e.xywh[1],
+          w: e.xywh[2],
+          h: e.xywh[3],
+          rotate: e.rotate,
+          flip: e.flip,
+          opacity: e.opacity,
+          filter: look.propFilter || undefined,
+        })
+      }
+    }
+  }
+  const opts = { theme: state.map.theme, grid: settings.grid.size, idp: 'p', dm: false }
+  for (const layer of state.map.layers.order) {
+    if (state.hidden.has(layer) || layer === 'gm' || layer === 'tokens') continue
+    if (layer === 'terrain') {
+      if (state.drawn) layers.push({ kind: 'rect', color: look.ground, x: b.x, y: b.y, w: b.w, h: b.h })
+      await items('terrain', ['image'])
+      const t = drawnSvg('terrain')
+      if (t) layers.push({ kind: 'img', hash: await add(t), x: b.x, y: b.y, w: b.w, h: b.h })
+      await items('terrain', ['prop'])
+    } else if (layer === 'architecture') {
+      const a = drawnSvg('arch')
+      if (a) layers.push({ kind: 'img', hash: await add(a), x: b.x, y: b.y, w: b.w, h: b.h })
+      await items('architecture', ['image', 'prop'])
+    } else await items(layer, ['image', 'prop'])
+  }
+  return { layers, files }
+}
+
+const hashes = new Map<string, { hash: string; data: string }>()
+const svgs = new WeakMap<object, Map<string, string>>()
+
+/** Big enough to stay sharp when players zoom in, small enough for a browser to draw. */
+const svgScale = (b: { w: number; h: number }) => Math.max(0.5, Math.min(2, 8192 / Math.max(b.w, b.h)))
+const svgUrl = (svg: string) => `data:image/svg+xml;base64,${utf8Base64(svg)}`
+function utf8Base64(text: string): string {
+  const bytes = new TextEncoder().encode(text)
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return btoa(bin)
+}
+/** The table keeps pictures as base64 data URLs. */
+function toBase64(src: string): string {
+  if (src.includes(';base64,')) return src
+  const m = /^data:([^;,]+)(?:;[^,]*)?,(.*)$/s.exec(src)
+  return m ? `data:${m[1]};base64,${utf8Base64(decodeURIComponent(m[2]))}` : src
+}
+
 /** The player-safe view of a scene. Exported for tests: what must never leave is decided here. */
-export function project(elements: Element[], settings: SceneSettings, title: string, imageHash: string | null) {
+export function project(elements: Element[], settings: SceneSettings, title: string, imageHash: string | null, state?: MapState | null, explored?: import('../battlemap/geom').Multi) {
   const reveals = elements.filter((e): e is Element & { type: 'reveal' } => e.type === 'reveal')
   const image = elements.filter((e) => e.type === 'image').sort((a, b) => area(b) - area(a))[0] as (Element & { type: 'image' }) | undefined
+  const sight = state?.vision ?? null
   const visible = (e: Element & { type: 'token' }) => {
     if (e.hidden) return false
-    // The party always sees itself; other creatures only where the fog is cleared.
-    if (!settings.fog || e.player) return true
+    if (state && state.hidden.has('tokens')) return false
+    // The party always sees itself; other creatures only where the fog is cleared, or (with
+    // line of sight) where a character sees them.
+    if (e.player) return true
+    if (!settings.fog && !sight) return true
     const [x, y, w, h] = e.xywh
-    return reveals.some((r) => inside(x + w / 2, y + h / 2, r))
+    const c: [number, number] = [x + w / 2, y + h / 2]
+    if (settings.fog && reveals.some((r) => inside(c[0], c[1], r))) return true
+    if (sight) return pointIn(c, sight.visible)
+    return !settings.fog
   }
   const tokens = elements
     .filter((e): e is Element & { type: 'token' } => e.type === 'token')
@@ -197,6 +323,15 @@ export function project(elements: Element[], settings: SceneSettings, title: str
     reveals: settings.fog ? reveals.map((r) => ({ x: r.xywh[0], y: r.xywh[1], w: r.xywh[2], h: r.xywh[3], points: r.points ?? null })) : [],
     tokens,
     initiative: ini && ini.entries.length ? { round: ini.round, turn: visibleTurn(ini, shown), entries: ini.entries.filter((e) => !e.token || shown.has(e.token)).map((e) => ({ name: e.name, init: e.init })) } : null,
+    ...(state
+      ? {
+          bounds: state.bounds,
+          ambient: state.lighting.ambient,
+          // Lights whose owner players can't see (a hidden monster's torch) give nothing away.
+          lights: state.lit.filter((l) => !l.secret).map((l) => ({ x: Math.round(l.x), y: Math.round(l.y), bright: Math.round(l.bright), dim: Math.round(l.dim), color: l.color, flicker: l.flicker, area: tidy(l.area, 1) })),
+          vision: sight ? { visible: tidy(sight.visible, 1), explored: state.lighting.explored ? (explored ?? []) : [] } : null,
+        }
+      : {}),
   }
 }
 
@@ -360,10 +495,13 @@ export class Live {
   /** Push again when the shown map changes (debounced). */
   private watch() {
     if (!this.shown) return
-    const surface = this.shown.doc.getMap('surface')
+    const doc = this.shown.doc
+    const surface = doc.getMap('surface')
+    const extra = [doc.getMap('mapState'), doc.getMap('mapAssets')]
     const changed = () => this.schedule()
     surface.observeDeep(changed)
-    this.stop = () => surface.unobserveDeep(changed)
+    extra.forEach((m) => m.observe(changed))
+    this.stop = () => (surface.unobserveDeep(changed), extra.forEach((m) => m.unobserve(changed)))
   }
   private unwatch() {
     this.stop?.()
@@ -383,6 +521,7 @@ export class Live {
     const shown = this.shown
     if (!shown) return this.send({ t: 'scene', scene: {} })
     const elements = readElements(shown.doc)
+    const settings = shown.getSettings()
     const image = elements.filter((e) => e.type === 'image').sort((a, b) => area(b) - area(a))[0] as (Element & { type: 'image' }) | undefined
     let hash: string | null = null
     if (image) {
@@ -392,7 +531,16 @@ export class Live {
         this.sent.add(hash)
       }
     }
-    this.send({ t: 'scene', scene: project(elements, shown.getSettings(), shown.getTitle(), hash) })
+    // The drawn map: its layers as pictures (each sent once), light and sight.
+    const state = computeMap(elements, settings)
+    const { layers, files } = await mapForPlayers(elements, settings, state, shown.doc)
+    for (const [h, data] of files) {
+      if (this.sent.has(h)) continue
+      this.send({ t: 'image', hash: h, data })
+      this.sent.add(h)
+    }
+    const scene = project(elements, settings, shown.getTitle(), hash, state, readExplored(shown.doc))
+    this.send({ t: 'scene', scene: { ...scene, layers } })
   }
 
   /** Send the campaign's character rules, with the options they allow. */

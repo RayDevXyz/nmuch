@@ -62,7 +62,8 @@ const MAX_IMAGE: usize = 24 << 20;
 const MAX_PLAYER_MSG: usize = 64 << 10;
 const DRAWING_SECONDS: u64 = 8;
 const KEEP_ROLLS: usize = 60;
-const KEEP_IMAGES: usize = 6;
+/// Pictures kept per room: a drawn map sends its layers and every prop's picture.
+const KEEP_IMAGES: usize = 400;
 const MAX_RULES: usize = 1 << 20;
 const MAX_PARTY: usize = 2 << 20;
 const MAX_CHARACTER: usize = 32 << 10;
@@ -760,7 +761,9 @@ fn handle(s: &AppState, code: &str, id: u64, v: Value) {
             let Some((meta, b64)) = data.strip_prefix("data:").and_then(|d| d.split_once(";base64,")) else {
                 return reply(room, json!({ "t": "error", "message": "the picture must be a base64 data URL" }));
             };
-            if !meta.starts_with("image/") || b64.len() > MAX_IMAGE * 4 / 3 + 4 {
+            // Pictures, and (for moving props: a flowing river, a torch) short videos.
+            let kind_ok = meta.starts_with("image/") || meta == "video/webm" || meta == "video/mp4";
+            if !kind_ok || b64.len() > MAX_IMAGE * 4 / 3 + 4 {
                 return reply(room, json!({ "t": "error", "message": "not an image, or too large" }));
             }
             let Ok(bytes) = B64.decode(b64) else { return };

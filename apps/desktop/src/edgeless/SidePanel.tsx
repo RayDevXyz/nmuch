@@ -1,4 +1,6 @@
+import { PropsLibrary } from '../battlemap/PropsLibrary'
 import {
+  Armchair,
   ArrowUpRight,
   Bookmark,
   CircleUserRound,
@@ -33,7 +35,7 @@ import { colorOf, fillOf, FONTS, placeAbove, updateElements, type CanvasNote, ty
  * and the layers.
  */
 
-export type PanelTab = 'elements' | 'text' | 'uploads' | 'layers'
+export type PanelTab = 'elements' | 'text' | 'uploads' | 'layers' | 'props'
 
 /** Something the panel adds: an element (its size; placed where it's dropped), or a note. */
 export interface Preset {
@@ -95,8 +97,11 @@ interface Props {
   selected: string[]
   onSelect: (ids: string[]) => void
   onFocus: (id: string) => void
+  onAddProp?: (asset: string) => void
+  campaign?: string | null
 }
 
+const PROPS_TAB = { id: 'props' as PanelTab, label: 'Props', icon: Armchair }
 const TABS: { id: PanelTab; label: string; icon: LucideIcon }[] = [
   { id: 'elements', label: 'Elements', icon: Shapes },
   { id: 'text', label: 'Text', icon: Type },
@@ -145,7 +150,7 @@ export function AssetsPanel(p: Props) {
   return (
     <div className="cv-assets" onKeyDown={(e) => e.stopPropagation()}>
       <nav className="cv-assets-tabs" role="tablist" aria-label="Canvas assets">
-        {TABS.map((t) => (
+        {(p.scene ? [PROPS_TAB, ...TABS] : TABS).map((t) => (
           <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => pick(t.id)} title={t.label}>
             <t.icon size={15} />
             <span>{t.label}</span>
@@ -153,7 +158,8 @@ export function AssetsPanel(p: Props) {
         ))}
       </nav>
       <div className="cv-drawer-body cv-assets-body">
-        {tab === 'elements' && <ElementsTab {...p} />}
+        {tab === 'props' && p.scene && p.onAddProp && <PropsLibrary doc={p.doc} campaign={p.campaign ?? null} onAdd={p.onAddProp} />}
+        {(tab === 'elements' || (tab === 'props' && !p.scene)) && <ElementsTab {...p} />}
         {tab === 'text' && <TextTab {...p} />}
         {tab === 'uploads' && <UploadsTab {...p} />}
         {tab === 'layers' && <LayersTab {...p} />}
@@ -322,6 +328,10 @@ const TYPE_LABEL: Record<Element['type'], string> = {
   token: 'Token',
   reveal: 'Revealed area',
   bookmark: 'Bookmark',
+  area: 'Room / terrain',
+  wall: 'Wall / door',
+  prop: 'Prop',
+  light: 'Light',
 }
 
 function LayersTab(p: Props) {

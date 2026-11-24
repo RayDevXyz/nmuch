@@ -129,16 +129,41 @@
     $('dm-status').textContent = on ? 'DM at the table' : 'DM away'
   }
 
+  const roomCode = () => (location.pathname.match(/\/join\/([A-Za-z0-9]+)/) || [])[1]
+  // Moving pictures only animate while they're in the page: they're kept in a hidden corner.
+  const stash = document.createElement('div')
+  stash.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0.01;pointer-events:none'
+  document.body.appendChild(stash)
+  /** A picture (or video) the DM sent, loaded once by its hash. */
+  function load(hash, anim) {
+    if (!hash || images.has(hash)) return
+    const url = `/api/rooms/${roomCode()}/image/${hash}`
+    if (anim === 'video') {
+      const v = document.createElement('video')
+      v.muted = true
+      v.loop = true
+      v.autoplay = true
+      v.playsInline = true
+      v.src = url
+      stash.appendChild(v)
+      v.play().catch(() => {})
+      images.set(hash, v)
+      return
+    }
+    const el = new Image()
+    el.onload = () => (fitted ? null : fit())
+    el.src = url
+    if (anim) stash.appendChild(el)
+    images.set(hash, el)
+  }
+  const ready = (el) => el && ((el.tagName === 'VIDEO' && el.readyState >= 2) || (el.complete && el.naturalWidth))
+
   function setScene(s) {
     scene = s || {}
     const img = scene.image
-    if (img && img.hash && !images.has(img.hash)) {
-      const el = new Image()
-      el.onload = () => (fitted ? null : fit())
-      el.src = `/api/rooms/${(location.pathname.match(/\/join\/([A-Za-z0-9]+)/) || [])[1]}/image/${img.hash}`
-      images.set(img.hash, el)
-    }
-    if (!fitted && (img || (scene.tokens || []).length)) fit()
+    if (scene.layers) for (const l of scene.layers) load(l.hash, l.anim)
+    else if (img && img.hash) load(img.hash)
+    if (!fitted && (img || scene.layers?.length || (scene.tokens || []).length)) fit()
     renderClaim()
     renderInitiative()
     autoClaim()
@@ -225,6 +250,7 @@
   window.addEventListener('resize', resize)
 
   function bounds() {
+    if (scene.bounds) return scene.bounds
     const img = scene.image
     if (img) return { x: img.x, y: img.y, w: img.w, h: img.h }
     if (scene.width && scene.height) return { x: 0, y: 0, w: scene.width, h: scene.height }
@@ -252,16 +278,21 @@
     ctx.fillRect(0, 0, W, H)
     ctx.setTransform(view.z * dpr, 0, 0, view.z * dpr, -view.x * view.z * dpr, -view.y * view.z * dpr)
 
-    const img = scene.image
-    const el = img && images.get(img.hash)
-    if (el && el.complete && el.naturalWidth) ctx.drawImage(el, img.x, img.y, img.w, img.h)
-    else if (img) {
-      ctx.fillStyle = '#1d1812'
-      ctx.fillRect(img.x, img.y, img.w, img.h)
+    if (scene.layers) drawLayers()
+    else {
+      const img = scene.image
+      const el = img && images.get(img.hash)
+      if (ready(el)) ctx.drawImage(el, img.x, img.y, img.w, img.h)
+      else if (img) {
+        ctx.fillStyle = '#1d1812'
+        ctx.fillRect(img.x, img.y, img.w, img.h)
+      }
     }
 
+    drawLight(now)
     drawGrid()
-    drawFog()
+    if (scene.vision) drawSight()
+    else drawFog()
     for (const t of scene.tokens || []) drawToken(t)
     if (pending) drawGhost(pending)
 
@@ -314,14 +345,151 @@
     requestAnimationFrame(frame)
   }
 
+  /** The map's layers, in order: the ground, pictures, the drawn floors and walls, props. */
+  function drawLayers() {
+    for (const l of scene.layers) {
+      if (l.kind === 'rect') {
+        ctx.fillStyle = l.color || '#222'
+        ctx.fillRect(l.x, l.y, l.w, l.h)
+        continue
+      }
+      const el = images.get(l.hash)
+      if (!ready(el)) continue
+      ctx.save()
+      if (l.opacity != null) ctx.globalAlpha = l.opacity
+      if (l.filter) ctx.filter = l.filter
+      ctx.translate(l.x + l.w / 2, l.y + l.h / 2)
+      if (l.rotate) ctx.rotate((l.rotate * Math.PI) / 180)
+      if (l.flip) ctx.scale(-1, 1)
+      ctx.drawImage(el, -l.w / 2, -l.h / 2, l.w, l.h)
+      ctx.restore()
+    }
+  }
+
+  const path = (c, multi) => {
+    for (const poly of multi || [])
+      for (const ring of poly) {
+        ring.forEach(([x, y], i) => (i ? c.lineTo(x, y) : c.moveTo(x, y)))
+        c.closePath()
+      }
+  }
+  const tint = (hex, a) => {
+    const n = parseInt(String(hex || '#ffd28a').replace('#', ''), 16) || 0xffd28a
+    return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`
+  }
+  const lightCanvas = document.createElement('canvas')
+  /** Darkness, with the lights cut out of it, tinted by their colours (walls cast shadows). */
+  function drawLight(t) {
+    const lights = scene.lights || []
+    const ambient = scene.ambient || 'day'
+    if (!lights.length && ambient === 'day') return
+    const b = bounds()
+    lightCanvas.width = canvas.width
+    lightCanvas.height = canvas.height
+    const f = lightCanvas.getContext('2d')
+    f.setTransform(view.z * dpr, 0, 0, view.z * dpr, -view.x * view.z * dpr, -view.y * view.z * dpr)
+    const dark = ambient === 'dark' ? 0.92 : ambient === 'dusk' ? 0.5 : 0
+    if (dark) {
+      f.fillStyle = `rgba(6,8,14,${dark})`
+      f.fillRect(b.x, b.y, b.w, b.h)
+      f.globalCompositeOperation = 'destination-out'
+      for (const l of lights) {
+        const k = l.flicker ? 1 + Math.sin(t / 90 + l.x) * 0.03 + Math.sin(t / 37 + l.y) * 0.025 : 1
+        const R = (l.bright + l.dim) * k
+        const g = f.createRadialGradient(l.x, l.y, 0, l.x, l.y, R)
+        g.addColorStop(0, 'rgba(0,0,0,1)')
+        g.addColorStop(Math.min(0.98, (l.bright * k) / R), 'rgba(0,0,0,1)')
+        g.addColorStop(Math.min(0.99, (l.bright * k) / R + 0.01), 'rgba(0,0,0,.55)')
+        g.addColorStop(1, 'rgba(0,0,0,0)')
+        f.save()
+        f.beginPath()
+        path(f, l.area)
+        f.clip('evenodd')
+        f.fillStyle = g
+        f.fillRect(l.x - R, l.y - R, R * 2, R * 2)
+        f.restore()
+      }
+      f.globalCompositeOperation = 'source-over'
+    }
+    f.globalCompositeOperation = 'lighter'
+    for (const l of lights) {
+      const k = l.flicker ? 0.85 + Math.sin(t / 70 + l.x * 0.3) * 0.1 + Math.sin(t / 23 + l.y) * 0.05 : 1
+      const R = l.bright + l.dim
+      const g = f.createRadialGradient(l.x, l.y, 0, l.x, l.y, R)
+      g.addColorStop(0, tint(l.color, (ambient === 'day' ? 0.08 : 0.22) * k))
+      g.addColorStop(1, tint(l.color, 0))
+      f.save()
+      f.beginPath()
+      path(f, l.area)
+      f.clip('evenodd')
+      f.fillStyle = g
+      f.fillRect(l.x - R, l.y - R, R * 2, R * 2)
+      f.restore()
+    }
+    ctx.save()
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.drawImage(lightCanvas, 0, 0)
+    ctx.restore()
+  }
+
+  /** What the party sees: clear; where it has been: dimmed; the rest: dark. Revealed areas are clear. */
+  function drawSight() {
+    const b = bounds()
+    fogCanvas.width = canvas.width
+    fogCanvas.height = canvas.height
+    const f = fogCanvas.getContext('2d')
+    f.setTransform(view.z * dpr, 0, 0, view.z * dpr, -view.x * view.z * dpr, -view.y * view.z * dpr)
+    f.fillStyle = '#040406'
+    f.fillRect(b.x - 5000, b.y - 5000, b.w + 10000, b.h + 10000)
+    f.globalCompositeOperation = 'destination-out'
+    if (scene.vision.explored?.length) {
+      f.fillStyle = 'rgba(0,0,0,.45)'
+      f.beginPath()
+      path(f, scene.vision.explored)
+      f.fill('evenodd')
+    }
+    f.fillStyle = '#000'
+    f.beginPath()
+    path(f, scene.vision.visible)
+    f.fill('evenodd')
+    for (const r of scene.reveals || []) {
+      f.beginPath()
+      if (r.points && r.points.length > 2) r.points.forEach(([x, y], i) => (i ? f.lineTo(x, y) : f.moveTo(x, y)))
+      else f.rect(r.x, r.y, r.w, r.h)
+      f.fill()
+    }
+    ctx.save()
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.drawImage(fogCanvas, 0, 0)
+    ctx.restore()
+  }
+
   function drawGrid() {
     const g = scene.grid
-    if (!g || !g.show || !(g.size > 4)) return
+    if (!g || !g.show || !(g.size > 4) || g.type === 'none') return
     const b = bounds()
     ctx.strokeStyle = g.color || '#000'
     ctx.globalAlpha = g.opacity ?? 0.35
     ctx.lineWidth = 1 / view.z
     ctx.beginPath()
+    if (g.type === 'hex') {
+      const w = g.size, hh = (w * 2) / Math.sqrt(3), dy = hh * 0.75, ox = g.offsetX || 0, oy = g.offsetY || 0
+      for (let r = Math.floor((b.y - oy) / dy) - 1; r <= Math.ceil((b.y + b.h - oy) / dy); r++) {
+        const cy = oy + hh / 2 + r * dy
+        const shift = ((r % 2) + 2) % 2 ? w / 2 : 0
+        for (let c = Math.floor((b.x - ox - shift) / w) - 1; c <= Math.ceil((b.x + b.w - ox - shift) / w); c++) {
+          const cx = ox + w / 2 + shift + c * w
+          ctx.moveTo(cx, cy - hh / 2)
+          ctx.lineTo(cx + w / 2, cy - hh / 4)
+          ctx.lineTo(cx + w / 2, cy + hh / 4)
+          ctx.lineTo(cx, cy + hh / 2)
+          ctx.lineTo(cx - w / 2, cy + hh / 4)
+        }
+      }
+      ctx.stroke()
+      ctx.globalAlpha = 1
+      return
+    }
     const ox = (g.offsetX || 0) % g.size, oy = (g.offsetY || 0) % g.size
     for (let x = b.x + ox; x <= b.x + b.w; x += g.size) (ctx.moveTo(x, b.y), ctx.lineTo(x, b.y + b.h))
     for (let y = b.y + oy; y <= b.y + b.h; y += g.size) (ctx.moveTo(b.x, y), ctx.lineTo(b.x + b.w, y))
@@ -416,8 +584,22 @@
   /** The center of the grid square under a point (moves land on squares). */
   function snap(x, y, t) {
     const g = scene.grid
-    if (!g || !(g.size > 4)) return [x, y]
+    if (!g || !(g.size > 4) || g.type === 'none') return [x, y]
     const s = g.size, ox = g.offsetX || 0, oy = g.offsetY || 0
+    if (g.type === 'hex') {
+      // The centre of the nearest pointy-top hex.
+      const hh = (s * 2) / Math.sqrt(3), dy = hh * 0.75
+      const r0 = Math.round((y - oy - hh / 2) / dy)
+      let best = [x, y], bd = Infinity
+      for (let r = r0 - 1; r <= r0 + 1; r++) {
+        const cy = oy + hh / 2 + r * dy
+        const shift = ((r % 2) + 2) % 2 ? s / 2 : 0
+        const cx = ox + s / 2 + shift + Math.round((x - ox - s / 2 - shift) / s) * s
+        const d = Math.hypot(cx - x, cy - y)
+        if (d < bd) (bd = d), (best = [cx, cy])
+      }
+      return best
+    }
     const cells = Math.max(1, Math.round((t ? t.w : s) / s))
     const half = (cells * s) / 2
     return [Math.round((x - ox - half) / s) * s + ox + half, Math.round((y - oy - half) / s) * s + oy + half]

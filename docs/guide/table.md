@@ -75,12 +75,18 @@ Check it's running: `http://<server>:8090/health` answers `ok`.
 ## 2. Make a battle map
 
 1. Open a campaign. In **Battle maps**, click **+ Battle map**. It opens as a canvas.
-2. Put the dungeon on it: the **Image** tool (`I`), then click where it goes. Battle maps keep
-   the picture at its own size and on the grid, so a map drawn at 70 px per square lines up
-   with the default grid.
-3. In the panel on the right (**The table**), under **Map**, set the square size to your
-   picture's squares. Nudge **Shift x / y** until the grid lines sit on the picture's lines.
-   Set the feet per square (5 by default).
+2. Put the dungeon on it. Either:
+   - **draw it or generate it:** rooms, walls, doors, props and lights. See
+     [battle maps](battlemap.md); or
+   - **use a picture:** the **Image** tool (`I`), then click where it goes. Battle maps keep the
+     picture at its own size and on the grid, so a map drawn at 70 px per square lines up with
+     the default grid.
+3. The map's settings are in the right panel's **Map** tab. Under **Grid & fog**:
+   - set the square size to your picture's squares;
+   - nudge **Shift x / y** until the grid lines sit on the picture's lines;
+   - set the feet per square (5 by default).
+
+   Going live, players, initiative and dice are in the **Table** tab.
 4. Place tokens with the **Token** tool (`K`), then click where the creature stands:
    - **Party**: your characters, with their hit points and AC from their sheets. These are
      the tokens players can claim and move.

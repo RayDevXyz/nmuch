@@ -32,7 +32,8 @@ export interface AppState {
   sidebarWidth: number
   rightWidth: number
   /** What the right panel shows while a canvas is open: its assets, or the usual graph. */
-  rightView: 'assets' | 'graph'
+  /** What the right panel shows while a canvas is open (Map and Table: battle maps). */
+  rightView: 'assets' | 'graph' | 'map' | 'table'
   expanded: Record<string, boolean>
   width: 'normal' | 'wide'
   fontSize: 'small' | 'normal' | 'large'

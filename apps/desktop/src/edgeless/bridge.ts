@@ -22,6 +22,13 @@ export interface CanvasAssets {
   selected: string[]
   onSelect: (ids: string[]) => void
   onFocus: (id: string) => void
+  /** Battle maps: add a prop from the library, the campaign (its library), the map's state, its layers. */
+  onAddProp?: (asset: string) => void
+  campaign?: string | null
+  mapState?: import('../battlemap/compute').MapState | null
+  onLayers?: (layers: import('../battlemap/model').MapSettings['layers']) => void
+  /** A battle map's settings, for the right panel's Map and Table tabs. */
+  scenePanel?: import('./scene').ScenePanelProps | null
 }
 
 let current: CanvasAssets | null = null

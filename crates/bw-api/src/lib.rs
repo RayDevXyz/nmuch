@@ -15,6 +15,7 @@ use std::path::PathBuf;
 
 pub mod burrow;
 pub mod fivee;
+pub mod gemini;
 mod modules_api;
 pub mod nimbus;
 pub mod sync;
@@ -232,6 +233,7 @@ fn b64(s: &str) -> Result<Vec<u8>, String> {
 /// (5etools, Burrow). `None`: an ordinary command; take the lock and call [`dispatch`].
 pub fn dispatch_unlocked(core: &std::sync::Arc<std::sync::Mutex<Core>>, command: &str, args: &Value) -> Option<Result<Value, String>> {
     fivee::dispatch_unlocked(core, command, args)
+        .or_else(|| gemini::dispatch_unlocked(core, command, args))
         .or_else(|| burrow::dispatch_unlocked(core, command, args))
         .or_else(|| sync::dispatch_unlocked(core, command, args))
         .or_else(|| table::dispatch_unlocked(command, args))

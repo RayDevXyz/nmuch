@@ -1,6 +1,8 @@
+import { openGemini } from '../gemini/GeminiDialog'
+import { campaignOf } from './hub'
 import type { SlashExtra } from '@brainwaves/editor'
 import type { Editor } from '@tiptap/core'
-import { toast } from '../state/store'
+import { getState, toast } from '../state/store'
 import { createCampaign, refreshRoles } from './api'
 import { openSoon } from './Campaign'
 import { openCharacterWizard } from './CharacterWizard'
@@ -37,6 +39,17 @@ export const dndSlashExtras: SlashExtra[] = [
         },
         (e) => toast('Could not create the campaign: ' + String(e)),
       )
+    },
+  },
+  {
+    id: 'gemini-write',
+    group: 'D&D',
+    label: 'Gemini: write here',
+    desc: 'Gemini writes at the cursor: a backstory, read-aloud text, rumours, secrets… with your campaign as context',
+    keywords: 'gemini ai google write generate npc backstory description rumours',
+    run: (editor: Editor) => {
+      const pageId = getState().activeId
+      openGemini({ mode: 'expand', pageId, campaignId: pageId ? campaignOf(pageId) : null, insert: (content) => editor.chain().focus().insertContent(content).run() })
     },
   },
   { id: 'dnd-character', group: 'D&D', label: 'New character', desc: 'D&D character sheet from your 5etools races, classes, backgrounds', keywords: 'dnd character sheet player pc hero', run: () => openCharacterWizard() },

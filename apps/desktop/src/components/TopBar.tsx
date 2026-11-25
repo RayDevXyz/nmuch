@@ -1,7 +1,8 @@
+import { openGemini } from '../gemini/GeminiDialog'
 import { tabKey } from '../lib/storage'
 import { useEffect, useState } from 'react'
 import { refreshModules } from '../modules/api'
-import { CircleHelp, Clock3, GraduationCap, Download, FilePlus2, FileStack, HardDrive, KeyRound, Moon, Palette, Smartphone, Search, Sun, Blocks, Puzzle, RefreshCw } from 'lucide-react'
+import { CircleHelp, Clock3, GraduationCap, Download, FilePlus2, FileStack, HardDrive, KeyRound, Moon, Palette, Smartphone, Search, Sun, Blocks, Puzzle, RefreshCw, Sparkles } from 'lucide-react'
 import { createPage, setView } from '../state/actions'
 import { getState, setState, useApp } from '../state/store'
 import { db } from '../lib/storage'
@@ -138,6 +139,15 @@ export function SettingsPanel({ x, y, anchorTop, onClose, onAccount }: { x: numb
         }}
       >
         <Blocks size={13} /> Widgets…
+      </button>
+      <button
+        className="setting-action"
+        onClick={() => {
+          onClose()
+          openGemini({ mode: 'settings' })
+        }}
+      >
+        <Sparkles size={13} /> Gemini…
       </button>
       <button
         className="setting-action"

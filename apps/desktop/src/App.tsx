@@ -9,6 +9,7 @@ import { QuickFind } from './components/QuickFind'
 import { HelpModal } from './components/HelpModal'
 import { SyncDialog } from './sync/SyncDialog'
 import { AccountHost } from './components/TopBar'
+import { GeminiHost } from './gemini/GeminiDialog'
 import { openTemplateDialog, TemplateDialog } from './templates/TemplateDialog'
 import { CalloutStyleMenu } from './callouts/CalloutStyle'
 import { LinkDatabaseDialog } from './database/LinkDatabase'
@@ -201,6 +202,7 @@ export default function App() {
       {importDialog && <ImportDialog />}
       <SyncDialog />
       <AccountHost />
+      <GeminiHost />
       <TemplateDialog />
       <ParaDialogs />
       <PublishHost />

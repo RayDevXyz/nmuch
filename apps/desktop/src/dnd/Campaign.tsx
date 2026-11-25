@@ -1,4 +1,5 @@
-import { BookOpen, Compass, Flag, Globe, Map as MapIcon, Plus, Radio, ScrollText, Shield, Swords, Users } from 'lucide-react'
+import { BookOpen, Compass, Flag, Globe, Map as MapIcon, MessageSquare, Plus, Radio, ScrollText, Shield, Sparkles, Swords, Upload, Users, Wand2 } from 'lucide-react'
+import { openGemini } from '../gemini/GeminiDialog'
 import { useEffect, useMemo, useState } from 'react'
 import { setValue, createRow } from '../database/api'
 import { RowProperties } from '../database/DatabaseView'
@@ -65,6 +66,23 @@ export function CampaignOverview({ campaignId }: { campaignId: string }) {
             </button>
             <button className="cp-link" onClick={() => openCompendium()}>
               <BookOpen size={15} /> Compendium
+            </button>
+          </nav>
+          <nav className="cp-links cp-gemini" aria-label="Gemini">
+            <span className="cp-gemini-label">
+              <Sparkles size={14} /> Gemini
+            </span>
+            <button className="cp-link" onClick={() => openGemini({ mode: 'create', campaignId })}>
+              <Wand2 size={15} /> Create NPCs, places…
+            </button>
+            <button className="cp-link" onClick={() => openGemini({ mode: 'chat', campaignId })}>
+              <MessageSquare size={15} /> Chat
+            </button>
+            <button className="cp-link" onClick={() => openGemini({ mode: 'session', campaignId })}>
+              <ScrollText size={15} /> Plan a session
+            </button>
+            <button className="cp-link" onClick={() => openGemini({ mode: 'import', campaignId })} title="Paste what you wrote in the Gemini app">
+              <Upload size={15} /> Bring in from Gemini
             </button>
           </nav>
           <div className="cp-grid">

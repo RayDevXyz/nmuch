@@ -303,6 +303,51 @@ impl Core {
             .optional()?)
     }
 
+    // ---- Gemini (world building)
+
+    /// Keep the owner's Gemini API key and model. `key`: `None` keeps the key, `Some("")` forgets
+    /// it. The key is only ever read by the host that calls Gemini, never sent to the app.
+    pub fn set_gemini(&mut self, key: Option<&str>, model: Option<&str>) -> Result<()> {
+        let (old_key, old_model) = self.gemini()?.unwrap_or_default();
+        let key = key.map(str::trim).map(str::to_string).unwrap_or(old_key);
+        let model = model.map(str::trim).filter(|m| !m.is_empty()).map(str::to_string).unwrap_or(old_model);
+        if key.len() > 200 || key.contains(char::is_whitespace) {
+            return Err(Error::Invalid("that doesn't look like a Gemini API key".into()));
+        }
+        if model.len() > 80 || !model.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | '_')) {
+            return Err(Error::Invalid(format!("{model:?} is not a Gemini model name")));
+        }
+        self.conn().execute("DELETE FROM module_grants WHERE module_id = ?1 AND kind = 'gemini'", [MODULE_ID])?;
+        if !key.is_empty() || !model.is_empty() {
+            self.conn().execute(
+                "INSERT INTO module_grants(module_id, kind, value, granted_at) VALUES (?1, 'gemini', ?2, ?3)",
+                rusqlite::params![MODULE_ID, json!({ "key": key, "model": model }).to_string(), crate::store::now_millis()],
+            )?;
+        }
+        Ok(())
+    }
+
+    /// The Gemini API key and model, when a key is set (the model defaults to a fast one).
+    pub fn gemini(&self) -> Result<Option<(String, String)>> {
+        use rusqlite::OptionalExtension;
+        let raw: Option<String> = self
+            .conn()
+            .query_row("SELECT value FROM module_grants WHERE module_id = ?1 AND kind = 'gemini'", [MODULE_ID], |r| r.get(0))
+            .optional()?;
+        let v: Value = raw.and_then(|r| serde_json::from_str(&r).ok()).unwrap_or(Value::Null);
+        let key = v["key"].as_str().unwrap_or("").to_string();
+        let model = v["model"].as_str().filter(|m| !m.is_empty()).unwrap_or("gemini-2.5-flash").to_string();
+        Ok(if key.is_empty() { None } else { Some((key, model)) })
+    }
+
+    /// What the app may know: whether a key is set, its last four characters, and the model.
+    pub fn gemini_status(&self) -> Result<Value> {
+        Ok(match self.gemini()? {
+            Some((key, model)) => json!({ "configured": true, "hint": key.chars().rev().take(4).collect::<Vec<_>>().into_iter().rev().collect::<String>(), "model": model }),
+            None => json!({ "configured": false, "hint": null, "model": "gemini-2.5-flash" }),
+        })
+    }
+
     /// The 5etools books (source ids, e.g. `PHB`, `XGE`) to use; `None`: all of them.
     pub fn dnd_set_sources(&mut self, sources: Option<Vec<String>>) -> Result<()> {
         self.conn().execute(

@@ -423,7 +423,7 @@ export function ScenePanel({
       <MapItemsSection doc={doc} items={elements.filter((e) => selected.includes(e.id))} />
       {tab === 'map' && (
         <>
-          <GenerateSection doc={doc} settings={settings} elements={elements} viewCenter={viewCenter} onDone={(ids) => (onSelect([]), void ids, onFit())} />
+          <GenerateSection doc={doc} settings={settings} elements={elements} viewCenter={viewCenter} onDone={(ids) => (onSelect([]), void ids, onFit())} onSettings={onSettings} pageId={pageId} />
           <LookSection settings={settings} onSettings={onSettings} />
           <LayersSection settings={settings} onSettings={onSettings} elements={elements} onSelect={onSelect} />
           <LightingSection settings={settings} onSettings={onSettings} doc={doc} playerView={playerView} onPlayerView={onPlayerView} state={mapState} />

@@ -16,11 +16,13 @@ export interface Message {
   text: string
 }
 
-export const MODELS: { id: string; label: string }[] = [
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (fast, free tier)' },
-  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (best writing, slower)' },
-  { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite (fastest)' },
-]
+/** A model the key can use (Google adds and retires them, so the list comes from Gemini). */
+export interface Model {
+  id: string
+  name: string
+  description: string
+}
+export const geminiModels = () => coreClient().call<{ models: Model[]; best: string | null; current: string }>('geminiModels')
 
 export const geminiStatus = () => coreClient().call<GeminiStatus>('geminiStatus')
 export const setGeminiKey = (patch: { key?: string; model?: string }) => coreClient().call<GeminiStatus>('geminiSetKey', patch)

@@ -12,15 +12,17 @@ BrainWaves works with Google's Gemini for D&D world building, in two ways:
 
 1. Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey), sign in with your
    Google account and click **Create API key**. The free tier is plenty for world building.
-2. In BrainWaves: **Settings → Gemini…**, paste the key, pick a model and click **Save and test**.
+2. In BrainWaves: **Settings → Gemini…**, paste the key and click **Save and test**.
    BrainWaves asks you for the key the first time you use Gemini anyway.
 
-| Model | When |
-|---|---|
-| Gemini 2.5 Flash | The default: fast, good writing, free tier |
-| Gemini 2.5 Pro | The best writing and reasoning, slower |
-| Gemini 2.5 Flash-Lite | The fastest |
-| Another model… | Type any model name Google offers |
+**Models.** Google adds new Gemini models and retires old ones every few months, so BrainWaves
+doesn't keep a list: it asks Gemini which models your key can use and shows those in
+**Settings → Gemini…**. When you save a key, the newest stable **Flash** is picked (fast, and
+on the free tier). **Pro** writes best but is slower and has lower free limits; **Flash-Lite**
+is the fastest. **Type a model name…** takes any other.
+
+If the model you chose is retired, BrainWaves notices the next time you ask, switches to the
+newest stable Flash your key can use, and keeps going.
 
 The key stays on your BrainWaves server (or, in the desktop app, on your computer), and the app
 never shows it again: BrainWaves' own side adds it when it calls Gemini. Remove it from the same

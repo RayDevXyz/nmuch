@@ -9,7 +9,7 @@ import { uid } from '../lib/id'
 import { openPage, withPage } from '../state/actions'
 import { getState, toast } from '../state/store'
 import { pageMarkdown } from '../editor/Editor'
-import { ask, askJSON, geminiStatus, MODELS, setGeminiKey, type GeminiStatus, type Message } from './api'
+import { ask, askJSON, geminiModels, geminiStatus, setGeminiKey, type GeminiStatus, type Message, type Model } from './api'
 import { campaignContext, campaignData } from './context'
 import { createWorld, KIND_LABEL, titlesIn, waitFor, writeInto, type WorldItem, type WorldKind } from './create'
 import { splitImport } from './importText'
@@ -85,7 +85,7 @@ export function GeminiHost() {
           </span>
           {status?.configured && o.mode !== 'settings' && (
             <button className="gm-link" onClick={() => openGemini({ ...o, mode: 'settings' })} title="Gemini key and model">
-              {MODELS.find((m) => m.id === status.model)?.label.split(' (')[0] ?? status.model}
+              {status.model}
             </button>
           )}
           <button className="icon-button" aria-label="Close" onClick={closeGemini}>
@@ -143,14 +143,34 @@ function KeyForm({ status, onSaved }: { status: GeminiStatus; onSaved: (s: Gemin
   const [model, setModel] = useState(status.model)
   const [busy, setBusy] = useState(false)
   const [test, setTest] = useState('')
+  /** The models this key can use, from Gemini itself (null: not known yet). */
+  const [models, setModels] = useState<Model[] | null>(null)
+  const [custom, setCustom] = useState(false)
+  const loadModels = async () => {
+    const r = await geminiModels()
+    setModels(r.models)
+    return r
+  }
+  useEffect(() => {
+    if (status.configured) void loadModels().catch(() => setModels(null))
+  }, [status.configured])
   const save = async (andTest: boolean) => {
     setBusy(true)
     setTest('')
     try {
-      const s = await setGeminiKey({ ...(key.trim() ? { key: key.trim() } : {}), model })
+      let s = await setGeminiKey({ ...(key.trim() ? { key: key.trim() } : {}), model })
+      // A model that's gone (or none picked yet): the newest one this key can use.
+      const r = await loadModels().catch(() => null)
+      if (r && !r.models.some((m) => m.id === s.model) && r.best) {
+        s = await setGeminiKey({ model: r.best })
+        setModel(r.best)
+        setTest(`“${model}” isn’t offered to your key any more: using ${r.best}.`)
+      }
       if (andTest) {
         const answer = await ask('Answer in five words or fewer.', [{ role: 'user', text: 'Say hello to a Dungeon Master.' }])
         setTest(`Gemini says: ${answer.trim()}`)
+        s = await geminiStatus()
+        setModel(s.model)
       }
       setKey('')
       onSaved(s)
@@ -176,16 +196,30 @@ function KeyForm({ status, onSaved }: { status: GeminiStatus; onSaved: (s: Gemin
       </label>
       <label>
         Model
-        <select value={MODELS.some((m) => m.id === model) ? model : 'other'} onChange={(e) => e.target.value !== 'other' && setModel(e.target.value)}>
-          {MODELS.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.label}
-            </option>
-          ))}
-          <option value="other">Another model…</option>
-        </select>
+        {models && models.length && !custom ? (
+          <select
+            value={models.some((m) => m.id === model) ? model : ''}
+            onChange={(e) => (e.target.value === '…' ? setCustom(true) : setModel(e.target.value))}
+          >
+            {!models.some((m) => m.id === model) && <option value="">{model ? `${model} (not offered to your key)` : 'Choose a model'}</option>}
+            {models.map((m) => (
+              <option key={m.id} value={m.id} title={m.description}>
+                {m.name} · {m.id}
+              </option>
+            ))}
+            <option value="…">Type a model name…</option>
+          </select>
+        ) : (
+          <input placeholder="gemini-…" value={model} onChange={(e) => setModel(e.target.value.trim())} />
+        )}
+        <small>
+          {models
+            ? 'The models your key can use, newest first. Flash is fast (and free); Pro writes best.'
+            : status.configured
+              ? 'Reading the models your key can use…'
+              : 'Save your key to see the models it can use; the newest Flash is picked for you.'}
+        </small>
       </label>
-      {!MODELS.some((m) => m.id === model) || model === '' ? <input placeholder="gemini-…" value={model} onChange={(e) => setModel(e.target.value.trim())} /> : null}
       <p className="gm-hint">The key stays on your BrainWaves (your server, or this computer); the app never shows it again. What you ask, with the campaign notes you include, goes to Google.</p>
       {test && <p className={`gm-test ${test.startsWith('Gemini says') ? 'ok' : 'bad'}`}>{test}</p>}
       <div className="gm-actions">

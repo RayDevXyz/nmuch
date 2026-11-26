@@ -14,6 +14,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 pub const DEFAULT_MODEL: &str = "gemini-2.5-flash";
+const GONE: &str = "Gemini doesn't know the model ";
 const MAX_INPUT: usize = 400_000;
 
 #[derive(Deserialize)]
@@ -42,6 +43,58 @@ fn base() -> String {
 /// A model name as the API takes it (`gemini-2.5-flash`), nothing that changes the URL's shape.
 pub fn valid_model(m: &str) -> bool {
     !m.is_empty() && m.len() < 80 && m.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '.' | '_'))
+}
+
+/// A model the key can use for text.
+#[derive(serde::Serialize, Clone, Debug, PartialEq)]
+pub struct Model {
+    /// As the API takes it: `gemini-3.5-flash`.
+    pub id: String,
+    pub name: String,
+    pub description: String,
+}
+
+/// The models this key may use to write text (Google adds and retires them; this is the truth).
+pub fn models(key: &str) -> Result<Vec<Model>, String> {
+    let url = format!("{}/v1beta/models?pageSize=1000", base());
+    let resp = ureq::get(&url).set("x-goog-api-key", key).timeout(Duration::from_secs(30)).call().map_err(|e| match e {
+        ureq::Error::Status(400 | 401 | 403, _) => "Gemini refused the API key: check it in Settings → Gemini.".to_string(),
+        ureq::Error::Status(code, _) => format!("Gemini answered {code} when asked for its models"),
+        other => format!("Can't reach Gemini: {other}"),
+    })?;
+    let v: Value = serde_json::from_reader(resp.into_reader()).map_err(|e| format!("Gemini's model list could not be read: {e}"))?;
+    let mut out = vec![];
+    for m in v["models"].as_array().cloned().unwrap_or_default() {
+        let id = m["name"].as_str().unwrap_or("").trim_start_matches("models/").to_string();
+        let writes = m["supportedGenerationMethods"].as_array().is_some_and(|a| a.iter().any(|x| x == "generateContent"));
+        let lower = id.to_ascii_lowercase();
+        // Text models only: not embeddings, speech, pictures, live audio or robots.
+        let other = ["embedding", "tts", "image", "audio", "live", "aqa", "robotics", "computer-use", "veo", "imagen", "learnlm"].iter().any(|w| lower.contains(w));
+        if writes && !other && lower.starts_with("gemini") && valid_model(&id) {
+            out.push(Model { name: m["displayName"].as_str().unwrap_or(&id).to_string(), description: m["description"].as_str().unwrap_or("").to_string(), id });
+        }
+    }
+    // Newest first; previews after the stable ones of the same version.
+    out.sort_by(|a, b| version(&b.id).total_cmp(&version(&a.id)).then(a.id.contains("preview").cmp(&b.id.contains("preview"))).then(a.id.cmp(&b.id)));
+    Ok(out)
+}
+
+/// The version in a model's name (`gemini-3.5-flash` → 3.5).
+fn version(id: &str) -> f64 {
+    id.split('-').find_map(|p| p.parse::<f64>().ok()).unwrap_or(0.0)
+}
+
+/// The model to use when none was chosen (or the chosen one is gone): the newest stable Flash,
+/// else the newest stable model, else anything.
+pub fn best(list: &[Model]) -> Option<String> {
+    // Previews and experiments come and go; a dated or "-latest" alias may too.
+    let stable = |m: &&Model| !["preview", "exp", "latest"].iter().any(|w| m.id.contains(w));
+    let pick = |f: &dyn Fn(&&Model) -> bool| list.iter().filter(stable).filter(f).max_by(|a, b| version(&a.id).total_cmp(&version(&b.id))).map(|m| m.id.clone());
+    pick(&|m| m.id.contains("flash") && !m.id.contains("lite"))
+        .or_else(|| pick(&|m| !m.id.contains("lite")))
+        .or_else(|| pick(&|_| true))
+        .or_else(|| list.iter().filter(|m| m.id.contains("flash")).max_by(|a, b| version(&a.id).total_cmp(&version(&b.id))).map(|m| m.id.clone()))
+        .or_else(|| list.first().map(|m| m.id.clone()))
 }
 
 /// Ask Gemini. Returns the answer's text.
@@ -85,7 +138,7 @@ pub fn generate(key: &str, model: &str, args: &Value) -> Result<String, String> 
             return Err(match code {
                 400 if msg.contains("API key") => "Gemini refused the API key: check it in Settings → Gemini.".into(),
                 401 | 403 => "Gemini refused the API key: check it in Settings → Gemini.".into(),
-                404 => format!("Gemini doesn't know the model {model:?}: pick another in Settings → Gemini."),
+                404 => format!("{GONE}{model:?}: pick another in Settings → Gemini."),
                 429 => "Gemini says: too many requests for now (your plan's limit). Wait a minute and try again.".into(),
                 _ => format!("Gemini answered {code}{}", if msg.is_empty() { String::new() } else { format!(": {msg}") }),
             });
@@ -104,9 +157,12 @@ pub fn generate(key: &str, model: &str, args: &Value) -> Result<String, String> 
     Ok(text)
 }
 
-/// `geminiGenerate`, run without holding the core's lock while Gemini thinks.
+/// `geminiGenerate` and `geminiModels`, run without holding the core's lock while Gemini works.
+///
+/// When the chosen model is gone (Google retires models), the newest one the key can use is
+/// picked, kept as the new choice, and the question asked again.
 pub fn dispatch_unlocked(core: &Arc<Mutex<Core>>, command: &str, args: &Value) -> Option<Result<Value, String>> {
-    if command != "geminiGenerate" {
+    if command != "geminiGenerate" && command != "geminiModels" {
         return None;
     }
     Some((|| {
@@ -116,13 +172,38 @@ pub fn dispatch_unlocked(core: &Arc<Mutex<Core>>, command: &str, args: &Value) -
             .gemini()
             .map_err(|e| e.to_string())?
             .ok_or("Add your Gemini API key first (Settings → Gemini).")?;
-        generate(&key, &model, args).map(Value::String)
+        if command == "geminiModels" {
+            let list = models(&key)?;
+            return Ok(json!({ "models": list, "best": best(&list), "current": model }));
+        }
+        match generate(&key, &model, args) {
+            Err(e) if e.starts_with(GONE) => {
+                let list = models(&key)?;
+                let next = best(&list).filter(|m| *m != model).ok_or(e)?;
+                core.lock().map_err(|e| e.to_string())?.set_gemini(None, Some(&next)).map_err(|e| e.to_string())?;
+                generate(&key, &next, args).map(Value::String)
+            }
+            other => other.map(Value::String),
+        }
     })())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::valid_model;
+    use super::{best, valid_model, Model};
+
+    fn m(id: &str) -> Model {
+        Model { id: id.into(), name: id.into(), description: String::new() }
+    }
+
+    #[test]
+    fn picks_the_newest_stable_flash() {
+        let list = [m("gemini-2.5-flash-lite"), m("gemini-3.5-flash"), m("gemini-3.8-flash-preview-11-2026"), m("gemini-3.5-pro"), m("gemini-3.1-flash-lite-preview")];
+        assert_eq!(best(&list).as_deref(), Some("gemini-3.5-flash"));
+        assert_eq!(best(&[m("gemini-3.5-pro"), m("gemini-3.5-flash-lite")]).as_deref(), Some("gemini-3.5-pro"));
+        assert_eq!(best(&[m("gemini-4.0-flash-preview-01-2027")]).as_deref(), Some("gemini-4.0-flash-preview-01-2027"));
+        assert_eq!(best(&[]), None);
+    }
 
     #[test]
     fn model_names() {

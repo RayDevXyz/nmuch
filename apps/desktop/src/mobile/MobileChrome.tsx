@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Editor as TiptapEditor } from '@tiptap/core'
 import {
   Archive,
@@ -6,6 +6,8 @@ import {
   BookmarkCheck,
   Brackets,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock3,
   FileText,
   Heading2,
@@ -99,24 +101,54 @@ function useKeyboardInset(): number {
 /* ------------------------------------------------------------------ */
 /* The page header: one compact bar instead of the top bar + tabs bar */
 
+/** Pages visited on the phone, for Back (the page before, not just the page above). */
+const visited: string[] = []
+let goingBack = false
+function remember(prev: string | undefined, next: string | undefined) {
+  if (goingBack) return void (goingBack = false)
+  if (prev && prev !== next && getState().pages[prev]) {
+    visited.push(prev)
+    if (visited.length > 50) visited.shift()
+  }
+}
+/** Back: the page you came from; with none, the page above this one. */
+function goBack(page: Page | undefined, parent: Page | undefined) {
+  while (visited.length) {
+    const id = visited.pop()!
+    const p = getState().pages[id]
+    if (p && p.trashedAt == null && id !== page?.id) {
+      goingBack = true
+      return openPage(id, 'replace')
+    }
+  }
+  if (parent) openPage(parent.id, 'replace')
+}
+
 export function MobileHeader({ page, onMore }: { page?: Page; onMore: (e: React.MouseEvent<HTMLButtonElement>) => void }) {
   useApp((s) => s.pages) // re-render on parent renames
   const trail = page ? ancestors(page.id) : []
   const parent = trail[trail.length - 1]
+  const last = useRef<string | undefined>(page?.id)
+  useEffect(() => {
+    remember(last.current, page?.id)
+    last.current = page?.id
+  }, [page?.id])
+  const canBack = visited.length > 0 || !!parent
   return (
+    <>
     <header className="m-header">
-      <button className="m-icon" aria-label="Open sidebar" onClick={() => setState((s) => ({ sidebarOpen: !s.sidebarOpen }))}>
-        <Menu />
-      </button>
+      {page && canBack ? (
+        <button className="m-icon" aria-label="Back" title="Back" onClick={() => goBack(page, parent)}>
+          <ChevronLeft />
+        </button>
+      ) : (
+        <button className="m-icon" aria-label="Open sidebar" onClick={() => setState((s) => ({ sidebarOpen: !s.sidebarOpen }))}>
+          <Menu />
+        </button>
+      )}
       <button className="m-title" onClick={() => setState({ quickFind: true })} aria-label="Find a page">
         {page ? (
           <>
-            {parent && (
-              <small>
-                {parent.icon && <span>{parent.icon}</span>}
-                {parent.title || 'Untitled'}
-              </small>
-            )}
             <strong>
               {page.icon ? <span className="m-title-icon">{page.icon}</span> : <FileText size={15} />}
               <span>{page.title || 'Untitled'}</span>
@@ -139,6 +171,40 @@ export function MobileHeader({ page, onMore }: { page?: Page; onMore: (e: React.
         </>
       )}
     </header>
+    {page && trail.length > 0 && <MobileCrumbs page={page} trail={trail} />}
+    </>
+  )
+}
+
+/** Where the page is: tap any step (the top-level page first) to go there. */
+function MobileCrumbs({ page, trail }: { page: Page; trail: Page[] }) {
+  const ref = useRef<HTMLElement>(null)
+  // The end of the path (the page itself) stays in view.
+  useEffect(() => {
+    const el = ref.current
+    if (el) el.scrollLeft = el.scrollWidth
+  }, [page.id, trail.length])
+  return (
+    <nav className="m-crumbs" aria-label="Where this page is" ref={ref}>
+      <button className="m-crumb home" aria-label="Home: all pages" onClick={() => setView('home')}>
+        <Home size={14} />
+      </button>
+      {trail.map((p) => (
+        <span key={p.id} className="m-crumb-step">
+          <ChevronRight size={12} aria-hidden />
+          <button className="m-crumb" onClick={() => openPage(p.id, 'replace')}>
+            {p.icon && <span>{p.icon}</span>}
+            {p.title || 'Untitled'}
+          </button>
+        </span>
+      ))}
+      <span className="m-crumb-step">
+        <ChevronRight size={12} aria-hidden />
+        <span className="m-crumb current" aria-current="page">
+          {page.title || 'Untitled'}
+        </span>
+      </span>
+    </nav>
   )
 }
 

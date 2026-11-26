@@ -38,7 +38,9 @@ import {
   trashPage,
   updatePage,
 } from '../state/actions'
-import { setState, toast, useApp } from '../state/store'
+import { getState, setState, toast, useApp } from '../state/store'
+import { createRow } from '../database/api'
+import { uid } from '../lib/id'
 import type { Page, TagCount } from '../lib/types'
 import { db } from '../lib/storage'
 import { relativeTime } from '../lib/time'
@@ -49,7 +51,7 @@ import { BurrowPanel } from '../burrow/Burrow'
 import { BurrowTagItems } from '../burrow/Tags'
 import { useNarrow } from '../mobile/narrow'
 import { DrawerHead } from '../mobile/MobileChrome'
-import { ensureTemplatesFolder, templatesFolder } from '../templates/apply'
+import { applyDatabaseTemplate, ensureTemplatesFolder, templatesFolder } from '../templates/apply'
 import { openTemplateDialog } from '../templates/TemplateDialog'
 import { ParaView } from '../para/ParaView'
 import { ResizeHandle } from './ResizeHandle'
@@ -100,6 +102,9 @@ function TreeNode({ page, depth, childMap }: { page: Page; depth: number; childM
   const expanded = useApp((s) => !!s.expanded[page.id])
   const active = useApp((s) => s.activeId === page.id)
   const kids = childMap.get(page.id) ?? []
+  /** A database's row: it stays in its database (no dragging it out, nothing dropped beside it). */
+  const row = !!page.databaseId
+  const db = page.kind === 'database'
   const [renaming, setRenaming] = useState(false)
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [drop, setDrop] = useState<DropPos | null>(null)
@@ -112,15 +117,20 @@ function TreeNode({ page, depth, childMap }: { page: Page; depth: number; childM
   const posFor = (e: React.DragEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const y = e.clientY - r.top
-    return y < r.height * 0.28 ? 'before' : y > r.height * 0.72 ? 'after' : 'inside'
+    const pos: DropPos = y < r.height * 0.28 ? 'before' : y > r.height * 0.72 ? 'after' : 'inside'
+    // Pages go inside a row (as its sub-pages), never among a database's rows.
+    if (row) return 'inside'
+    // A page dropped "inside" a database would sit among its rows without being one.
+    if (db && pos === 'inside') return 'after'
+    return pos
   }
 
   return (
     <>
       <div
-        className={`tree-row doc-row ${active ? 'active' : ''} ${drop ? 'drop-' + drop : ''}`}
+        className={`tree-row doc-row ${active ? 'active' : ''} ${drop ? 'drop-' + drop : ''} ${row ? 'tree-row-of-db' : ''}`}
         style={{ paddingLeft: 6 + depth * 14 }}
-        draggable={!renaming}
+        draggable={!renaming && !row}
         onDragStart={(e) => {
           e.dataTransfer.setData(DND, page.id)
           e.dataTransfer.effectAllowed = 'move'
@@ -192,9 +202,11 @@ function TreeNode({ page, depth, childMap }: { page: Page; depth: number; childM
           </button>
           <button
             className="row-btn"
-            aria-label="Add sub-page"
+            aria-label={db ? 'New row' : 'Add sub-page'}
+            title={db ? 'New row (from the database’s template)' : 'Add sub-page'}
             onClick={(e) => {
               e.stopPropagation()
+              if (db) return void newRow(page.id)
               createPage({ parentId: page.id, open: 'replace' })
             }}
           >
@@ -215,6 +227,16 @@ function TreeNode({ page, depth, childMap }: { page: Page; depth: number; childM
       )}
     </>
   )
+}
+
+/** A new row of a database, from its template, opened. */
+async function newRow(databaseId: string) {
+  const id = uid()
+  await createRow(databaseId, id, '')
+  void applyDatabaseTemplate(databaseId, id)
+  toggleExpanded(databaseId, true)
+  for (let i = 0; i < 40 && !getState().pages[id]; i++) await new Promise((r) => setTimeout(r, 50))
+  openPage(id, 'replace')
 }
 
 function FlatRow({ page, meta, actions }: { page: Page; meta?: string; actions?: React.ReactNode }) {
@@ -482,9 +504,12 @@ export function Sidebar() {
     // The Templates page has its own place (the Templates view), not the Documents tree.
     const templates = templatesFolder()?.id
     Object.values(pages).forEach((p) => {
-      // Database rows are listed inside their database, not in the tree.
-      if (p.trashedAt != null || p.archived || p.databaseId || p.id === templates) return
-      const parent = p.parentId && pages[p.parentId] && pages[p.parentId].trashedAt == null ? p.parentId : null
+      if (p.trashedAt != null || p.archived || p.id === templates) return
+      // A database's rows (and their sub-pages) are in the tree under the database.
+      const up = p.databaseId ? (p.parentId ?? p.databaseId) : p.parentId
+      const parent = up && pages[up] && pages[up].trashedAt == null ? up : null
+      // A row whose database is gone has nowhere to be.
+      if (p.databaseId && !parent) return
       if (!m.has(parent)) m.set(parent, [])
       m.get(parent)!.push(p)
     })

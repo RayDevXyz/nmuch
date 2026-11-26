@@ -1175,6 +1175,14 @@ body.dragging-block, body.dragging-block * { cursor: grabbing !important; user-s
   .m-title strong > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .m-title strong svg { flex: none; color: var(--muted-foreground); }
   .m-title-icon { flex: none; font-size: 16px; }
+  /* where the page is: a row of steps under the header, each one tappable */
+  .m-crumbs { flex: none; display: flex; align-items: center; gap: 2px; height: 34px; padding: 0 8px; overflow-x: auto; scrollbar-width: none; background: var(--editor-bg); border-bottom: 1px solid var(--line-soft); white-space: nowrap; -webkit-overflow-scrolling: touch; }
+  .m-crumbs::-webkit-scrollbar { display: none; }
+  .m-crumb-step { display: inline-flex; align-items: center; gap: 2px; flex: none; color: var(--faint); }
+  .m-crumb { display: inline-flex; align-items: center; gap: 4px; flex: none; max-width: 44vw; height: 28px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted-foreground); font: inherit; font-size: 13px; overflow: hidden; text-overflow: ellipsis; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .m-crumb:active { background: var(--hover); color: var(--foreground); }
+  .m-crumb.home { padding: 0 6px; }
+  .m-crumb.current { color: var(--foreground); font-weight: 600; cursor: default; }
 
   /* the page itself: edge to edge, room to read */
   .note-canvas, .note-canvas.wide { width: 100%; padding: 22px 20px 0; }

@@ -2,15 +2,26 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { setState } from '../state/store'
 import { learnBrainWaves } from '../course/learn'
+import { isTauri } from '../lib/storage'
 
 export const GROUPS: [string, [string, string][]][] = [
   [
     'General',
     [
       ['Ctrl K', 'Quick find'],
-      ['Ctrl N', 'New page'],
-      ['Ctrl W', 'Close tab'],
-      ['Ctrl Tab', 'Next tab'],
+      ...((isTauri
+        ? [
+            ['Ctrl N', 'New page'],
+            ['Ctrl W', 'Close tab'],
+            ['Ctrl Tab', 'Next tab'],
+          ]
+        : [
+            // In a browser, Ctrl N, Ctrl W and Ctrl Tab are the browser's own.
+            ['Alt N', 'New page'],
+            ['Alt Shift N', 'New page from a template'],
+            ['Alt W', 'Close tab'],
+            ['Alt ] / Alt [', 'Next / previous tab'],
+          ]) as [string, string][]),
       ['Ctrl \\', 'Toggle sidebar'],
       ['Ctrl Shift \\', 'Toggle graph panel'],
       ['Ctrl /', 'This help'],

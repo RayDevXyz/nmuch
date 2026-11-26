@@ -26,6 +26,10 @@ where your players join your battle maps from their own devices.
 - **Battle maps and the table:** on a campaign, **+ Battle map** opens a canvas: the map image
   (**I**), tokens (**K**) and fog of war you reveal (**E**). **Go live** gives you a link for your
   players; they see the map live on their own devices. **Alt-click** pings a spot.
+- **Gemini:** with a Gemini API key, a campaign's **Gemini** row creates NPCs, locations and
+  factions that fit your world, chats about the campaign and plans sessions. **⋯ → Write with
+  Gemini…** (or `/gemini`) writes into a page; a battle map can be designed from a description.
+  Without a key, **Bring in from Gemini** turns pasted Gemini answers into pages.
 - **Building the map:** draw rooms (**B**) that merge into one floor with walls, carve (**X**),
   paint terrain (**G**), add walls (**W**), doors (**Q**) and lights (**L**). Props are in
   **Assets → Props** (or upload your own, animated ones too). **Map → Generate** makes a
@@ -49,5 +53,6 @@ where your players join your battle maps from their own devices.
 ## Learn more
 
 - [Dungeons & Dragons](../guide/dnd.md)
+- [Gemini](../guide/gemini.md)
 - [Battle maps](../guide/battlemap.md)
 - [The table](../guide/table.md)

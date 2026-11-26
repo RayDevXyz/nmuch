@@ -583,3 +583,6 @@ input.cs-stat-value:focus { outline: 1px solid var(--dnd-gold); }
 .sc-journal { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .sc-journal li { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14px; }
 .sc-journal small { color: #85765c; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+/* Gemini's row on a campaign page */
+.cp-gemini { margin-top: -4px; }
+.cp-gemini-label { display: inline-flex; align-items: center; gap: 6px; padding: 0 4px; color: var(--dnd-accent, #c9a45c); font-family: var(--dnd-title, serif); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }

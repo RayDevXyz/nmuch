@@ -24,6 +24,12 @@ time; the right panel lists them under **Shortcuts**, and **Ctrl /** shows them 
 | **Ctrl B, I, U, E** | Bold, italic, underline, inline code |
 | **Ctrl Shift S** | Strikethrough |
 | **Ctrl Z**, **Ctrl Shift Z** | Undo, redo |
+
+> [!NOTE]
+> In a browser, **Ctrl N**, **Ctrl Shift N**, **Ctrl W** and **Ctrl Tab** belong to the browser:
+> no website can use them. Use **Alt** instead: **Alt N** (new page), **Alt Shift N** (from a
+> template), **Alt W** (close tab), **Alt ]** and **Alt [** (next and previous tab). They work in
+> the desktop app too. **Ctrl /** shows the ones that apply where you are.
 | `[[`, `((`, `/`, `#` | Link a page, link a block, insert a block, a tag |
 
 ## Try it

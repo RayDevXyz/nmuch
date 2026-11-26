@@ -224,6 +224,19 @@ pub(crate) fn dispatch(
             ok(core.dnd_set_sources(sources).map_err(e)?)
         }
         "dndImageSource" => ok(core.dnd_image_source().map_err(e)?),
+        "geminiStatus" => ok(core.gemini_status().map_err(e)?),
+        "geminiSetKey" => {
+            #[derive(Deserialize)]
+            struct A {
+                #[serde(default)]
+                key: Option<String>,
+                #[serde(default)]
+                model: Option<String>,
+            }
+            let A { key, model } = args(a)?;
+            core.set_gemini(key.as_deref(), model.as_deref()).map_err(e)?;
+            ok(core.gemini_status().map_err(e)?)
+        }
         "dndSetImageSource" => {
             let d: DndArgs = args(a)?;
             ok(core.dnd_set_image_source(&d.url).map_err(e)?)

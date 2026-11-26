@@ -9,6 +9,7 @@ import { QuickFind } from './components/QuickFind'
 import { HelpModal } from './components/HelpModal'
 import { SyncDialog } from './sync/SyncDialog'
 import { AccountHost } from './components/TopBar'
+import { GeminiHost } from './gemini/GeminiDialog'
 import { openTemplateDialog, TemplateDialog } from './templates/TemplateDialog'
 import { CalloutStyleMenu } from './callouts/CalloutStyle'
 import { LinkDatabaseDialog } from './database/LinkDatabase'
@@ -95,6 +96,9 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // A browser keeps Ctrl N, Ctrl W and Ctrl Tab for itself (no web page gets them), so the
+      // tab and page shortcuts also work with Alt: Alt N, Alt Shift N, Alt W, Alt ] and Alt [.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && altShortcut(e)) return
       const mod = e.ctrlKey || e.metaKey
       if (!mod) return
       const k = e.key.toLowerCase()
@@ -143,6 +147,37 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  /** Alt versions of the shortcuts a browser keeps (matched by key position, so Option works on a Mac). */
+  function altShortcut(e: KeyboardEvent): boolean {
+    const s = getState()
+    const next = (by: number) => {
+      if (s.tabs.length < 2 || !s.activeId) return
+      const i = s.tabs.indexOf(s.activeId)
+      setState({ activeId: s.tabs[(i + by + s.tabs.length) % s.tabs.length] })
+    }
+    switch (e.code) {
+      case 'KeyN':
+        if (e.shiftKey) openTemplateDialog({ parentId: null })
+        else createPage({ open: 'tab' })
+        break
+      case 'KeyW':
+        if (!s.activeId) return false
+        closeTab(s.activeId)
+        break
+      case 'BracketRight':
+        next(1)
+        break
+      case 'BracketLeft':
+        next(-1)
+        break
+      default:
+        return false
+    }
+    e.preventDefault()
+    e.stopPropagation()
+    return true
+  }
+
   return (
     <main className={`workspace theme-${theme} fs-${fontSize} ${narrow ? 'is-narrow' : ''}`} style={themeStyle}>
       <div className="app-shell">
@@ -167,6 +202,7 @@ export default function App() {
       {importDialog && <ImportDialog />}
       <SyncDialog />
       <AccountHost />
+      <GeminiHost />
       <TemplateDialog />
       <ParaDialogs />
       <PublishHost />

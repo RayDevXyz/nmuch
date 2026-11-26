@@ -1,6 +1,9 @@
+import { openGemini } from '../gemini/GeminiDialog'
+import { campaignOf } from '../dnd/hub'
+import { tabKey } from '../lib/storage'
 import { useRef, useState } from 'react'
 import { showsCanvas, useRoles } from '../dnd/api'
-import { Archive, ArchiveRestore, ChevronRight, Search, FileStack, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, BookmarkCheck, Palette, Plus, Shapes, Star, Table2, Trash2, X } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronRight, Search, FileStack, ClipboardCopy, Copy, FilePlus2, FileText, Maximize2, Minimize2, MoreHorizontal, BookmarkCheck, Palette, Plus, Shapes, Star, Table2, Trash2, X, Sparkles } from 'lucide-react'
 import { ancestors, closeTab, convertPage, createPage, duplicatePage, openPage, setArchived, toggleFavorite, trashPage } from '../state/actions'
 import { getState, setState, toast, useApp } from '../state/store'
 import { Editor, pageMarkdown } from '../editor/Editor'
@@ -138,7 +141,7 @@ export function EditorPanel() {
           {tabs.map((id) => (
             <Tab key={id} id={id} />
           ))}
-          <button className="new-tab" aria-label="New page in new tab" title="New page (Ctrl N)" onClick={() => createPage({ open: 'tab' })}>
+          <button className="new-tab" aria-label="New page in new tab" title={`New page (${tabKey('N')})`} onClick={() => createPage({ open: 'tab' })}>
             <Plus />
           </button>
         </div>
@@ -244,6 +247,7 @@ export function EditorPanel() {
               { label: 'Page theme…', icon: <Palette size={14} />, onSelect: () => setTimeout(openPageThemeMenu) },
               { label: 'Save to Burrow…', icon: <BookmarkCheck size={14} />, onSelect: () => openSaveToBurrow(page.id) },
               ...(campaigns().length ? [{ label: 'Publish to table…', icon: <ScrollText size={14} />, onSelect: () => openPublish(page.id) }] : []),
+              ...(page.kind !== 'database' ? [{ label: 'Write with Gemini…', icon: <Sparkles size={14} />, onSelect: () => openGemini({ mode: 'expand', pageId: page.id, campaignId: campaignOf(page.id) }) }] : []),
               { label: 'Add sub-page', icon: <Plus size={14} />, onSelect: () => createPage({ parentId: page.id }) },
               { label: 'Add sub-page from template…', icon: <FileStack size={14} />, onSelect: () => openTemplateDialog({ parentId: page.id }) },
               ...(page.databaseId

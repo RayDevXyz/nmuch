@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Eye, EyeOff, FlipHorizontal2, Lock, Unlock, Wand2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Eye, EyeOff, FlipHorizontal2, Lock, Sparkles, Unlock, Wand2 } from 'lucide-react'
 import { useState } from 'react'
 import type * as Y from 'yjs'
 import { addElement, CANVAS, deleteItems, type AreaEl, type Element, type Light, type LightEl, type MapLayer, type PropEl, type WallEl } from '../edgeless/model'
@@ -10,6 +10,23 @@ import { FLOORS, LAYERS, layerOf, OPENINGS, TERRAIN, THEMES, type MapSettings } 
 import { builtinById } from './props'
 import { LIGHT_PRESETS } from './tools'
 import { BIOMES, generate, type Biome, type Size } from './generate'
+import { askJSON } from '../gemini/api'
+import { campaignContext } from '../gemini/context'
+import { titlesIn, waitFor, writeInto } from '../gemini/create'
+import { openGemini } from '../gemini/GeminiDialog'
+import { MAP_JSON, SYSTEM } from '../gemini/prompts'
+import { createPage } from '../state/actions'
+import { getState } from '../state/store'
+
+interface MapPlan {
+  biome: Biome
+  size: Size
+  theme: MapSettings['theme']
+  ambient: 'day' | 'dusk' | 'dark'
+  title: string
+  overview: string
+  areas: { label?: string; name: string; text: string }[]
+}
 import { updateElements } from '../edgeless/model'
 
 /**
@@ -319,23 +336,75 @@ function LightEditor({ doc, el }: { doc: Y.Doc; el: PropEl | LightEl }) {
 }
 
 /** Make a map: a dungeon, a wilderness, a village, a town, a tavern, a camp or a ship. */
-export function GenerateSection({ doc, settings, elements, viewCenter, onDone }: { doc: Y.Doc; settings: SceneSettings; elements: Element[]; viewCenter: () => [number, number]; onDone: (ids: string[]) => void }) {
+export function GenerateSection({
+  doc,
+  settings,
+  elements,
+  viewCenter,
+  onDone,
+  onSettings,
+  pageId,
+}: {
+  doc: Y.Doc
+  settings: SceneSettings
+  elements: Element[]
+  viewCenter: () => [number, number]
+  onDone: (ids: string[]) => void
+  onSettings: (p: Partial<SceneSettings>) => void
+  pageId: string
+}) {
+  const [desc, setDesc] = useState('')
+  const [asking, setAsking] = useState(false)
   const [biome, setBiome] = useState<Biome>('dungeon')
   const [size, setSize] = useState<Size>('medium')
   const [seed, setSeed] = useState(() => String(Math.floor(Math.random() * 1e6)))
   const drawn = elements.filter((e) => e.type === 'area' || e.type === 'wall' || e.type === 'prop' || e.type === 'light' || (e.type === 'text' && e.layer === 'gm' && e.group?.startsWith('gen')))
-  const run = (replace: boolean) => {
-    if (replace && drawn.length && !confirm(`Replace the ${drawn.length} drawn items on this map with a new ${BIOMES.find((b) => b.id === biome)?.label.toLowerCase()}?`)) return
+  const run = (replace: boolean, as: { biome?: Biome; size?: Size; quiet?: boolean } = {}) => {
+    const b = as.biome ?? biome
+    const sz = as.size ?? size
+    if (replace && drawn.length && !as.quiet && !confirm(`Replace the ${drawn.length} drawn items on this map with a new ${BIOMES.find((x) => x.id === b)?.label.toLowerCase()}?`)) return
     if (replace) deleteItems(doc, new Set(drawn.map((e) => e.id)))
     const [cx, cy] = viewCenter()
-    const made = generate(biome, { size, seed: Number(seed) || 1, grid: settings.grid.size, cx, cy })
+    const made = generate(b, { size: sz, seed: Number(seed) || 1, grid: settings.grid.size, cx, cy })
     const ids: string[] = []
     doc.transact(() => {
       for (const el of made) ids.push(addElement(doc, el))
     }, CANVAS)
     onDone(ids)
     setSeed(String(Math.floor(Math.random() * 1e6)))
-    toast(`Made a ${BIOMES.find((b) => b.id === biome)?.label.toLowerCase()}: every room, wall and prop can be edited`)
+    if (!as.quiet) toast(`Made a ${BIOMES.find((x) => x.id === b)?.label.toLowerCase()}: every room, wall and prop can be edited`)
+  }
+  /** Gemini reads the description: the kind of map, its look and light, and a key to its areas. */
+  const describe = async () => {
+    if (!desc.trim()) return
+    if (drawn.length && !confirm(`Replace the ${drawn.length} drawn items on this map with the place you describe?`)) return
+    setAsking(true)
+    try {
+      const campaignId = getState().pages[pageId]?.parentId ?? null
+      const ctx = campaignId ? await campaignContext(campaignId, 200).catch(() => '') : ''
+      const plan = await askJSON<MapPlan>(SYSTEM, `${ctx ? `Campaign notes:\n${ctx}\n\n` : ''}Design a battle map for this place: ${desc.trim()}\n\n${MAP_JSON}`)
+      const b = BIOMES.some((x) => x.id === plan.biome) ? plan.biome : 'dungeon'
+      const sz: Size = plan.size === 'small' || plan.size === 'large' ? plan.size : 'medium'
+      setBiome(b)
+      setSize(sz)
+      run(true, { biome: b, size: sz, quiet: true })
+      onSettings({
+        ...(THEMES.some((t) => t.id === plan.theme) ? { map: { ...settings.map, theme: plan.theme } } : {}),
+        ...(['day', 'dusk', 'dark'].includes(plan.ambient) ? { lighting: { ...settings.lighting, ambient: plan.ambient } } : {}),
+      })
+      // The map's key, under the map: what's in each area.
+      const md = `${plan.overview ?? ''}\n\n## Areas\n\n${(plan.areas ?? []).map((a) => `### ${a.label ? `${a.label}. ` : ''}${a.name}\n\n${a.text}`).join('\n\n')}`
+      const key = await createPage({ parentId: pageId, title: `${plan.title || 'Map'} – key`, icon: '🗝️', open: false })
+      await waitFor(key.id)
+      await writeInto(key.id, md, 'replace', campaignId ? titlesIn(campaignId) : new Map())
+      toast(`Made “${plan.title || 'the map'}” as a ${BIOMES.find((x) => x.id === b)?.label.toLowerCase()}, with its key as a page under the map`)
+    } catch (e) {
+      const m = String(e).replace(/^Error:\s*/, '')
+      if (/Gemini API key/.test(m)) openGemini({ mode: 'settings' })
+      toast(m)
+    } finally {
+      setAsking(false)
+    }
   }
   return (
     <section className="sc-sec">
@@ -377,6 +446,17 @@ export function GenerateSection({ doc, settings, elements, viewCenter, onDone }:
         )}
       </div>
       <p className="sc-hint">{BIOMES.find((b) => b.id === biome)?.hint} What it makes is ordinary rooms, walls, doors and props: change anything afterwards.</p>
+      <label className="bm-describe">
+        <span>
+          <Sparkles size={12} /> Or describe it to Gemini
+        </span>
+        <textarea className="sc-input" rows={3} placeholder="A flooded dwarven shrine, lit by green fungus, guarded by a cult of the Deep Mother…" value={desc} onChange={(e) => setDesc(e.target.value)} />
+      </label>
+      <div className="sc-row">
+        <button className="sc-btn" disabled={asking || !desc.trim()} onClick={() => void describe()} title="Gemini picks the kind of map, its style and light, and writes a key to its areas (a page under the map)">
+          {asking ? 'Gemini is designing…' : 'Design it with Gemini'}
+        </button>
+      </div>
     </section>
   )
 }

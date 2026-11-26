@@ -22,6 +22,7 @@
 - [PARA](guide/para.md): an Inbox to capture into, and Projects, Areas, Resources and an Archive to sort it into
 - [Courses](guide/courses.md): follow a course from a folder of lessons and track your progress
 - [Dungeons & Dragons](guide/dnd.md): the compendium, campaigns, characters and world maps
+- [Gemini](guide/gemini.md): build your D&D world with Google Gemini: NPCs, places, sessions, maps, or paste from the Gemini app
 - [Battle maps](guide/battlemap.md): draw, light and generate maps: rooms, walls, doors, props, line of sight
 - [The table](guide/table.md): battle maps your players join from their own devices
 

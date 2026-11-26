@@ -1,3 +1,4 @@
+import { tabKey } from '../lib/storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Archive,
@@ -301,7 +302,7 @@ function HomeView({ childMap }: { childMap: Map<string | null, Page[]> }) {
           >
             <Search />
           </IconButton>
-          <IconButton label="New page (Ctrl N)" onClick={() => createPage({ open: 'replace' })}>
+          <IconButton label={`New page (${tabKey('N')})`} onClick={() => createPage({ open: 'replace' })}>
             <Plus />
           </IconButton>
         </div>
@@ -399,7 +400,7 @@ function TemplatesView({ childMap }: { childMap: Map<string | null, Page[]> }) {
           </div>
         )}
         <button className="tpl-side-use" onClick={() => openTemplateDialog({ parentId: null })}>
-          <FileStack size={14} /> <span>New page from a template</span> <kbd>Ctrl Shift N</kbd>
+          <FileStack size={14} /> <span>New page from a template</span> <kbd>{tabKey('Shift N')}</kbd>
         </button>
         {folder && (
           <button className="tpl-side-link" onClick={() => openPage(folder.id, 'replace')}>

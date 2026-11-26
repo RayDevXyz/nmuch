@@ -1077,6 +1077,8 @@ export function Canvas({ pageId, doc, notes: noteRefs, host, spellcheck, onEdito
       doc.transact(() => (updateElements(doc, els), setNoteLayout(doc, ns)), CANVAS)
       return
     }
+    // Alt+letter belongs to the app (Alt N: new page…), not to the drawing tools.
+    if (e.altKey) return
     const keys: Record<string, Tool> = { v: 'select', h: 'hand', n: 'note', r: 'rect', o: 'ellipse', d: 'diamond', t: 'text', c: 'connector', f: 'frame', i: 'image', p: 'pin', ...(scene ? ({ k: 'token', e: 'reveal', b: 'room', x: 'carve', g: 'paint', w: 'wall', q: 'door', l: 'light' } as const) : {}) }
     const k = keys[e.key.toLowerCase()]
     if (k) setTool(k)
